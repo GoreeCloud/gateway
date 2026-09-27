@@ -16,3 +16,7 @@ This repository-local record is the authoritative Git-native chronological chang
 - Preserved Caddy as production-authoritative. No source or documentation change in this record authorizes listener transfer, production deployment, Release Candidate, Production Acceptance, or Stable status.
 
 Exact candidate, merge, and merged-main workflow evidence is authoritative in GitHub rather than duplicated here as moving validation identifiers.
+
+## 2026-09-27
+
+- Strengthened the read-only Caddy/VPS preflight to capture the running image ID, available repository digests, and bounded OCI revision/version/created/source labels for migration provenance without querying provider credentials or mutating production state.
