@@ -254,9 +254,12 @@ if [[ -n "$image_id" ]]; then
   echo "container_image_repo_digests=${repo_digests:-unavailable}"
   for label in org.opencontainers.image.revision org.opencontainers.image.version org.opencontainers.image.created org.opencontainers.image.source; do
     value="$(docker image inspect --format "{{ index .Config.Labels \"$label\" }}" "$image_id" 2>/dev/null || true)"
+    if [[ -z "$value" || "$value" == "<no value>" || "$value" == "<nil>" ]]; then
+      value="unavailable"
+    fi
     key="${label#org.opencontainers.image.}"
     key="${key//./_}"
-    echo "container_image_oci_${key}=${value:-unavailable}"
+    echo "container_image_oci_${key}=$value"
   done
 else
   echo "container_image_repo_digests=unavailable"
