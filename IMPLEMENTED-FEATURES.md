@@ -25,7 +25,7 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 - configuration validation, recovery, rollback, parity fingerprints, and migration-source identity contracts;
 - isolated runtime and sustained-load/backpressure acceptance harnesses;
 - privacy-minimized Infrastructure Status and publication-preflight contracts;
-- a read-only target-Caddy/VPS preflight collector that does not mutate Caddy, Docker, firewall, DNS, certificates, or listeners;
+- a read-only target-Caddy/VPS preflight collector that does not mutate Caddy, Docker, firewall, DNS, certificates, or listeners, including image ID, repository-digest, and bounded OCI provenance-label evidence;
 - provider-neutral DNS-01 challenge boundaries and a bounded Porkbun TXT adapter;
 - RFC 8555 order-based DNS-01 renewal issuance with exact propagation/cleanup handling, fresh certificate-key/CSR generation, and independent staging/activation boundaries;
 - encrypted ACME account-key persistence, explicit registration/TOS controls, protected wrapping-key loading, offline envelope restore, transactional rollover preparation/execution, read-only old/new-key authority probing, and explicit recovery;

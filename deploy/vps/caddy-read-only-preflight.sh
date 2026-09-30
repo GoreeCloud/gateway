@@ -247,7 +247,27 @@ echo
 echo "=== Caddy Container ==="
 echo "container_name=$container"
 echo "container_image=$(docker inspect --format '{{.Config.Image}}' "$container" 2>/dev/null || echo unavailable)"
-echo "container_image_id=$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || echo unavailable)"
+image_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true)"
+echo "container_image_id=${image_id:-unavailable}"
+if [[ -n "$image_id" ]]; then
+  repo_digests="$(docker image inspect --format '{{json .RepoDigests}}' "$image_id" 2>/dev/null || true)"
+  echo "container_image_repo_digests=${repo_digests:-unavailable}"
+  for label in org.opencontainers.image.revision org.opencontainers.image.version org.opencontainers.image.created org.opencontainers.image.source; do
+    value="$(docker image inspect --format "{{ index .Config.Labels \"$label\" }}" "$image_id" 2>/dev/null || true)"
+    if [[ -z "$value" || "$value" == "<no value>" || "$value" == "<nil>" ]]; then
+      value="unavailable"
+    fi
+    key="${label#org.opencontainers.image.}"
+    key="${key//./_}"
+    echo "container_image_oci_${key}=$value"
+  done
+else
+  echo "container_image_repo_digests=unavailable"
+  echo "container_image_oci_revision=unavailable"
+  echo "container_image_oci_version=unavailable"
+  echo "container_image_oci_created=unavailable"
+  echo "container_image_oci_source=unavailable"
+fi
 echo "container_state=$(docker inspect --format '{{.State.Status}}' "$container" 2>/dev/null || echo unavailable)"
 echo "restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container" 2>/dev/null || echo unavailable)"
 echo "network_mode=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container" 2>/dev/null || echo unavailable)"
