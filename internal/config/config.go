@@ -27,8 +27,9 @@ type Route struct {
 	ServiceID  string   `json:"service_id"`
 	Hostname   string   `json:"hostname"`
 	PathPrefix string   `json:"path_prefix"`
-	Methods    []string `json:"methods"`
-	Exposure   string   `json:"exposure"`
+	Methods            []string `json:"methods"`
+	Exposure           string   `json:"exposure"`
+	AllowedClientCIDRs []string `json:"allowed_client_cidrs,omitempty"`
 	Enabled    bool     `json:"enabled"`
 	TLS        RouteTLS `json:"tls"`
 }
@@ -130,6 +131,9 @@ func (c *Config) Validate() error {
 		}
 		if r.Hostname == "" {
 			return fmt.Errorf("route %q hostname is required", r.ID)
+		}
+		if err := validateRouteExposure(r); err != nil {
+			return fmt.Errorf("route %q access policy: %w", r.ID, err)
 		}
 		if r.PathPrefix == "" {
 			r.PathPrefix = "/"
