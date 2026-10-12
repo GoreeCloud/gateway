@@ -15,8 +15,8 @@ import (
 func TestCachedHealthFreshnessBoundary(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 	cases := []struct {
-		name string
-		at time.Time
+		name  string
+		at    time.Time
 		fresh bool
 	}{
 		{"current", now, true},
@@ -46,7 +46,7 @@ func TestStaleHealthyBackendIsReprobedAndExcluded(t *testing.T) {
 	defer h.Close()
 	h.healthMu.Lock()
 	h.healthState[backend.ID] = cachedHealth{
-		result: health.Result{BackendID: backend.ID, Healthy: true},
+		result:    health.Result{BackendID: backend.ID, Healthy: true},
 		checkedAt: time.Now().Add(-2 * healthEvidenceTTL),
 	}
 	h.healthMu.Unlock()
@@ -59,13 +59,13 @@ func TestStaleHealthyBackendIsReprobedAndExcluded(t *testing.T) {
 func TestStatusSnapshotStaleHealthIsUnknown(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 	h := New(&config.Config{
-		Routes: []config.Route{{ID: "route", Enabled: true}},
+		Routes:   []config.Route{{ID: "route", Enabled: true}},
 		Backends: []config.Backend{{ID: "backend", Enabled: true}},
 	})
 	defer h.Close()
 	h.healthMu.Lock()
 	h.healthState["backend"] = cachedHealth{
-		result: health.Result{BackendID: "backend", Healthy: true},
+		result:    health.Result{BackendID: "backend", Healthy: true},
 		checkedAt: now.Add(-healthEvidenceTTL),
 	}
 	h.healthMu.Unlock()
