@@ -38,6 +38,7 @@
           "path_prefix": {"type": "string", "pattern": "^/"},
           "methods": {"type": "array", "uniqueItems": true, "items": {"enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]}},
           "exposure": {"enum": ["internal", "private", "restricted-public", "public"]},
+          "allowed_client_cidrs": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 3, "maxLength": 128}},
           "enabled": {"type": "boolean"},
           "tls": {
             "type": "object",
