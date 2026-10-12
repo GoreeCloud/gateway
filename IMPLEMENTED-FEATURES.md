@@ -38,6 +38,8 @@ PR #9 exact-head validation, merge evidence, and merged-main workflow results ar
 
 The unmerged network-hardening candidate marks only 2xx backend health responses as healthy and does not follow redirect responses to another destination. A focused `httptest` regression covers successful, failed, and redirecting health endpoints and confirms that a redirect target is not contacted. Local Go 1.27.1 `go test ./...` passed. This is **candidate-only source evidence**, not accepted `main`, target-runtime verification, deployment, or a production availability claim.
 
+The candidate also raises the Go toolchain floor from 1.27.1 to 1.27.2, which remediates the nine reachable standard-library advisories detected by the Gateway vulnerability workflow at the prior exact head. This requires fresh exact-head CI evidence; the earlier failed vulnerability run is not accepted evidence of remediation.
+
 ## Explicitly not established
 
 The integrated Development source does **not** establish:
