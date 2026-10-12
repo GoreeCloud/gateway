@@ -34,6 +34,10 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 
 PR #9 exact-head validation, merge evidence, and merged-main workflow results are authoritative in GitHub. Repository records must not duplicate moving candidate SHAs as long-lived feature authority.
 
+## Development candidate — health-probe redirect boundary (October 12, 2026)
+
+The unmerged network-hardening candidate marks only 2xx backend health responses as healthy and does not follow redirect responses to another destination. A focused `httptest` regression covers successful, failed, and redirecting health endpoints and confirms that a redirect target is not contacted. Local Go 1.27.1 `go test ./...` passed. This is **candidate-only source evidence**, not accepted `main`, target-runtime verification, deployment, or a production availability claim.
+
 ## Explicitly not established
 
 The integrated Development source does **not** establish:
