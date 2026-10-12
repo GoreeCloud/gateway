@@ -53,6 +53,20 @@ Parsers and import plans for approved Caddyfile, Traefik dynamic/static configur
 
 Everkeep integration covers configuration export, versioned snapshots, certificate metadata required for recovery, restore validation, migration packages, rollback state, and documented recovery boundaries. Private keys and reusable credentials remain protected sensitive material and are not embedded in ordinary exports.
 
+## GoreeCloud Coordinated Networking Platform
+
+**Owner designation (2026-10-12):** GoreeCloud Gateway, GoreeCloud VPN, and GoreeCloud DNS together form the **GoreeCloud Coordinated Networking Platform** for GoreeCloud.
+
+This is a coordinated family of independently maintained and independently authoritative products:
+
+- **GoreeCloud Gateway** owns application-level HTTP/HTTPS ingress, reverse proxying, TLS termination, routing, and approved service publication.
+- **GoreeCloud VPN** owns encrypted private connectivity, approved remote access, device-to-device/network reachability, and VPN access policy.
+- **GoreeCloud DNS** owns DNS resolution, filtering, DNS policies, and DNS-based name and service discovery.
+
+The products should cooperate through documented interfaces and explicit policy and ownership boundaries, including private-service discovery, intended exposure classification, access context, hostname publication, and operational signals. Coordination must not silently make a private service public, override access policy, transfer authority between products, or require one product to take over another's responsibility. GoreeCloud Network/Conduit and other platform-system responsibilities remain distinct unless their authoritative specifications establish otherwise.
+
+**Lifecycle integrity:** This designation is an owner-defined product-architecture relationship, not evidence that these cross-product integrations are fully implemented, deployed, production-qualified, or Stable. All current Gateway migration and Caddy production-authority restrictions still apply.
+
 ## Cross-product integration
 
 - **Beacon / GoreeCloud DNS:** hostname and DNS publication state; DNS-01 adapter contracts.
