@@ -240,6 +240,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		http.NotFound(w, req)
 		return
 	}
+	if !permitsRouteClient(match.Route, clientAddress) {
+		// Avoid disclosing that a private or administrative route exists.
+		http.NotFound(w, req)
+		return
+	}
 
 	candidates := h.healthyCandidates(req.Context(), match.Backends)
 	if len(candidates) == 0 {
