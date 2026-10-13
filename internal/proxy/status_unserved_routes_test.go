@@ -53,3 +53,11 @@ func TestGoreeCloudUnservedRouteWithoutUsableBackendsHasSpecificReason(t *testin
 		t.Fatalf("incorrect unserved route status: %+v", got)
 	}
 }
+
+func TestGoreeCloudUnservedRouteRemainsVisibleWhileOtherHealthUnknown(t *testing.T) {
+	status := RuntimeStatus{Routes: 2, UnservedRoutes: 1, Backends: 1, Unknown: 1}
+	state, reason := deriveAvailability(status)
+	if state != AvailabilityUnknown || reason != AvailabilityReasonUnservedRoutes {
+		t.Fatalf("known unserved route hidden by unknown backend health: (%q, %q)", state, reason)
+	}
+}

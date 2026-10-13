@@ -126,6 +126,9 @@ func deriveAvailability(status RuntimeStatus) (string, string) {
 	// An unobserved backend might be healthy. With no known-healthy backend,
 	// report uncertainty rather than claiming all routes are unavailable.
 	if status.HealthyBackends == 0 && status.Unknown > 0 {
+		if status.UnservedRoutes > 0 {
+			return AvailabilityUnknown, AvailabilityReasonUnservedRoutes
+		}
 		return AvailabilityUnknown, AvailabilityReasonHealthNotObserved
 	}
 	if status.UnservedRoutes > 0 && status.HealthyBackends > 0 {
