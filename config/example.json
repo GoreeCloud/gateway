@@ -16,6 +16,7 @@
       "path_prefix": "/",
       "methods": ["GET", "HEAD"],
       "exposure": "private",
+      "allowed_client_cidrs": ["100.64.0.0/10"],
       "enabled": false,
       "tls": {
         "mode": "required",
