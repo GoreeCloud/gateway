@@ -37,7 +37,7 @@ func reloadConfig(certPath, keyPath string) *config.Config {
 		Services: []config.Service{{ID: "svc", BackendIDs: []string{"backend"}}},
 		Backends: []config.Backend{{ID: "backend", URL: "http://127.0.0.1:8080", Enabled: true}},
 		CertificateProfiles: []config.CertificateProfile{{ID: "primary", CertificateFile: certPath, PrivateKeyFile: keyPath, Enabled: true}},
-		Routes: []config.Route{{ID: "route", ServiceID: "svc", Hostname: "gateway.example.test", PathPrefix: "/", Enabled: true, TLS: config.RouteTLS{Mode: "required", CertificateProfile: "primary"}}},
+		Routes: []config.Route{{ID: "route", ServiceID: "svc", Hostname: "gateway.example.test", PathPrefix: "/", Exposure: "internal", Enabled: true, TLS: config.RouteTLS{Mode: "required", CertificateProfile: "primary"}}},
 	}
 }
 
