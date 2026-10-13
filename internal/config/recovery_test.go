@@ -133,7 +133,7 @@ func writeRecoveryTestConfig(t *testing.T, path, hostname string) {
 	data := []byte(`{
   "schema": "goreecloud-gateway-config/v1",
   "services": [{"id":"svc","name":"Service","backend_ids":["backend"]}],
-  "routes": [{"id":"route","service_id":"svc","hostname":"` + hostname + `","path_prefix":"/","methods":["GET"],"exposure":"private","enabled":true,"tls":{"mode":"disabled"}}],
+  "routes": [{"id":"route","service_id":"svc","hostname":"` + hostname + `","path_prefix":"/","methods":["GET"],"exposure":"private","allowed_client_cidrs":["10.0.0.0/8"],"enabled":true,"tls":{"mode":"disabled"}}],
   "backends": [{"id":"backend","url":"http://127.0.0.1:18081","enabled":true,"health_path":"/health"}],
   "certificate_profiles": []
 }`)
