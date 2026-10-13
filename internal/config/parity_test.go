@@ -120,7 +120,7 @@ func testParityConfig() *Config {
 		Routes: []Route{
 			{
 				ID: "route-a", ServiceID: "service-a", Hostname: "Example.GoreeCloud.Invalid.", PathPrefix: "/api",
-				Methods: []string{"post", "GET"}, Exposure: "restricted-public", Enabled: true,
+				Methods: []string{"post", "GET"}, Exposure: "restricted-public", AllowedClientCIDRs: []string{"203.0.113.0/24"}, Enabled: true,
 				TLS: RouteTLS{Mode: "required", CertificateProfile: "tls-a"},
 			},
 		},
