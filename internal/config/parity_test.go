@@ -104,6 +104,25 @@ func TestValidateConfigParityEvidenceRejectsMismatchAndCutover(t *testing.T) {
 	}
 }
 
+func TestConfigParityFingerprintChangesWithNetworkAccess(t *testing.T) {
+	cfg := testParityConfig()
+	initial, err := ConfigParityFingerprint(cfg)
+	if err != nil { t.Fatal(err) }
+	cfg.Routes[0].AllowedClientCIDRs = []string{"198.51.100.0/24"}
+	changed, err := ConfigParityFingerprint(cfg)
+	if err != nil { t.Fatal(err) }
+	if changed == initial { t.Fatal("access policy change did not change migration fingerprint") }
+
+	cfg.Routes[0].AllowedClientCIDRs = []string{"203.0.113.0/24", "198.51.100.0/24"}
+	first, err := ConfigParityFingerprint(cfg)
+	if err != nil { t.Fatal(err) }
+	cfg.Routes[0].AllowedClientCIDRs[0], cfg.Routes[0].AllowedClientCIDRs[1] =
+		cfg.Routes[0].AllowedClientCIDRs[1], cfg.Routes[0].AllowedClientCIDRs[0]
+	second, err := ConfigParityFingerprint(cfg)
+	if err != nil { t.Fatal(err) }
+	if first != second { t.Fatal("CIDR list ordering changed migration fingerprint") }
+}
+
 func testParityConfig() *Config {
 	return &Config{
 		Schema: "goreecloud-gateway-config/v1",
