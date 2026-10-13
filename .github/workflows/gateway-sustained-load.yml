@@ -18,13 +18,14 @@ jobs:
       GOREECLOUD_GATEWAY_SOURCE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Check out exact source
-        uses: actions/checkout@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.GOREECLOUD_GATEWAY_SOURCE_REVISION }}
+          persist-credentials: false
       - name: Verify exact source
         run: test "$(git rev-parse HEAD)" = "$GOREECLOUD_GATEWAY_SOURCE_REVISION"
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
       - name: Build exact Gateway artifact
@@ -36,7 +37,7 @@ jobs:
             --evidence /tmp/goreecloud-gateway-sustained-load-evidence.json
           python3 -m json.tool /tmp/goreecloud-gateway-sustained-load-evidence.json >/dev/null
       - name: Upload sanitized sustained-load evidence
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: gateway-isolated-sustained-load-${{ env.GOREECLOUD_GATEWAY_SOURCE_REVISION }}
           path: /tmp/goreecloud-gateway-sustained-load-evidence.json
