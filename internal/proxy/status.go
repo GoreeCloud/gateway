@@ -70,7 +70,7 @@ func (h *Handler) StatusSnapshot(now time.Time) RuntimeStatus {
 		h.healthMu.RLock()
 		healthState, ok := h.healthState[backend.ID]
 		h.healthMu.RUnlock()
-		if !ok {
+		if !ok || !healthState.freshAt(now) {
 			status.Unknown++
 			continue
 		}
