@@ -84,10 +84,10 @@ func TestDeriveAvailability(t *testing.T) {
 			wantReason: AvailabilityReasonPartialBackendHealth,
 		},
 		{
-			name:       "unavailable without any healthy backend",
+			name:       "unknown when some backends have not been observed",
 			status:     RuntimeStatus{Routes: 1, Backends: 3, Unhealthy: 2, Unknown: 1},
-			wantState:  AvailabilityUnavailable,
-			wantReason: AvailabilityReasonNoHealthyBackends,
+			wantState:  AvailabilityUnknown,
+			wantReason: AvailabilityReasonHealthNotObserved,
 		},
 	}
 
