@@ -15,7 +15,7 @@ func tlsInventoryConfig() *config.Config {
 			ID: "private-cert", Enabled: true, CertificateFile: "/run/goreecloud/certs/private.pem", PrivateKeyFile: "/run/goreecloud/certs/private-key.pem",
 		}},
 		Routes: []config.Route{{
-			ID: "route", ServiceID: "svc", Hostname: "App.GoreeCloud.com", PathPrefix: "/", Enabled: true,
+			ID: "route", ServiceID: "svc", Hostname: "App.GoreeCloud.com", PathPrefix: "/", Exposure: "internal", Enabled: true,
 			TLS: config.RouteTLS{Mode: "required", CertificateProfile: "private-cert"},
 		}},
 	}
