@@ -118,6 +118,9 @@ func deriveAvailability(status RuntimeStatus) (string, string) {
 		return AvailabilityInactive, AvailabilityReasonNoActiveRoutes
 	}
 	if status.Backends == 0 {
+		if status.UnservedRoutes > 0 {
+			return AvailabilityUnavailable, AvailabilityReasonUnservedRoutes
+		}
 		return AvailabilityUnavailable, AvailabilityReasonNoActiveBackends
 	}
 	// An unobserved backend might be healthy. With no known-healthy backend,

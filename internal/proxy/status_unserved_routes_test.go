@@ -37,3 +37,19 @@ func TestGoreeCloudActiveUnservedRouteCannotReportAllAvailable(t *testing.T) {
 		t.Fatalf("active but unserved routes were reported available: %+v", got)
 	}
 }
+
+func TestGoreeCloudUnservedRouteWithoutUsableBackendsHasSpecificReason(t *testing.T) {
+	now := time.Date(2026, 10, 13, 12, 0, 0, 0, time.UTC)
+	handler := New(&config.Config{
+		Services: []config.Service{{ID: "disabled", BackendIDs: []string{"offline"}}},
+		Routes:   []config.Route{{ID: "active", ServiceID: "disabled", Enabled: true}},
+		Backends: []config.Backend{{ID: "offline", Enabled: false}},
+	})
+	defer handler.Close()
+	got := handler.StatusSnapshot(now)
+	if got.Routes != 1 || got.UnservedRoutes != 1 || got.Backends != 0 ||
+		got.Availability != AvailabilityUnavailable ||
+		got.AvailabilityReason != AvailabilityReasonUnservedRoutes {
+		t.Fatalf("incorrect unserved route status: %+v", got)
+	}
+}
