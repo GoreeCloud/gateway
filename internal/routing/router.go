@@ -21,10 +21,7 @@ type CandidateMatch struct {
 }
 
 func ResolveCandidates(cfg *config.Config, req *http.Request) (CandidateMatch, bool) {
-	host := req.Host
-	if h, _, found := strings.Cut(host, ":"); found {
-		host = h
-	}
+	host := requestHostname(req)
 
 	var routes []config.Route
 	for _, route := range cfg.Routes {
@@ -38,7 +35,7 @@ func ResolveCandidates(cfg *config.Config, req *http.Request) (CandidateMatch, b
 
 	for _, route := range routes {
 		if !strings.EqualFold(host, route.Hostname) ||
-			!strings.HasPrefix(req.URL.Path, normalizedPrefix(route.PathPrefix)) ||
+			!PathPrefixMatches(route.PathPrefix, req.URL.Path) ||
 			!methodAllowed(route.Methods, req.Method) ||
 			!transportAllowed(route, req) {
 			continue
@@ -70,6 +67,36 @@ func Resolve(cfg *config.Config, req *http.Request) (Match, bool) {
 		return Match{}, false
 	}
 	return Match{Route: match.Route, Service: match.Service, Backend: match.Backends[0]}, true
+}
+
+// HostPathMatches checks route ownership independently of method/TLS matching.
+// The proxy uses it to enforce private path boundaries before public fallback.
+func HostPathMatches(route config.Route, req *http.Request) bool {
+	return strings.EqualFold(requestHostname(req), route.Hostname) &&
+		PathPrefixMatches(route.PathPrefix, req.URL.Path)
+}
+
+func requestHostname(req *http.Request) string {
+	host := req.Host
+	if h, _, found := strings.Cut(host, ":"); found {
+		return h
+	}
+	return host
+}
+
+// PathPrefixMatches uses path segment boundaries: /admin does not own /administrator.
+func PathPrefixMatches(prefix, path string) bool {
+	prefix = normalizedPrefix(prefix)
+	if prefix == "/" {
+		return strings.HasPrefix(path, "/")
+	}
+	if path == prefix {
+		return true
+	}
+	if strings.HasSuffix(prefix, "/") {
+		return strings.HasPrefix(path, prefix)
+	}
+	return strings.HasPrefix(path, prefix+"/")
 }
 
 func normalizedPrefix(value string) string {
