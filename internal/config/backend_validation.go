@@ -27,6 +27,9 @@ func validateBackendEndpoint(backend Backend) error {
 	if parsed.Fragment != "" {
 		return errors.New("backend URL must not contain a fragment")
 	}
+	if parsed.RawQuery != "" || parsed.ForceQuery {
+		return errors.New("backend URL must not contain a query")
+	}
 
 	healthPath := strings.TrimSpace(backend.HealthPath)
 	if healthPath == "" {
