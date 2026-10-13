@@ -34,6 +34,19 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 
 PR #9 exact-head validation, merge evidence, and merged-main workflow results are authoritative in GitHub. Repository records must not duplicate moving candidate SHAs as long-lived feature authority.
 
+## Development candidate — backend query-string rejection
+
+The branch `feature/backend-url-query-guard-20261013` tightens the
+existing configuration validation path: an upstream/backend URL containing
+a query string or even an empty query delimiter is rejected during
+`Config.Validate`, before the endpoint can be used by Gateway routing or
+health checks. Existing valid HTTP/HTTPS backend URLs remain supported.
+Regression tests cover credential-like query strings, encoded values,
+and the empty-query delimiter.
+
+This is Development source awaiting exact-head tests and review. It does not
+change production Caddy authority or authorize deployment.
+
 ## Explicitly not established
 
 The integrated Development source does **not** establish:
