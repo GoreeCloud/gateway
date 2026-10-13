@@ -11,7 +11,7 @@ import (
 func TestStatusSnapshotIsAggregateAndPrivacySafe(t *testing.T) {
 	now := time.Date(2026, time.August, 25, 12, 0, 0, 0, time.UTC)
 	handler := New(&config.Config{
-		Schema: "goreecloud-gateway-config/v1",
+		Schema:   "goreecloud-gateway-config/v1",
 		Services: []config.Service{{ID: "svc", BackendIDs: []string{"healthy", "unhealthy", "unknown"}}},
 		Routes: []config.Route{
 			{ID: "enabled", ServiceID: "svc", Hostname: "private.example", Enabled: true},
@@ -98,5 +98,32 @@ func TestDeriveAvailability(t *testing.T) {
 				t.Fatalf("deriveAvailability() = (%q, %q), want (%q, %q)", gotState, gotReason, tt.wantState, tt.wantReason)
 			}
 		})
+	}
+}
+
+func TestActiveRouteStatusExcludesUnattachedBackends(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	handler := New(&config.Config{
+		Services: []config.Service{
+			{ID: "active", BackendIDs: []string{"offline"}},
+			{ID: "unused", BackendIDs: []string{"online"}},
+		},
+		Routes: []config.Route{
+			{ID: "active", ServiceID: "active", Enabled: true},
+			{ID: "disabled", ServiceID: "unused", Enabled: false},
+		},
+		Backends: []config.Backend{
+			{ID: "offline", Enabled: true},
+			{ID: "online", Enabled: true},
+		},
+	})
+	defer handler.Close()
+	handler.healthMu.Lock()
+	handler.healthState["offline"] = cachedHealth{result: health.Result{Healthy: false}, checkedAt: now}
+	handler.healthState["online"] = cachedHealth{result: health.Result{Healthy: true}, checkedAt: now}
+	handler.healthMu.Unlock()
+	got := handler.StatusSnapshot(now)
+	if got.Backends != 1 || got.HealthyBackends != 0 || got.Unhealthy != 1 || got.Availability != AvailabilityUnavailable {
+		t.Fatalf("unrouted backend influenced availability: %+v", got)
 	}
 }

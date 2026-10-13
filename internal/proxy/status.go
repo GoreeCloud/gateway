@@ -57,13 +57,25 @@ func (h *Handler) StatusSnapshot(now time.Time) RuntimeStatus {
 	cfg := runtime.cfg
 
 	status.Services = len(cfg.Services)
+	activeServices := make(map[string]struct{}, len(cfg.Routes))
 	for _, route := range cfg.Routes {
 		if route.Enabled {
 			status.Routes++
+			activeServices[route.ServiceID] = struct{}{}
+		}
+	}
+	servingBackends := make(map[string]struct{})
+	for _, service := range cfg.Services {
+		if _, active := activeServices[service.ID]; !active {
+			continue
+		}
+		for _, backendID := range service.BackendIDs {
+			servingBackends[backendID] = struct{}{}
 		}
 	}
 	for _, backend := range cfg.Backends {
-		if !backend.Enabled {
+		_, serving := servingBackends[backend.ID]
+		if !backend.Enabled || !serving {
 			continue
 		}
 		status.Backends++
