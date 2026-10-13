@@ -132,6 +132,9 @@ func (c *Config) Validate() error {
 		if r.Hostname == "" {
 			return fmt.Errorf("route %q hostname is required", r.ID)
 		}
+		if err := validateRoutePathPrefix(r.PathPrefix); err != nil {
+			return fmt.Errorf("route %q path policy: %w", r.ID, err)
+		}
 		if err := validateRouteExposure(r); err != nil {
 			return fmt.Errorf("route %q access policy: %w", r.ID, err)
 		}
