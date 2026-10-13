@@ -19,6 +19,7 @@ const (
 	AvailabilityReasonHealthNotObserved        = "health_not_observed"
 	AvailabilityReasonAllBackendsHealthy       = "all_backends_healthy"
 	AvailabilityReasonPartialBackendHealth     = "partial_backend_health"
+	AvailabilityReasonUnservedRoutes           = "unserved_routes"
 	AvailabilityReasonNoHealthyBackends        = "no_healthy_backends"
 )
 
@@ -32,6 +33,7 @@ type RuntimeStatus struct {
 	GeneratedAt        time.Time `json:"generated_at"`
 	Services           int       `json:"services"`
 	Routes             int       `json:"routes"`
+	UnservedRoutes     int       `json:"unserved_routes,omitempty"`
 	Backends           int       `json:"backends"`
 	HealthyBackends    int       `json:"healthy_backends"`
 	Unhealthy          int       `json:"unhealthy_backends"`
@@ -57,13 +59,40 @@ func (h *Handler) StatusSnapshot(now time.Time) RuntimeStatus {
 	cfg := runtime.cfg
 
 	status.Services = len(cfg.Services)
+	activeServices := make(map[string]struct{}, len(cfg.Routes))
 	for _, route := range cfg.Routes {
 		if route.Enabled {
 			status.Routes++
+			activeServices[route.ServiceID] = struct{}{}
+		}
+	}
+	enabledBackends := make(map[string]struct{}, len(cfg.Backends))
+	for _, backend := range cfg.Backends {
+		if backend.Enabled {
+			enabledBackends[backend.ID] = struct{}{}
+		}
+	}
+	serviceHasBackend := make(map[string]bool, len(activeServices))
+	servingBackends := make(map[string]struct{})
+	for _, service := range cfg.Services {
+		if _, active := activeServices[service.ID]; !active {
+			continue
+		}
+		for _, backendID := range service.BackendIDs {
+			if _, enabled := enabledBackends[backendID]; enabled {
+				serviceHasBackend[service.ID] = true
+				servingBackends[backendID] = struct{}{}
+			}
+		}
+	}
+	for _, route := range cfg.Routes {
+		if route.Enabled && !serviceHasBackend[route.ServiceID] {
+			status.UnservedRoutes++
 		}
 	}
 	for _, backend := range cfg.Backends {
-		if !backend.Enabled {
+		_, serving := servingBackends[backend.ID]
+		if !backend.Enabled || !serving {
 			continue
 		}
 		status.Backends++
@@ -89,12 +118,21 @@ func deriveAvailability(status RuntimeStatus) (string, string) {
 		return AvailabilityInactive, AvailabilityReasonNoActiveRoutes
 	}
 	if status.Backends == 0 {
+		if status.UnservedRoutes > 0 {
+			return AvailabilityUnavailable, AvailabilityReasonUnservedRoutes
+		}
 		return AvailabilityUnavailable, AvailabilityReasonNoActiveBackends
 	}
 	// An unobserved backend might be healthy. With no known-healthy backend,
 	// report uncertainty rather than claiming all routes are unavailable.
 	if status.HealthyBackends == 0 && status.Unknown > 0 {
+		if status.UnservedRoutes > 0 {
+			return AvailabilityUnknown, AvailabilityReasonUnservedRoutes
+		}
 		return AvailabilityUnknown, AvailabilityReasonHealthNotObserved
+	}
+	if status.UnservedRoutes > 0 && status.HealthyBackends > 0 {
+		return AvailabilityDegraded, AvailabilityReasonUnservedRoutes
 	}
 	if status.HealthyBackends == status.Backends {
 		return AvailabilityAvailable, AvailabilityReasonAllBackendsHealthy

@@ -59,7 +59,8 @@ func TestStaleHealthyBackendIsReprobedAndExcluded(t *testing.T) {
 func TestStatusSnapshotStaleHealthIsUnknown(t *testing.T) {
 	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
 	h := New(&config.Config{
-		Routes:   []config.Route{{ID: "route", Enabled: true}},
+		Services: []config.Service{{ID: "service", BackendIDs: []string{"backend"}}},
+		Routes:   []config.Route{{ID: "route", ServiceID: "service", Enabled: true}},
 		Backends: []config.Backend{{ID: "backend", Enabled: true}},
 	})
 	defer h.Close()
