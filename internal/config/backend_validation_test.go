@@ -24,6 +24,10 @@ func TestBackendEndpointValidationRejectsUnsafeURLs(t *testing.T) {
 		{name: "unsupported scheme", url: "file:///tmp/backend.sock"},
 		{name: "credentials", url: "https://user:secret@service.internal.example"},
 		{name: "fragment", url: "https://service.internal.example/#admin"},
+		{name: "query", url: "https://service.internal.example/?token=secret"},
+		{name: "empty query delimiter", url: "https://service.internal.example/?"},
+		{name: "encoded query value", url: "https://service.internal.example/base?next=%2Fprivate"},
+
 		{name: "missing host", url: "https:///service"},
 	}
 	for _, tc := range tests {
