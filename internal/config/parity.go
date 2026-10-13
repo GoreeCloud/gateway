@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"sort"
+	"net/netip"
 	"strings"
 	"time"
 )
@@ -44,6 +45,7 @@ type parityRoute struct {
 	PathPrefix string   `json:"path_prefix"`
 	Methods    []string `json:"methods"`
 	Exposure   string   `json:"exposure"`
+	AllowedClientCIDRs []string `json:"allowed_client_cidrs,omitempty"`
 	Enabled    bool     `json:"enabled"`
 	TLSMode    string   `json:"tls_mode"`
 	TLSProfile string   `json:"tls_profile,omitempty"`
@@ -101,6 +103,12 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			methods = append(methods, strings.ToUpper(strings.TrimSpace(method)))
 		}
 		sort.Strings(methods)
+		allowedClientCIDRs := make([]string, 0, len(route.AllowedClientCIDRs))
+		for _, raw := range route.AllowedClientCIDRs {
+			prefix, _ := netip.ParsePrefix(raw) // Already checked by cfg.Validate.
+			allowedClientCIDRs = append(allowedClientCIDRs, prefix.Masked().String())
+		}
+		sort.Strings(allowedClientCIDRs)
 		pathPrefix := strings.TrimSpace(route.PathPrefix)
 		if pathPrefix == "" {
 			pathPrefix = "/"
@@ -112,6 +120,7 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			PathPrefix: pathPrefix,
 			Methods:    methods,
 			Exposure:   strings.TrimSpace(route.Exposure),
+			AllowedClientCIDRs: allowedClientCIDRs,
 			Enabled:    route.Enabled,
 			TLSMode:    strings.TrimSpace(route.TLS.Mode),
 			TLSProfile: strings.TrimSpace(route.TLS.CertificateProfile),
