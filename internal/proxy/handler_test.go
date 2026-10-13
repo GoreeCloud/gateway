@@ -358,6 +358,6 @@ func testConfig(backends []config.Backend, backendIDs []string) *config.Config {
 		Schema:   "goreecloud-gateway-config/v1",
 		Services: []config.Service{{ID: "svc", BackendIDs: backendIDs}},
 		Backends: backends,
-		Routes:   []config.Route{{ID: "r", ServiceID: "svc", Hostname: "app.goreecloud.com", PathPrefix: "/", Enabled: true}},
+		Routes:   []config.Route{{ID: "r", ServiceID: "svc", Hostname: "app.goreecloud.com", PathPrefix: "/", Exposure: "public", Enabled: true}},
 	}
 }
