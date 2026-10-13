@@ -32,6 +32,7 @@ type RuntimeStatus struct {
 	GeneratedAt        time.Time `json:"generated_at"`
 	Services           int       `json:"services"`
 	Routes             int       `json:"routes"`
+	UnservedRoutes     int       `json:"unserved_routes,omitempty"`
 	Backends           int       `json:"backends"`
 	HealthyBackends    int       `json:"healthy_backends"`
 	Unhealthy          int       `json:"unhealthy_backends"`
@@ -64,13 +65,28 @@ func (h *Handler) StatusSnapshot(now time.Time) RuntimeStatus {
 			activeServices[route.ServiceID] = struct{}{}
 		}
 	}
+	enabledBackends := make(map[string]struct{}, len(cfg.Backends))
+	for _, backend := range cfg.Backends {
+		if backend.Enabled {
+			enabledBackends[backend.ID] = struct{}{}
+		}
+	}
+	serviceHasBackend := make(map[string]bool, len(activeServices))
 	servingBackends := make(map[string]struct{})
 	for _, service := range cfg.Services {
 		if _, active := activeServices[service.ID]; !active {
 			continue
 		}
 		for _, backendID := range service.BackendIDs {
-			servingBackends[backendID] = struct{}{}
+			if _, enabled := enabledBackends[backendID]; enabled {
+				serviceHasBackend[service.ID] = true
+				servingBackends[backendID] = struct{}{}
+			}
+		}
+	}
+	for _, route := range cfg.Routes {
+		if route.Enabled && !serviceHasBackend[route.ServiceID] {
+			status.UnservedRoutes++
 		}
 	}
 	for _, backend := range cfg.Backends {
@@ -107,6 +123,9 @@ func deriveAvailability(status RuntimeStatus) (string, string) {
 	// report uncertainty rather than claiming all routes are unavailable.
 	if status.HealthyBackends == 0 && status.Unknown > 0 {
 		return AvailabilityUnknown, AvailabilityReasonHealthNotObserved
+	}
+	if status.UnservedRoutes > 0 && status.HealthyBackends > 0 {
+		return AvailabilityDegraded, AvailabilityReasonPartialBackendHealth
 	}
 	if status.HealthyBackends == status.Backends {
 		return AvailabilityAvailable, AvailabilityReasonAllBackendsHealthy
