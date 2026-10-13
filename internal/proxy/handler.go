@@ -235,8 +235,31 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	// Upgrade/WebSocket semantics are not destroyed by the security sanitizer.
 	SanitizeInboundForwardingHeaders(req.Header)
 
+	// A less-specific public route must never bypass a private/admin route
+	// because the request used an unsupported method or transport.
+	protectedPath := false
+	for _, route := range state.cfg.Routes {
+		if !route.Enabled || route.Exposure == "public" || !routing.HostPathMatches(route, req) {
+			continue
+		}
+		protectedPath = true
+		if !permitsRouteClient(route, clientAddress) {
+			http.NotFound(w, req)
+			return
+		}
+	}
+
 	match, ok := routing.ResolveCandidates(state.cfg, req)
 	if !ok {
+		http.NotFound(w, req)
+		return
+	}
+	if protectedPath && match.Route.Exposure == "public" {
+		http.NotFound(w, req)
+		return
+	}
+	if !permitsRouteClient(match.Route, clientAddress) {
+		// Avoid disclosing that a private or administrative route exists.
 		http.NotFound(w, req)
 		return
 	}

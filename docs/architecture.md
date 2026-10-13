@@ -38,6 +38,14 @@ Glaze UI administration and a versioned local-first API for routes, upstreams, c
 ### Gateway Migration
 Parsers and import plans for approved Caddyfile, Traefik dynamic/static configuration, and Nginx Proxy Manager exports. Migration must generate a reviewable GoreeCloud Gateway plan; it must never silently cut over production.
 
+## Source-level route exposure enforcement
+
+Routes require an explicit access classification in the configuration. In this development implementation, `internal` routes allow loopback clients only; `private` and `restricted-public` routes require reviewed `allowed_client_cidrs` and check the address selected by the trusted-proxy identity resolver; and `public` routes allow network clients but require `tls.mode=required`. An omitted/unknown classification, missing private CIDRs, wildcard /0 CIDRs, and unauthorized client requests fail closed. Restricted-public routes also require TLS.
+
+The allowlist controls application routing and health probing **inside Gateway**; it is not a replacement for host firewall rules, VPN ACLs, private listener binding, application authentication, or an owner-approved publication decision. `internal` is intentionally limited to localhost, not every RFC1918 interface. A private client range must be explicitly derived from the actual approved VPN/network deployment rather than copied from an example. Existing route configurations require reviewed migration before applying the new validation, and deployment of these changes is **not approved by these source changes**.
+
+The configuration-parity SHA-256 now incorporates normalized route CIDR grants, so changing a network access boundary invalidates prior migration parity evidence. Verify IPv4/IPv6 access from authorized and unauthorized locations before any production acceptance.
+
 ## Security and privacy
 
 - Administration binds privately by default.

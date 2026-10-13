@@ -97,6 +97,7 @@ func migrationVerifierTestConfig() *config.Config {
 				PathPrefix: "/",
 				Methods:    []string{"GET"},
 				Exposure:   "private",
+				AllowedClientCIDRs: []string{"10.0.0.0/8"},
 				Enabled:    true,
 				TLS:        config.RouteTLS{Mode: "disabled"},
 			},

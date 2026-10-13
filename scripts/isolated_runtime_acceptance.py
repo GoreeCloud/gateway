@@ -257,6 +257,7 @@ def main() -> None:
                         "path_prefix": "/",
                         "methods": ["GET", "HEAD"],
                         "exposure": "private",
+                        "allowed_client_cidrs": ["127.0.0.1/32"],
                         "enabled": True,
                         "tls": {"mode": "disabled"},
                     }
