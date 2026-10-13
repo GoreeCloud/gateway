@@ -44,6 +44,8 @@ health checks. Existing valid HTTP/HTTPS backend URLs remain supported.
 Regression tests cover credential-like query strings, encoded values,
 and the empty-query delimiter.
 
+The Development branch also raises the required Go toolchain from 1.27.1 to the October 2026 security-patched 1.27.2 because the exact-head vulnerability-reachability gate reported standard-library findings. This remediation requires fresh CI vulnerability evidence; it does not weaken the security gate.
+
 This is Development source awaiting exact-head tests and review. It does not
 change production Caddy authority or authorize deployment.
 
