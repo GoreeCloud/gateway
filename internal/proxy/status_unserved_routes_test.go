@@ -32,7 +32,8 @@ func TestGoreeCloudActiveUnservedRouteCannotReportAllAvailable(t *testing.T) {
 	handler.healthMu.Unlock()
 	got := handler.StatusSnapshot(now)
 	if got.Routes != 3 || got.UnservedRoutes != 2 || got.Backends != 1 ||
-		got.HealthyBackends != 1 || got.Availability != AvailabilityDegraded {
+		got.HealthyBackends != 1 || got.Availability != AvailabilityDegraded ||
+		got.AvailabilityReason != AvailabilityReasonUnservedRoutes {
 		t.Fatalf("active but unserved routes were reported available: %+v", got)
 	}
 }

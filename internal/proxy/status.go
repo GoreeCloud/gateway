@@ -19,6 +19,7 @@ const (
 	AvailabilityReasonHealthNotObserved        = "health_not_observed"
 	AvailabilityReasonAllBackendsHealthy       = "all_backends_healthy"
 	AvailabilityReasonPartialBackendHealth     = "partial_backend_health"
+	AvailabilityReasonUnservedRoutes           = "unserved_routes"
 	AvailabilityReasonNoHealthyBackends        = "no_healthy_backends"
 )
 
@@ -125,7 +126,7 @@ func deriveAvailability(status RuntimeStatus) (string, string) {
 		return AvailabilityUnknown, AvailabilityReasonHealthNotObserved
 	}
 	if status.UnservedRoutes > 0 && status.HealthyBackends > 0 {
-		return AvailabilityDegraded, AvailabilityReasonPartialBackendHealth
+		return AvailabilityDegraded, AvailabilityReasonUnservedRoutes
 	}
 	if status.HealthyBackends == status.Backends {
 		return AvailabilityAvailable, AvailabilityReasonAllBackendsHealthy
