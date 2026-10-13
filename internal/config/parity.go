@@ -5,8 +5,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"sort"
 	"net/netip"
+	"sort"
 	"strings"
 	"time"
 )
