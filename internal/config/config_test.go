@@ -75,6 +75,7 @@ func validConfig() *Config {
 			Hostname:   "service.goreecloud.com",
 			PathPrefix: "/",
 			Exposure:   "private",
+			AllowedClientCIDRs: []string{"10.0.0.0/8"},
 			Enabled:    true,
 			TLS: RouteTLS{
 				Mode:               "required",
