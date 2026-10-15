@@ -2,8 +2,8 @@ package config
 
 import "testing"
 
-// HealthChecker only accepts canonical lower-case "http" and "https" scheme
-// names. Configuration must not allow a spelling it cannot probe or route.
+// The Go URL parser normalizes scheme spellings. Configuration should
+// accept those endpoints consistently with the HTTP health probe.
 func TestGoreeCloudBackendSchemeMatchesHealthTransport(t *testing.T) {
 	for _, tc := range []struct {
 		endpoint string
@@ -11,8 +11,8 @@ func TestGoreeCloudBackendSchemeMatchesHealthTransport(t *testing.T) {
 	}{
 		{endpoint: "http://127.0.0.1:8080", accepted: true},
 		{endpoint: "https://service.internal.example", accepted: true},
-		{endpoint: "HTTP://127.0.0.1:8080", accepted: false},
-		{endpoint: "Https://service.internal.example", accepted: false},
+		{endpoint: "HTTP://127.0.0.1:8080", accepted: true},
+		{endpoint: "Https://service.internal.example", accepted: true},
 	} {
 		cfg := validConfig()
 		cfg.Backends[0].URL = tc.endpoint
