@@ -23,6 +23,7 @@ const (
 	maxBackendAttempts    = 3
 	maxBackendConcurrency = 128
 	healthRefreshInterval = 10 * time.Second
+	maxCachedHealthAge    = 3 * healthRefreshInterval
 )
 
 type healthChecker interface {
@@ -172,14 +173,19 @@ func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend
 	h.healthMu.Unlock()
 }
 
+func healthStateFresh(state cachedHealth, now time.Time) bool {
+	return !state.checkedAt.IsZero() && !state.checkedAt.After(now) && now.Sub(state.checkedAt) < maxCachedHealthAge
+}
+
 func (h *Handler) healthyCandidates(ctx context.Context, candidates []config.Backend) []config.Backend {
 	unknown := make([]config.Backend, 0, len(candidates))
 	healthyByID := make(map[string]bool, len(candidates))
+	now := time.Now()
 
 	h.healthMu.RLock()
 	for _, candidate := range candidates {
 		state, ok := h.healthState[candidate.ID]
-		if !ok {
+		if !ok || !healthStateFresh(state, now) {
 			unknown = append(unknown, candidate)
 			continue
 		}
@@ -192,7 +198,7 @@ func (h *Handler) healthyCandidates(ctx context.Context, candidates []config.Bac
 		h.healthMu.RLock()
 		for _, candidate := range unknown {
 			state, ok := h.healthState[candidate.ID]
-			if ok {
+			if ok && healthStateFresh(state, time.Now()) {
 				healthyByID[candidate.ID] = state.result.Healthy
 			}
 		}
