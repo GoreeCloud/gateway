@@ -106,6 +106,9 @@ func (h *Handler) Reload(cfg *config.Config) {
 }
 
 func (h *Handler) storeRuntimeState(cfg *config.Config) error {
+	if cfg == nil {
+		return errors.New("gateway configuration is unavailable")
+	}
 	policy, err := NewTrustedProxyPolicy(cfg.TrustedProxies)
 	if err != nil {
 		return err
