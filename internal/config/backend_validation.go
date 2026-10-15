@@ -37,7 +37,9 @@ func validateBackendEndpoint(backend Backend) error {
 			return errors.New("backend URL port must be between 1 and 65535")
 		}
 	}
-	if parsed.Fragment != "" {
+	// An explicit trailing '#' is a fragment delimiter even though
+	// net/url reports an empty Fragment value for that syntax.
+	if parsed.Fragment != "" || strings.Contains(rawURL, "#") {
 		return errors.New("backend URL must not contain a fragment")
 	}
 	if parsed.RawQuery != "" || parsed.ForceQuery {
