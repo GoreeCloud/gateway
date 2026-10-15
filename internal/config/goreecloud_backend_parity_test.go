@@ -13,6 +13,8 @@ func TestGoreeCloudBackendValidationMatchesHealthChecker(t *testing.T) {
 		{name: "leading URL whitespace", url: " http://127.0.0.1:8080", healthPath: "/ready"},
 		{name: "trailing URL whitespace", url: "http://127.0.0.1:8080 ", healthPath: "/ready"},
 		{name: "network path health target", url: "http://127.0.0.1:8080", healthPath: "//outside.example"},
+		{name: "leading health path whitespace", url: "http://127.0.0.1:8080", healthPath: " /ready"},
+		{name: "trailing health path whitespace", url: "http://127.0.0.1:8080", healthPath: "/ready "},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg := validConfig()
