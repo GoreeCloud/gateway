@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -26,6 +27,15 @@ func validateBackendEndpoint(backend Backend) error {
 	}
 	if parsed.User != nil {
 		return errors.New("backend URL must not contain embedded credentials")
+	}
+	if strings.HasSuffix(parsed.Host, ":") {
+		return errors.New("backend URL must not contain an empty explicit port")
+	}
+	if portText := parsed.Port(); portText != "" {
+		port, portErr := strconv.Atoi(portText)
+		if portErr != nil || port < 1 || port > 65535 {
+			return errors.New("backend URL port must be between 1 and 65535")
+		}
 	}
 	if parsed.Fragment != "" {
 		return errors.New("backend URL must not contain a fragment")
