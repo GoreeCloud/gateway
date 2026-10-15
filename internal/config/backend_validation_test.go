@@ -28,6 +28,9 @@ func TestBackendEndpointValidationRejectsUnsafeURLs(t *testing.T) {
 		{name: "empty query delimiter", url: "https://service.internal.example/?"},
 		{name: "encoded query value", url: "https://service.internal.example/base?next=%2Fprivate"},
 
+		{name: "zero explicit port", url: "https://service.internal.example:0"},
+		{name: "port above maximum", url: "https://service.internal.example:65536"},
+		{name: "empty explicit port", url: "https://service.internal.example:"},
 		{name: "missing host", url: "https:///service"},
 	}
 	for _, tc := range tests {
