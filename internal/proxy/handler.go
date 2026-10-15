@@ -45,6 +45,7 @@ type Handler struct {
 	checker   healthChecker
 
 	healthMu    sync.RWMutex
+	healthEpoch uint64 // protected by healthMu; invalidates in-flight probes on reload
 	healthState map[string]cachedHealth
 	healthCtx   context.Context
 	healthStop  context.CancelFunc
@@ -101,6 +102,7 @@ func (h *Handler) Reload(cfg *config.Config) {
 		return
 	}
 	h.healthMu.Lock()
+	h.healthEpoch++
 	clear(h.healthState)
 	h.healthMu.Unlock()
 }
@@ -134,6 +136,9 @@ func (h *Handler) healthLoop() {
 }
 
 func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend) {
+	h.healthMu.RLock()
+	probeEpoch := h.healthEpoch
+	h.healthMu.RUnlock()
 	candidates := make([]config.Backend, 0, len(backends))
 	for _, backend := range backends {
 		if backend.Enabled {
@@ -157,6 +162,10 @@ func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend
 
 	now := time.Now()
 	h.healthMu.Lock()
+	if probeEpoch != h.healthEpoch {
+		h.healthMu.Unlock()
+		return // A reload superseded these backend probe results.
+	}
 	for i, result := range results {
 		h.healthState[candidates[i].ID] = cachedHealth{result: result, checkedAt: now}
 	}
