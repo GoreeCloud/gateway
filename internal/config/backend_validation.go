@@ -22,7 +22,7 @@ func validateBackendEndpoint(backend Backend) error {
 	if parsed.Opaque != "" || parsed.Host == "" || parsed.Hostname() == "" {
 		return errors.New("backend URL must be an absolute network URL")
 	}
-	if !strings.EqualFold(parsed.Scheme, "http") && !strings.EqualFold(parsed.Scheme, "https") {
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
 		return errors.New("backend URL scheme must be http or https")
 	}
 	if parsed.User != nil {
