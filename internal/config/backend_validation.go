@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -10,7 +11,10 @@ import (
 // Backend endpoints are configuration, not request input, but invalid or
 // credential-bearing URLs must still fail before routing or health checks run.
 func validateBackendEndpoint(backend Backend) error {
-	rawURL := strings.TrimSpace(backend.URL)
+	rawURL := backend.URL
+	if rawURL != strings.TrimSpace(rawURL) {
+		return errors.New("backend URL must not contain surrounding whitespace")
+	}
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
 		return errors.New("backend URL is invalid")
@@ -24,18 +28,30 @@ func validateBackendEndpoint(backend Backend) error {
 	if parsed.User != nil {
 		return errors.New("backend URL must not contain embedded credentials")
 	}
-	if parsed.Fragment != "" {
+	if strings.HasSuffix(parsed.Host, ":") {
+		return errors.New("backend URL must not contain an empty explicit port")
+	}
+	if portText := parsed.Port(); portText != "" {
+		port, portErr := strconv.Atoi(portText)
+		if portErr != nil || port < 1 || port > 65535 {
+			return errors.New("backend URL port must be between 1 and 65535")
+		}
+	}
+	// url.Parse loses the distinction between an absent fragment and an
+	// explicit empty # delimiter; neither belongs in a backend endpoint.
+	if strings.Contains(rawURL, "#") {
 		return errors.New("backend URL must not contain a fragment")
 	}
 	if parsed.RawQuery != "" || parsed.ForceQuery {
 		return errors.New("backend URL must not contain a query")
 	}
 
-	healthPath := strings.TrimSpace(backend.HealthPath)
+	healthPath := backend.HealthPath
 	if healthPath == "" {
 		return nil
 	}
-	if !strings.HasPrefix(healthPath, "/") || strings.ContainsAny(healthPath, "?#") {
+	if healthPath != strings.TrimSpace(healthPath) || !strings.HasPrefix(healthPath, "/") ||
+		strings.HasPrefix(healthPath, "//") || strings.ContainsAny(healthPath, "?#") {
 		return errors.New("backend health path must be an absolute path without query or fragment")
 	}
 	return nil

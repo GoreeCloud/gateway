@@ -23,6 +23,7 @@ const (
 	maxBackendAttempts    = 3
 	maxBackendConcurrency = 128
 	healthRefreshInterval = 10 * time.Second
+	maxCachedHealthAge    = 3 * healthRefreshInterval
 )
 
 type healthChecker interface {
@@ -45,6 +46,7 @@ type Handler struct {
 	checker   healthChecker
 
 	healthMu    sync.RWMutex
+	healthEpoch uint64 // protected by healthMu; invalidates in-flight probes on reload
 	healthState map[string]cachedHealth
 	healthCtx   context.Context
 	healthStop  context.CancelFunc
@@ -101,11 +103,15 @@ func (h *Handler) Reload(cfg *config.Config) {
 		return
 	}
 	h.healthMu.Lock()
+	h.healthEpoch++
 	clear(h.healthState)
 	h.healthMu.Unlock()
 }
 
 func (h *Handler) storeRuntimeState(cfg *config.Config) error {
+	if cfg == nil {
+		return errors.New("gateway configuration is unavailable")
+	}
 	policy, err := NewTrustedProxyPolicy(cfg.TrustedProxies)
 	if err != nil {
 		return err
@@ -131,6 +137,9 @@ func (h *Handler) healthLoop() {
 }
 
 func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend) {
+	h.healthMu.RLock()
+	probeEpoch := h.healthEpoch
+	h.healthMu.RUnlock()
 	candidates := make([]config.Backend, 0, len(backends))
 	for _, backend := range backends {
 		if backend.Enabled {
@@ -154,20 +163,40 @@ func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend
 
 	now := time.Now()
 	h.healthMu.Lock()
+	if probeEpoch != h.healthEpoch {
+		h.healthMu.Unlock()
+		return // A reload superseded these backend probe results.
+	}
+	active := h.state.Load()
+	if active == nil || active.cfg == nil {
+		h.healthMu.Unlock()
+		return
+	}
 	for i, result := range results {
-		h.healthState[candidates[i].ID] = cachedHealth{result: result, checkedAt: now}
+		candidate := candidates[i]
+		for _, configured := range active.cfg.Backends {
+			if configured.Enabled && configured == candidate {
+				h.healthState[candidate.ID] = cachedHealth{result: result, checkedAt: now}
+				break
+			}
+		}
 	}
 	h.healthMu.Unlock()
+}
+
+func healthStateFresh(state cachedHealth, now time.Time) bool {
+	return !state.checkedAt.IsZero() && !state.checkedAt.After(now) && now.Sub(state.checkedAt) < maxCachedHealthAge
 }
 
 func (h *Handler) healthyCandidates(ctx context.Context, candidates []config.Backend) []config.Backend {
 	unknown := make([]config.Backend, 0, len(candidates))
 	healthyByID := make(map[string]bool, len(candidates))
+	now := time.Now()
 
 	h.healthMu.RLock()
 	for _, candidate := range candidates {
 		state, ok := h.healthState[candidate.ID]
-		if !ok {
+		if !ok || !healthStateFresh(state, now) {
 			unknown = append(unknown, candidate)
 			continue
 		}
@@ -180,7 +209,7 @@ func (h *Handler) healthyCandidates(ctx context.Context, candidates []config.Bac
 		h.healthMu.RLock()
 		for _, candidate := range unknown {
 			state, ok := h.healthState[candidate.ID]
-			if ok {
+			if ok && healthStateFresh(state, time.Now()) {
 				healthyByID[candidate.ID] = state.result.Healthy
 			}
 		}

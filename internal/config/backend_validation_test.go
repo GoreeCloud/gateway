@@ -6,6 +6,7 @@ func TestBackendEndpointValidationAcceptsHTTPAndHTTPS(t *testing.T) {
 	for _, endpoint := range []Backend{
 		{ID: "backend", URL: "http://127.0.0.1:8080", HealthPath: "/healthz", Enabled: true},
 		{ID: "backend", URL: "https://service.internal.example/base", HealthPath: "/ready", Enabled: true},
+		{ID: "backend", URL: "https://service.internal.example/base%23encoded", HealthPath: "/ready", Enabled: true},
 	} {
 		cfg := validConfig()
 		cfg.Backends[0] = endpoint
@@ -24,10 +25,14 @@ func TestBackendEndpointValidationRejectsUnsafeURLs(t *testing.T) {
 		{name: "unsupported scheme", url: "file:///tmp/backend.sock"},
 		{name: "credentials", url: "https://user:secret@service.internal.example"},
 		{name: "fragment", url: "https://service.internal.example/#admin"},
+		{name: "empty fragment delimiter", url: "https://service.internal.example/#"},
 		{name: "query", url: "https://service.internal.example/?token=secret"},
 		{name: "empty query delimiter", url: "https://service.internal.example/?"},
 		{name: "encoded query value", url: "https://service.internal.example/base?next=%2Fprivate"},
 
+		{name: "zero explicit port", url: "https://service.internal.example:0"},
+		{name: "port above maximum", url: "https://service.internal.example:65536"},
+		{name: "empty explicit port", url: "https://service.internal.example:"},
 		{name: "missing host", url: "https:///service"},
 	}
 	for _, tc := range tests {

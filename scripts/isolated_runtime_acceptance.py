@@ -295,6 +295,25 @@ def main() -> None:
                 raise RuntimeError(f"unmatched host returned {status}, expected 404")
             unmatched_route_validated = True
 
+            # A malformed reload must preserve the last known-good route and listener.
+            original_config = config_path.read_text(encoding="utf-8")
+            config_path.write_text('{"schema":"goreecloud-gateway-config/v1","routes":', encoding="utf-8")
+            process.send_signal(signal.SIGHUP)
+            time.sleep(0.3)
+            if process.poll() is not None:
+                raise RuntimeError("Gateway stopped after a malformed configuration reload")
+            status, body = request(gateway_port, "gateway.acceptance.test", "/invalid-reload")
+            if status != 200 or body != b"goreecloud-gateway-isolated-runtime\n":
+                raise RuntimeError("malformed configuration replaced the last-known-good route")
+            config_path.write_text(original_config, encoding="utf-8")
+            process.send_signal(signal.SIGHUP)
+            wait_for_route(
+                gateway_port,
+                process,
+                "gateway.acceptance.test",
+                "unmatched.acceptance.test",
+            )
+
             load_request_count, max_observed_backend_concurrency = exercise_bounded_load(gateway_port)
             bounded_load_validated = load_request_count == LOAD_REQUESTS
             backpressure_validated = max_observed_backend_concurrency <= MAX_BACKEND_CONCURRENCY
