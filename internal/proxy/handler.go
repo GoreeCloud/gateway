@@ -167,8 +167,19 @@ func (h *Handler) refreshBackends(ctx context.Context, backends []config.Backend
 		h.healthMu.Unlock()
 		return // A reload superseded these backend probe results.
 	}
+	active := h.state.Load()
+	if active == nil || active.cfg == nil {
+		h.healthMu.Unlock()
+		return
+	}
 	for i, result := range results {
-		h.healthState[candidates[i].ID] = cachedHealth{result: result, checkedAt: now}
+		candidate := candidates[i]
+		for _, configured := range active.cfg.Backends {
+			if configured.Enabled && configured == candidate {
+				h.healthState[candidate.ID] = cachedHealth{result: result, checkedAt: now}
+				break
+			}
+		}
 	}
 	h.healthMu.Unlock()
 }
