@@ -22,7 +22,7 @@ The attempted extra command-line fixture exercise was interrupted and has **no a
 
 1. Stage, activate, and reverse a **native Gateway service** on an authorized isolated target, exercising actual processes, listener ownership, health checks, and the Caddy fallback path.
 2. Validate TLS/certificate, secrets, Docker/service state, DNS, and firewall restoration through approved Everkeep recovery procedures; collect operator-observed evidence.
-3. Make the stage/activate operator path reproducible. The current `cmd/gateway-recovery` CLI exposes snapshot and restore, not stage and activate.
+3. Validate the newly added `cmd/gateway-recovery` stage/activate operator workflow in a representative target environment; the isolated CLI regression establishes config-file behavior only and is not proof of service reload, failback, or production recovery.
 4. Assess interprocess locking around digest comparison and rename, plus parent-directory synchronization for stronger crash-consistency guarantees.
 5. Verify host-specific route policies against the protected live Caddy source and require a valid migration-source manifest before promotion.
 
