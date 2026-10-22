@@ -38,6 +38,11 @@
           "path_prefix": {"type": "string", "pattern": "^/"},
           "methods": {"type": "array", "uniqueItems": true, "items": {"enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]}},
           "exposure": {"enum": ["internal", "private", "restricted-public", "public"]},
+          "response_headers": {
+            "type": "object",
+            "maxProperties": 64,
+            "additionalProperties": {"type": "string", "maxLength": 4096}
+          },
           "enabled": {"type": "boolean"},
           "tls": {
             "type": "object",

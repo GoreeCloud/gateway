@@ -41,6 +41,38 @@ func TestConfigParityFingerprintChangesWithRouteSemantics(t *testing.T) {
 	}
 }
 
+func TestConfigParityFingerprintBindsResponseHeaders(t *testing.T) {
+	cfg := testParityConfig()
+	baseline, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Routes[0].ResponseHeaders = map[string]string{"X-Gateway-Policy": "one"}
+	first, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline == first {
+		t.Fatal("response-header policy did not change parity fingerprint")
+	}
+	cfg.Routes[0].ResponseHeaders = map[string]string{"x-gateway-policy": "one"}
+	canonical, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if canonical != first {
+		t.Fatal("header casing changed semantic parity fingerprint")
+	}
+	cfg.Routes[0].ResponseHeaders["x-gateway-policy"] = "two"
+	changed, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed == first {
+		t.Fatal("response-header value change did not change parity fingerprint")
+	}
+}
+
 func TestConfigParityFingerprintTracksTrustedProxyTrustBoundary(t *testing.T) {
 	cfg := testParityConfig()
 	without, err := ConfigParityFingerprint(cfg)
