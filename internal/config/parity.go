@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"sort"
 	"strings"
 	"time"
@@ -40,15 +41,16 @@ type parityService struct {
 }
 
 type parityRoute struct {
-	ID         string   `json:"id"`
-	ServiceID  string   `json:"service_id"`
-	Hostname   string   `json:"hostname"`
-	PathPrefix string   `json:"path_prefix"`
-	Methods    []string `json:"methods"`
-	Exposure   string   `json:"exposure"`
-	Enabled    bool     `json:"enabled"`
-	TLSMode    string   `json:"tls_mode"`
-	TLSProfile string   `json:"tls_profile,omitempty"`
+	ID              string            `json:"id"`
+	ServiceID       string            `json:"service_id"`
+	Hostname        string            `json:"hostname"`
+	PathPrefix      string            `json:"path_prefix"`
+	Methods         []string          `json:"methods"`
+	Exposure        string            `json:"exposure"`
+	Enabled         bool              `json:"enabled"`
+	TLSMode         string            `json:"tls_mode"`
+	TLSProfile      string            `json:"tls_profile,omitempty"`
+	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
 }
 
 type parityBackend struct {
@@ -120,6 +122,13 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 		if pathPrefix == "" {
 			pathPrefix = "/"
 		}
+		var headers map[string]string
+		if len(route.ResponseHeaders) > 0 {
+			headers = make(map[string]string, len(route.ResponseHeaders))
+			for name, value := range route.ResponseHeaders {
+				headers[http.CanonicalHeaderKey(name)] = value
+			}
+		}
 		canonical.Routes = append(canonical.Routes, parityRoute{
 			ID:         strings.TrimSpace(route.ID),
 			ServiceID:  strings.TrimSpace(route.ServiceID),
@@ -130,6 +139,7 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			Enabled:    route.Enabled,
 			TLSMode:    strings.TrimSpace(route.TLS.Mode),
 			TLSProfile: strings.TrimSpace(route.TLS.CertificateProfile),
+			ResponseHeaders: headers,
 		})
 	}
 	sort.Slice(canonical.Routes, func(i, j int) bool { return canonical.Routes[i].ID < canonical.Routes[j].ID })

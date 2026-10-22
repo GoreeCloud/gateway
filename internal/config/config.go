@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 )
@@ -23,14 +24,15 @@ type Service struct {
 }
 
 type Route struct {
-	ID         string   `json:"id"`
-	ServiceID  string   `json:"service_id"`
-	Hostname   string   `json:"hostname"`
-	PathPrefix string   `json:"path_prefix"`
-	Methods    []string `json:"methods"`
-	Exposure   string   `json:"exposure"`
-	Enabled    bool     `json:"enabled"`
-	TLS        RouteTLS `json:"tls"`
+	ID              string            `json:"id"`
+	ServiceID       string            `json:"service_id"`
+	Hostname        string            `json:"hostname"`
+	PathPrefix      string            `json:"path_prefix"`
+	Methods         []string          `json:"methods"`
+	Exposure        string            `json:"exposure"`
+	Enabled         bool              `json:"enabled"`
+	TLS             RouteTLS          `json:"tls"`
+	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
 }
 
 type RouteTLS struct {
@@ -120,6 +122,9 @@ func (c *Config) Validate() error {
 		}
 		services[s.ID] = s
 	}
+	if err := c.ValidateResponseHeaderPolicies(); err != nil {
+		return err
+	}
 	seen := map[string]string{}
 	for _, r := range c.Routes {
 		if !r.Enabled {
@@ -159,6 +164,64 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("route %q conflicts with %q", r.ID, prior)
 		}
 		seen[key] = r.ID
+	}
+	return nil
+}
+
+// ValidateResponseHeaderPolicies is separately enforced at runtime-state
+// activation, including for callers that bypass Config.Load.
+func (c *Config) ValidateResponseHeaderPolicies() error {
+	if c == nil {
+		return fmt.Errorf("gateway configuration is required")
+	}
+	for _, route := range c.Routes {
+		if err := validateResponseHeaders(route.ResponseHeaders); err != nil {
+			return fmt.Errorf("route %q response headers: %w", route.ID, err)
+		}
+	}
+	return nil
+}
+
+// validateResponseHeaders bounds operator-owned *set* operations. Hop-by-hop
+// and framing fields belong to net/http rather than route configuration.
+func validateResponseHeaders(headers map[string]string) error {
+	if len(headers) > 64 {
+		return fmt.Errorf("at most 64 response headers are permitted")
+	}
+	seen := make(map[string]bool, len(headers))
+	total := 0
+	for name, value := range headers {
+		if len(name) == 0 || len(name) > 128 {
+			return fmt.Errorf("invalid response header name length")
+		}
+		for i := 0; i < len(name); i++ {
+			b := name[i]
+			if !((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') ||
+				(b >= '0' && b <= '9') || strings.ContainsRune("!#$%&'*+-.^_`|~", rune(b))) {
+				return fmt.Errorf("invalid response header name")
+			}
+		}
+		canonical := http.CanonicalHeaderKey(name)
+		if seen[canonical] {
+			return fmt.Errorf("duplicate response header %q", canonical)
+		}
+		seen[canonical] = true
+		switch canonical {
+		case "Connection", "Keep-Alive", "Proxy-Authenticate", "Proxy-Authorization", "Te", "Trailer", "Transfer-Encoding", "Upgrade", "Content-Length", "Content-Encoding":
+			return fmt.Errorf("response header %q controls connection framing or content coding", canonical)
+		}
+		if len(value) > 4096 {
+			return fmt.Errorf("response header %q exceeds value limit", canonical)
+		}
+		for i := 0; i < len(value); i++ {
+			if value[i] == 0x7f || (value[i] < 0x20 && value[i] != '\t') {
+				return fmt.Errorf("response header %q contains control characters", canonical)
+			}
+		}
+		total += len(name) + len(value)
+		if total > 16384 {
+			return fmt.Errorf("response headers exceed total size limit")
+		}
 	}
 	return nil
 }

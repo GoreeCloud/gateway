@@ -1,6 +1,45 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestResponseHeaderSetPolicyValidates(t *testing.T) {
+	cfg := validConfig()
+	cfg.Routes[0].ResponseHeaders = map[string]string{
+		"Strict-Transport-Security": "max-age=31536000",
+		"X-Frame-Options": "DENY",
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("bounded response headers rejected: %v", err)
+	}
+}
+
+func TestResponseHeaderSetPolicyRejectsUnsafeValues(t *testing.T) {
+	tests := []struct {
+		name    string
+		headers map[string]string
+	}{
+		{"injected line break", map[string]string{"X-Policy": "safe\r\nInjected: yes"}},
+		{"control character", map[string]string{"X-Policy": "a\x00b"}},
+		{"framing", map[string]string{"Content-Length": "8"}},
+		{"content coding", map[string]string{"Content-Encoding": "gzip"}},
+		{"hop by hop", map[string]string{"Connection": "keep-alive"}},
+		{"invalid name", map[string]string{"Bad Header": "value"}},
+		{"case collision", map[string]string{"X-Policy": "a", "x-policy": "b"}},
+		{"oversized value", map[string]string{"X-Policy": strings.Repeat("a", 4097)}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			cfg.Routes[0].ResponseHeaders = tc.headers
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("unsafe response-header set operation unexpectedly validated")
+			}
+		})
+	}
+}
 
 func TestEnabledRouteRequiresExplicitTLSPolicy(t *testing.T) {
 	cfg := validConfig()
