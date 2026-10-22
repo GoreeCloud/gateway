@@ -2,6 +2,8 @@ package proxy
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
 	"context"
 	"io"
 	"net"
@@ -94,6 +96,44 @@ func TestStaticResponseSkipsBackendAndHandlesGETAndHEAD(t *testing.T) {
 	}
 	if len(checker.checks) != 0 {
 		t.Fatalf("static responses must never probe an upstream: %v", checker.checks)
+	}
+}
+
+func TestStaticResponseOptInGzipGETAndHEAD(t *testing.T) {
+	body := strings.Repeat("GoreeCloud static maintenance response. ", 40)
+	cfg := &config.Config{Schema: "goreecloud-gateway-config/v1", Routes: []config.Route{{
+		ID: "maintenance", Action: "static_response", Hostname: "app.goreecloud.com", PathPrefix: "/", Enabled: true,
+		TLS: config.RouteTLS{Mode: "disabled"}, StaticResponse: &config.StaticResponse{StatusCode: 503, Body: body},
+		ResponseEncoding: &config.ResponseEncoding{Formats: []string{"gzip"}},
+	}}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	var contentLength string
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		req := httptest.NewRequest(method, "http://app.goreecloud.com/", nil)
+		req.Header.Set("Accept-Encoding", "gzip")
+		rw := httptest.NewRecorder()
+		handler.ServeHTTP(rw, req)
+		if rw.Code != 503 || rw.Header().Get("Content-Encoding") != "gzip" || rw.Header().Get("Vary") != "Accept-Encoding" {
+			t.Fatalf("%s status=%d headers=%v", method, rw.Code, rw.Header())
+		}
+		if method == http.MethodGet {
+			contentLength = rw.Header().Get("Content-Length")
+			reader, err := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
+			if err != nil {
+				t.Fatal(err)
+			}
+			decoded, err := io.ReadAll(reader)
+			_ = reader.Close()
+			if err != nil || string(decoded) != body {
+				t.Fatalf("GET failed to decode: %v", err)
+			}
+		} else if rw.Body.Len() != 0 || rw.Header().Get("Content-Length") != contentLength {
+			t.Fatalf("HEAD body or length mismatched GET: headers=%v", rw.Header())
+		}
 	}
 }
 

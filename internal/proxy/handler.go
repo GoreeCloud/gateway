@@ -17,6 +17,7 @@ import (
 
 	"github.com/GoreeCloud/goreecloud-gateway/internal/config"
 	"github.com/GoreeCloud/goreecloud-gateway/internal/health"
+	"github.com/GoreeCloud/goreecloud-gateway/internal/responsecoding"
 	"github.com/GoreeCloud/goreecloud-gateway/internal/routing"
 )
 
@@ -248,18 +249,27 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	if match.Route.IsStaticResponse() {
 		response := match.Route.StaticResponse // non-nil after activation validation
+		body := []byte(response.Body)
 		for name, value := range match.Route.ResponseHeaders {
 			w.Header().Set(name, value)
 		}
-		if len(response.Body) > 0 {
+		if len(body) > 0 {
 			if w.Header().Get("Content-Type") == "" {
 				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 			}
-			w.Header().Set("Content-Length", strconv.Itoa(len(response.Body)))
+		}
+		encoded, err := responsecoding.EncodeStatic(req, w.Header(), response.StatusCode, body, match.Route.ResponseEncoding)
+		if err != nil {
+			slog.Error("static response encoding rejected", "route", match.Route.ID, "error", err)
+			http.Error(w, "response unavailable", http.StatusInternalServerError)
+			return
+		}
+		if len(body) > 0 {
+			w.Header().Set("Content-Length", strconv.Itoa(len(encoded)))
 		}
 		w.WriteHeader(response.StatusCode)
-		if req.Method != http.MethodHead && len(response.Body) > 0 {
-			_, _ = w.Write([]byte(response.Body))
+		if req.Method != http.MethodHead && len(encoded) > 0 {
+			_, _ = w.Write(encoded)
 		}
 		return
 	}

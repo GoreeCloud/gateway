@@ -34,7 +34,7 @@
         "allOf": [{
           "if": {"properties": {"action": {"const": "static_response"}}, "required": ["action"]},
           "then": {"required": ["static_response"], "not": {"required": ["service_id"]}},
-          "else": {"required": ["service_id"], "not": {"required": ["static_response"]}}
+          "else": {"required": ["service_id"], "not": {"anyOf": [{"required": ["static_response"]}, {"required": ["response_encoding"]}]}}
         }],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
@@ -47,6 +47,15 @@
             "properties": {
               "status_code": {"type": "integer", "minimum": 200, "maximum": 599},
               "body": {"type": "string", "maxLength": 16384}
+            }
+          },
+          "response_encoding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["formats"],
+            "properties": {
+              "formats": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["zstd", "gzip"]}},
+              "minimum_length": {"type": "integer", "minimum": 0, "maximum": 65536}
             }
           },
           "hostname": {"type": "string", "minLength": 1, "maxLength": 253},

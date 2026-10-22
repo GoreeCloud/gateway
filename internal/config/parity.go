@@ -51,8 +51,9 @@ type parityRoute struct {
 	Enabled         bool              `json:"enabled"`
 	TLSMode         string            `json:"tls_mode"`
 	TLSProfile      string            `json:"tls_profile,omitempty"`
-	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
-	StaticResponse  *StaticResponse   `json:"static_response,omitempty"`
+	ResponseHeaders  map[string]string `json:"response_headers,omitempty"`
+	StaticResponse   *StaticResponse   `json:"static_response,omitempty"`
+	ResponseEncoding *ResponseEncoding `json:"response_encoding,omitempty"`
 }
 
 type parityBackend struct {
@@ -148,6 +149,7 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			TLSProfile: strings.TrimSpace(route.TLS.CertificateProfile),
 			ResponseHeaders: headers,
 			StaticResponse: route.StaticResponse,
+			ResponseEncoding: route.ResponseEncoding,
 		})
 	}
 	sort.Slice(canonical.Routes, func(i, j int) bool { return canonical.Routes[i].ID < canonical.Routes[j].ID })

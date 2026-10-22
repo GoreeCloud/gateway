@@ -156,6 +156,51 @@ func TestExplicitTLSPoliciesValidate(t *testing.T) {
 	}
 }
 
+func TestStaticResponseEncodingValidationFailsClosed(t *testing.T) {
+	makeStatic := func() *Config {
+		cfg := validConfig()
+		cfg.Routes[0].Action = "static_response"
+		cfg.Routes[0].ServiceID = ""
+		cfg.Routes[0].StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 1024)}
+		return cfg
+	}
+	valid := makeStatic()
+	valid.Routes[0].ResponseEncoding = &ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid static response encoding rejected: %v", err)
+	}
+	for _, tc := range []struct {
+		name   string
+		policy *ResponseEncoding
+	}{
+		{"missing formats", &ResponseEncoding{}},
+		{"unsupported format", &ResponseEncoding{Formats: []string{"br"}}},
+		{"duplicate format", &ResponseEncoding{Formats: []string{"gzip", "gzip"}}},
+		{"too many formats", &ResponseEncoding{Formats: []string{"gzip", "zstd", "br"}}},
+		{"uppercase format", &ResponseEncoding{Formats: []string{"GZIP"}}},
+		{"negative threshold", &ResponseEncoding{Formats: []string{"gzip"}, MinimumLength: intPointer(-1)}},
+		{"oversized threshold", &ResponseEncoding{Formats: []string{"zstd"}, MinimumLength: intPointer(65537)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := makeStatic()
+			cfg.Routes[0].ResponseEncoding = tc.policy
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("unsafe encoding configuration validated")
+			}
+			if err := cfg.ValidateRouteActions(); err == nil {
+				t.Fatal("direct runtime activation bypassed encoding validation")
+			}
+		})
+	}
+	proxy := validConfig()
+	proxy.Routes[0].ResponseEncoding = &ResponseEncoding{Formats: []string{"gzip"}}
+	if err := proxy.Validate(); err == nil {
+		t.Fatal("reverse-proxy response encoding was permitted before streaming parity")
+	}
+}
+
+func intPointer(value int) *int { return &value }
+
 func validConfig() *Config {
 	return &Config{
 		Schema: "goreecloud-gateway-config/v1",

@@ -83,6 +83,42 @@ func TestStaticResponseParityBindsBodyAndStatusWithoutChangingLegacyProxyIdentit
 	}
 }
 
+func TestStaticResponseEncodingParityBindsPreferenceAndThreshold(t *testing.T) {
+	cfg := validConfig()
+	cfg.Routes[0].Action = "static_response"
+	cfg.Routes[0].ServiceID = ""
+	cfg.Routes[0].StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 1024)}
+	baseline, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Routes[0].ResponseEncoding = &ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+	first, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == baseline {
+		t.Fatal("opt-in encoding must change configuration parity")
+	}
+	cfg.Routes[0].ResponseEncoding.Formats = []string{"gzip", "zstd"}
+	reordered, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == reordered {
+		t.Fatal("encoding preference order must be fingerprinted")
+	}
+	minimum := 1024
+	cfg.Routes[0].ResponseEncoding.MinimumLength = &minimum
+	threshold, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reordered == threshold {
+		t.Fatal("encoding minimum length must be fingerprinted")
+	}
+}
+
 func TestConfigParityFingerprintBindsResponseHeaders(t *testing.T) {
 	cfg := testParityConfig()
 	baseline, err := ConfigParityFingerprint(cfg)

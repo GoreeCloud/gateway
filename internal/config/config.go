@@ -33,8 +33,17 @@ type Route struct {
 	Exposure        string            `json:"exposure"`
 	Enabled         bool              `json:"enabled"`
 	TLS             RouteTLS          `json:"tls"`
-	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
-	StaticResponse  *StaticResponse   `json:"static_response,omitempty"`
+	ResponseHeaders  map[string]string `json:"response_headers,omitempty"`
+	StaticResponse   *StaticResponse   `json:"static_response,omitempty"`
+	ResponseEncoding *ResponseEncoding `json:"response_encoding,omitempty"`
+}
+
+// ResponseEncoding is an opt-in bounded policy for literal static responses.
+// Streaming reverse-proxy responses are deliberately unsupported until their
+// Caddy behavior, backpressure, and upgrade semantics are verified separately.
+type ResponseEncoding struct {
+	Formats       []string `json:"formats"`
+	MinimumLength *int     `json:"minimum_length,omitempty"`
 }
 
 // StaticResponse is a literal, bounded response. It does not implement Caddy
@@ -193,6 +202,25 @@ func (c *Config) ValidateRouteActions() error {
 		return fmt.Errorf("gateway configuration is required")
 	}
 	for _, route := range c.Routes {
+		if route.ResponseEncoding != nil {
+			if !route.IsStaticResponse() {
+				return fmt.Errorf("route %q response encoding requires a static response", route.ID)
+			}
+			policy := route.ResponseEncoding
+			if len(policy.Formats) < 1 || len(policy.Formats) > 2 {
+				return fmt.Errorf("route %q response encoding requires one or two formats", route.ID)
+			}
+			seen := make(map[string]bool, len(policy.Formats))
+			for _, format := range policy.Formats {
+				if format != "zstd" && format != "gzip" || seen[format] {
+					return fmt.Errorf("route %q has invalid response encoding format", route.ID)
+				}
+				seen[format] = true
+			}
+			if policy.MinimumLength != nil && (*policy.MinimumLength < 0 || *policy.MinimumLength > 65536) {
+				return fmt.Errorf("route %q response encoding minimum length is outside supported bounds", route.ID)
+			}
+		}
 		switch route.Action {
 		case "", "reverse_proxy":
 			if route.StaticResponse != nil {
