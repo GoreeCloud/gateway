@@ -132,6 +132,96 @@ func TestProxyKnownLengthOptInEncodingAndUnknownLengthPassthrough(t *testing.T) 
 	}
 }
 
+func TestProxyUnknownLengthExplicitStreamingEncoding(t *testing.T) {
+	body := []byte(strings.Repeat("native unknown-length streaming. ", 120))
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		w.(http.Flusher).Flush() // force unknown Content-Length
+		_, _ = w.Write(body)
+	}))
+	defer upstream.Close()
+	zero := 0
+	cfg := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	cfg.Routes[0].TLS = config.RouteTLS{Mode: "disabled"}
+	cfg.Routes[0].ProxyResponseEncoding = &config.ResponseEncoding{
+		Formats: []string{"gzip"}, MinimumLength: &zero, AllowUnknownLength: true,
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
+	req := httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/stream", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, req)
+	if rw.Code != 200 || rw.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("status=%d headers=%v", rw.Code, rw.Header())
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := io.ReadAll(reader)
+	_ = reader.Close()
+	if err != nil || !bytes.Equal(decoded, body) {
+		t.Fatalf("unknown stream did not round-trip: %v", err)
+	}
+}
+
+func TestProxySSEHeadersAndEventsStreamWithoutEncoding(t *testing.T) {
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	defer releaseOnce.Do(func() { close(release) })
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		_, _ = io.WriteString(w, "data: first\n\n")
+		w.(http.Flusher).Flush()
+		select {
+		case <-release:
+			_, _ = io.WriteString(w, "data: second\n\n")
+		case <-r.Context().Done():
+		}
+	}))
+	defer upstream.Close()
+	zero := 0
+	cfg := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	cfg.Routes[0].TLS = config.RouteTLS{Mode: "disabled"}
+	cfg.Routes[0].ProxyResponseEncoding = &config.ResponseEncoding{
+		Formats: []string{"gzip"}, MinimumLength: &zero, AllowUnknownLength: true,
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
+	gateway := httptest.NewServer(handler)
+	defer gateway.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, gateway.URL+"/events", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Host = "app.goreecloud.com"
+	req.Header.Set("Accept-Encoding", "gzip")
+	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("SSE headers stalled: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Encoding") != "" {
+		t.Fatalf("SSE transformed: %d %v", resp.StatusCode, resp.Header)
+	}
+	line, err := bufio.NewReader(resp.Body).ReadString('\n')
+	if err != nil || line != "data: first\n" {
+		t.Fatalf("SSE first event stalled: %q %v", line, err)
+	}
+	releaseOnce.Do(func() { close(release) })
+}
+
 func TestStaticResponseSkipsBackendAndHandlesGETAndHEAD(t *testing.T) {
 	cfg := &config.Config{
 		Schema: "goreecloud-gateway-config/v1",

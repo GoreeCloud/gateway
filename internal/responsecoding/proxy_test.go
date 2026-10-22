@@ -37,7 +37,7 @@ func TestEncodeKnownLengthProxyRoundTrip(t *testing.T) {
 			resp := proxyFixture(body, "application/json")
 			resp.Header.Set("ETag", "identity")
 			resp.Header.Set("Vary", "Origin")
-			if err := EncodeKnownLengthProxy(req, resp, policy); err != nil {
+			if err := EncodeProxy(req, resp, policy); err != nil {
 				t.Fatal(err)
 			}
 			defer resp.Body.Close()
@@ -117,7 +117,7 @@ func TestEncodeKnownLengthProxyFailClosed(t *testing.T) {
 			resp := proxyFixture(body, "text/plain; charset=utf-8")
 			tc.configure(req, resp)
 			original := resp.Body
-			if err := EncodeKnownLengthProxy(req, resp, policy); err != nil {
+			if err := EncodeProxy(req, resp, policy); err != nil {
 				t.Fatal(err)
 			}
 			defer resp.Body.Close()
@@ -138,7 +138,7 @@ func TestEncodeKnownLengthProxyThreshold(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "gzip")
 	resp := proxyFixture(bytes.Repeat([]byte("x"), 1024), "text/plain")
 	before := resp.Body
-	if err := EncodeKnownLengthProxy(req, resp, policy); err != nil {
+	if err := EncodeProxy(req, resp, policy); err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
@@ -170,7 +170,7 @@ func TestEncodeKnownLengthProxyClientAbortClosesUpstream(t *testing.T) {
 		StatusCode: http.StatusOK, ContentLength: 1024,
 		Header: http.Header{"Content-Type": {"text/plain"}}, Body: source,
 	}
-	if err := EncodeKnownLengthProxy(req, resp, &config.ResponseEncoding{Formats: []string{"gzip"}}); err != nil {
+	if err := EncodeProxy(req, resp, &config.ResponseEncoding{Formats: []string{"gzip"}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := resp.Body.Close(); err != nil {
@@ -187,11 +187,131 @@ func TestEncodeKnownLengthProxyPolicyAbsent(t *testing.T) {
 	body := bytes.Repeat([]byte("x"), 1024)
 	req, _ := http.NewRequest(http.MethodGet, "https://gateway.invalid/", nil)
 	resp := proxyFixture(body, "text/plain")
-	if err := EncodeKnownLengthProxy(req, resp, nil); err != nil {
+	if err := EncodeProxy(req, resp, nil); err != nil {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
 	if resp.Header.Get("Vary") != "" || resp.Header.Get("Content-Encoding") != "" {
 		t.Fatal("legacy response mutated")
+	}
+}
+
+func TestEncodeUnknownLengthProxyExplicitOptIn(t *testing.T) {
+	zero := 0
+	for _, tc := range []struct{ format string }{{"gzip"}, {"zstd"}} {
+		t.Run(tc.format, func(t *testing.T) {
+			first := bytes.Repeat([]byte("first segment. "), 80)
+			second := bytes.Repeat([]byte("second segment. "), 80)
+			upstreamReader, upstreamWriter := io.Pipe()
+			req, _ := http.NewRequest(http.MethodGet, "https://gateway.invalid/stream", nil)
+			req.Header.Set("Accept-Encoding", tc.format)
+			resp := &http.Response{
+				StatusCode: http.StatusOK, ContentLength: -1,
+				Header: http.Header{"Content-Type": {"text/plain"}}, Body: upstreamReader,
+			}
+			policy := &config.ResponseEncoding{Formats: []string{tc.format}, MinimumLength: &zero, AllowUnknownLength: true}
+			if err := EncodeProxy(req, resp, policy); err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.Header.Get("Content-Encoding") != tc.format || resp.ContentLength != -1 {
+				t.Fatalf("unknown-length opt-in missing stream headers: %v", resp.Header)
+			}
+			firstDecoded := make(chan struct{})
+			producerDone := make(chan error, 1)
+			go func() {
+				if _, err := upstreamWriter.Write(first); err != nil {
+					producerDone <- err
+					return
+				}
+				<-firstDecoded
+				_, err := upstreamWriter.Write(second)
+				_ = upstreamWriter.Close()
+				producerDone <- err
+			}()
+			decodedFirst := make(chan []byte, 1)
+			readErr := make(chan error, 1)
+			go func() {
+				var decoder io.ReadCloser
+				if tc.format == "gzip" {
+					reader, err := gzip.NewReader(resp.Body)
+					if err != nil {
+						readErr <- err
+						return
+					}
+					decoder = reader
+				} else {
+					reader, err := zstd.NewReader(resp.Body)
+					if err != nil {
+						readErr <- err
+						return
+					}
+					decoder = reader.IOReadCloser()
+				}
+				defer decoder.Close()
+				prefix := make([]byte, len(first))
+				if _, err := io.ReadFull(decoder, prefix); err != nil {
+					readErr <- err
+					return
+				}
+				decodedFirst <- prefix
+				<-firstDecoded
+				rest, err := io.ReadAll(decoder)
+				if err != nil {
+					readErr <- err
+					return
+				}
+				if !bytes.Equal(rest, second) {
+					readErr <- io.ErrUnexpectedEOF
+					return
+				}
+				readErr <- nil
+			}()
+			select {
+			case got := <-decodedFirst:
+				if !bytes.Equal(got, first) {
+					t.Fatal("streaming first chunk mismatch")
+				}
+				close(firstDecoded)
+			case err := <-readErr:
+				close(firstDecoded)
+				t.Fatalf("failed before streaming first chunk: %v", err)
+			case <-time.After(3 * time.Second):
+				close(firstDecoded)
+				t.Fatal("first compressed chunk buffered until upstream EOF")
+			}
+			if err := <-readErr; err != nil {
+				t.Fatalf("second chunk: %v", err)
+			}
+			if err := <-producerDone; err != nil {
+				t.Fatalf("upstream write: %v", err)
+			}
+		})
+	}
+}
+
+func TestEncodeUnknownLengthProxyProtectsSSEAndIncremental(t *testing.T) {
+	zero := 0
+	policy := &config.ResponseEncoding{Formats: []string{"gzip"}, MinimumLength: &zero, AllowUnknownLength: true}
+	for _, tc := range []struct {
+		name    string
+		headers http.Header
+	}{
+		{"sse", http.Header{"Content-Type": {"text/event-stream; charset=utf-8"}}},
+		{"incremental", http.Header{"Content-Type": {"application/json"}, "Incremental": {"?1"}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req, _ := http.NewRequest(http.MethodGet, "https://gateway.invalid/", nil)
+			req.Header.Set("Accept-Encoding", "gzip")
+			original := io.NopCloser(strings.NewReader("data: ready\n\n"))
+			resp := &http.Response{StatusCode: 200, ContentLength: -1, Header: tc.headers, Body: original}
+			if err := EncodeProxy(req, resp, policy); err != nil {
+				t.Fatal(err)
+			}
+			defer resp.Body.Close()
+			if resp.Body != original || resp.Header.Get("Content-Encoding") != "" {
+				t.Fatal("SSE/incremental stream was encoded despite bypass")
+			}
+		})
 	}
 }

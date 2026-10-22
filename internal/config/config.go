@@ -40,11 +40,13 @@ type Route struct {
 }
 
 // ResponseEncoding selects a bounded, opt-in representation coding policy.
-// Proxy routes currently support only eligible known-length response bodies;
-// unknown-length streams, SSE, ranges, upgrades and already-coded bodies stay raw.
+// Proxy routes default to known-length bodies. An explicit, zero-threshold
+// override may enable unknown-length non-incremental streams; SSE, ranges,
+// upgrades and already-coded bodies always stay raw.
 type ResponseEncoding struct {
-	Formats       []string `json:"formats"`
-	MinimumLength *int     `json:"minimum_length,omitempty"`
+	Formats            []string `json:"formats"`
+	MinimumLength      *int     `json:"minimum_length,omitempty"`
+	AllowUnknownLength bool     `json:"allow_unknown_length,omitempty"`
 }
 
 // StaticResponse is a literal, bounded response. It does not implement Caddy
@@ -208,6 +210,13 @@ func (c *Config) ValidateRouteActions() error {
 		}
 		if route.ProxyResponseEncoding != nil && route.IsStaticResponse() {
 			return fmt.Errorf("route %q proxy response encoding requires a reverse proxy", route.ID)
+		}
+		if route.ResponseEncoding != nil && route.ResponseEncoding.AllowUnknownLength {
+			return fmt.Errorf("route %q static response encoding cannot allow unknown lengths", route.ID)
+		}
+		if route.ProxyResponseEncoding != nil && route.ProxyResponseEncoding.AllowUnknownLength &&
+			(route.ProxyResponseEncoding.MinimumLength == nil || *route.ProxyResponseEncoding.MinimumLength != 0) {
+			return fmt.Errorf("route %q unknown-length proxy encoding requires an explicit zero minimum length", route.ID)
 		}
 		if err := validateResponseEncoding(route.ID, route.ResponseEncoding); err != nil {
 			return err

@@ -266,6 +266,37 @@ func TestProxyResponseEncodingValidationFailsClosed(t *testing.T) {
 	}
 }
 
+func TestUnknownLengthProxyEncodingRequiresExplicitZeroMinimum(t *testing.T) {
+	zero := 0
+	valid := validConfig()
+	valid.Routes[0].ProxyResponseEncoding = &ResponseEncoding{
+		Formats: []string{"zstd", "gzip"}, MinimumLength: &zero, AllowUnknownLength: true,
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("explicit opt-in rejected: %v", err)
+	}
+	for _, minimum := range []*int{nil, intPointer(512)} {
+		cfg := validConfig()
+		cfg.Routes[0].ProxyResponseEncoding = &ResponseEncoding{
+			Formats: []string{"gzip"}, MinimumLength: minimum, AllowUnknownLength: true,
+		}
+		if err := cfg.Validate(); err == nil {
+			t.Fatal("unknown-length opt-in without zero threshold validated")
+		}
+		if err := cfg.ValidateRouteActions(); err == nil {
+			t.Fatal("direct activation bypassed threshold invariant")
+		}
+	}
+	static := validConfig()
+	static.Routes[0].Action = "static_response"
+	static.Routes[0].ServiceID = ""
+	static.Routes[0].StaticResponse = &StaticResponse{StatusCode: 200, Body: "literal"}
+	static.Routes[0].ResponseEncoding = &ResponseEncoding{Formats: []string{"gzip"}, MinimumLength: &zero, AllowUnknownLength: true}
+	if err := static.ValidateRouteActions(); err == nil {
+		t.Fatal("static action accepted unknown-length streaming switch")
+	}
+}
+
 func intPointer(value int) *int { return &value }
 
 func validConfig() *Config {

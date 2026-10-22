@@ -62,9 +62,14 @@
             "type": "object",
             "additionalProperties": false,
             "required": ["formats"],
+            "allOf": [{
+              "if": {"properties": {"allow_unknown_length": {"const": true}}, "required": ["allow_unknown_length"]},
+              "then": {"properties": {"minimum_length": {"const": 0}}, "required": ["minimum_length"]}
+            }],
             "properties": {
               "formats": {"type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["zstd", "gzip"]}},
-              "minimum_length": {"type": "integer", "minimum": 0, "maximum": 65536}
+              "minimum_length": {"type": "integer", "minimum": 0, "maximum": 65536},
+              "allow_unknown_length": {"type": "boolean"}
             }
           },
           "hostname": {"type": "string", "minLength": 1, "maxLength": 253},
