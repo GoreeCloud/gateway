@@ -215,7 +215,8 @@ func ValidateConfigParityEvidence(evidence ConfigParityEvidence) error {
 	}
 	if !validSHA256(evidence.ExpectedConfigSHA256) || !validSHA256(evidence.ActualConfigSHA256) {
 		return errors.New("gateway parity: configuration fingerprint is invalid")
-	}	if (evidence.MigrationSourceConfigSHA256 == "") != (evidence.MigrationReviewEvidenceSHA256 == "") {
+	}
+	if (evidence.MigrationSourceConfigSHA256 == "") != (evidence.MigrationReviewEvidenceSHA256 == "") {
 		return errors.New("gateway parity: source and review identities must be present together")
 	}
 	if evidence.MigrationSourceConfigSHA256 != "" {
