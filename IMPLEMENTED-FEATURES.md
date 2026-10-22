@@ -34,11 +34,11 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 
 PR #9 exact-head validation, merge evidence, and merged-main workflow results are authoritative in GitHub. Repository records must not duplicate moving candidate SHAs as long-lived feature authority.
 
-## Development candidate — health-probe redirect boundary (October 12, 2026)
+## Accepted Development source — health-probe redirect boundary
 
-The unmerged network-hardening candidate marks only 2xx backend health responses as healthy and does not follow redirect responses to another destination. A focused `httptest` regression covers successful, failed, and redirecting health endpoints and confirms that a redirect target is not contacted. Local Go 1.27.1 `go test ./...` passed. This is **candidate-only source evidence**, not accepted `main`, target-runtime verification, deployment, or a production availability claim.
+PR #18 integrated a bounded backend health checker into accepted `main`: health probes do not follow HTTP redirects, only 2xx responses count as healthy, and focused tests assert that redirected targets are never contacted. These are Development source and isolated-test capabilities, not production target acceptance.
 
-The candidate also raises the Go toolchain floor from 1.27.1 to 1.27.2, which remediates the nine reachable standard-library advisories detected by the Gateway vulnerability workflow at the prior exact head. This requires fresh exact-head CI evidence; the earlier failed vulnerability run is not accepted evidence of remediation.
+The Go toolchain patch floor is defined by `go.mod`. The vulnerability workflow checks the exact candidate or merged-main revision against the current Go vulnerability database; previously passing scans do not satisfy newly disclosed advisories. The October 21 merged-main scan identified `GO-2026-6809` in Go 1.27.2, with a fix in 1.27.3. New exact-head checks remain required for each subsequent toolchain update.
 
 ## Explicitly not established
 

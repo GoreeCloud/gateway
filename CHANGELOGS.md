@@ -4,6 +4,13 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-21 — Backend health-check hardening and toolchain security
+
+- Integrated PR #18 into Development `main`: health probes no longer follow redirects, HTTP 2xx is required for readiness, and regression coverage guards against contacting redirect targets.
+- Raised the Go toolchain floor to 1.27.2 with PR #18. A subsequent exact merged-main vulnerability scan detected reachable standard-library advisory `GO-2026-6809`; the follow-up Development source advances `go.mod` to the documented fixed patch level, 1.27.3, subject to fresh exact-head CI.
+- Preserved Caddy production authority. No production listeners, DNS, firewall, certificates, proxy configuration, deployment, or cutover were changed by these source revisions.
+
+
 ### 2026-09-24 — PR #9 integrated Development Gateway foundation
 
 - Added and iterated the first-party Gateway runtime/control-plane foundation, deterministic routing/backend selection, health-aware failover, streaming/upgraded-connection handling, trusted-proxy handling, and recovery/rollback primitives.
