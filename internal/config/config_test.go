@@ -199,6 +199,49 @@ func TestStaticResponseEncodingValidationFailsClosed(t *testing.T) {
 	}
 }
 
+func TestProxyResponseEncodingValidationFailsClosed(t *testing.T) {
+	for _, action := range []string{"", "reverse_proxy"} {
+		cfg := validConfig()
+		cfg.Routes[0].Action = action
+		cfg.Routes[0].ProxyResponseEncoding = &ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("reverse proxy action %q rejected valid encoding policy: %v", action, err)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		policy *ResponseEncoding
+	}{
+		{"missing formats", &ResponseEncoding{}},
+		{"unsupported format", &ResponseEncoding{Formats: []string{"br"}}},
+		{"duplicate format", &ResponseEncoding{Formats: []string{"gzip", "gzip"}}},
+		{"too many formats", &ResponseEncoding{Formats: []string{"gzip", "zstd", "br"}}},
+		{"uppercase format", &ResponseEncoding{Formats: []string{"GZIP"}}},
+		{"negative threshold", &ResponseEncoding{Formats: []string{"gzip"}, MinimumLength: intPointer(-1)}},
+		{"oversized threshold", &ResponseEncoding{Formats: []string{"zstd"}, MinimumLength: intPointer(65537)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			cfg.Routes[0].ProxyResponseEncoding = tc.policy
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("unsafe proxy encoding policy was accepted")
+			}
+			cfg.Routes[0].Enabled = false
+			if err := cfg.ValidateRouteActions(); err == nil {
+				t.Fatal("direct runtime activation bypassed proxy policy validation")
+			}
+		})
+	}
+	static := validConfig()
+	static.Routes[0].Action = "static_response"
+	static.Routes[0].ServiceID = ""
+	static.Routes[0].StaticResponse = &StaticResponse{StatusCode: 200, Body: "static"}
+	static.Routes[0].ProxyResponseEncoding = &ResponseEncoding{Formats: []string{"gzip"}}
+	if err := static.Validate(); err == nil {
+		t.Fatal("static route unexpectedly accepted proxy-only policy")
+	}
+}
+
 func intPointer(value int) *int { return &value }
 
 func validConfig() *Config {

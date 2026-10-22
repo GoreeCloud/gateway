@@ -54,6 +54,7 @@ type parityRoute struct {
 	ResponseHeaders  map[string]string `json:"response_headers,omitempty"`
 	StaticResponse   *StaticResponse   `json:"static_response,omitempty"`
 	ResponseEncoding *ResponseEncoding `json:"response_encoding,omitempty"`
+	ProxyResponseEncoding *ResponseEncoding `json:"proxy_response_encoding,omitempty"`
 }
 
 type parityBackend struct {
@@ -150,6 +151,7 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			ResponseHeaders: headers,
 			StaticResponse: route.StaticResponse,
 			ResponseEncoding: route.ResponseEncoding,
+			ProxyResponseEncoding: route.ProxyResponseEncoding,
 		})
 	}
 	sort.Slice(canonical.Routes, func(i, j int) bool { return canonical.Routes[i].ID < canonical.Routes[j].ID })

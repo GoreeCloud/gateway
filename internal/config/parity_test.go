@@ -119,6 +119,39 @@ func TestStaticResponseEncodingParityBindsPreferenceAndThreshold(t *testing.T) {
 	}
 }
 
+func TestProxyResponseEncodingParityBindsPreferenceAndThreshold(t *testing.T) {
+	cfg := validConfig()
+	baseline, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Routes[0].ProxyResponseEncoding = &ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+	first, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if baseline == first {
+		t.Fatal("opt-in proxy encoding must change parity identity")
+	}
+	cfg.Routes[0].ProxyResponseEncoding.Formats = []string{"gzip", "zstd"}
+	reordered, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first == reordered {
+		t.Fatal("proxy encoding preference order must change parity identity")
+	}
+	minimum := 2048
+	cfg.Routes[0].ProxyResponseEncoding.MinimumLength = &minimum
+	threshold, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reordered == threshold {
+		t.Fatal("proxy encoding threshold must change parity identity")
+	}
+}
+
 func TestConfigParityFingerprintBindsResponseHeaders(t *testing.T) {
 	cfg := testParityConfig()
 	baseline, err := ConfigParityFingerprint(cfg)

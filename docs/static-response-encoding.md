@@ -1,6 +1,6 @@
 # Bounded native static-response encoding (Development)
 
-This first native `gzip`/`zstd` implementation is deliberately **opt-in** and applies only to literal `static_response` routes. It is not Caddy `encode` parity, streaming reverse-proxy compression, target-environment acceptance, or a production cutover signal. Caddy remains authoritative.
+This native `gzip`/`zstd` implementation is deliberately **opt-in** and applies only to literal `static_response` routes. A separate [known-length proxy encoding feature](proxy-response-encoding.md) is available at Development source level; neither feature establishes Caddy `encode` parity, target-environment acceptance, or a production cutover signal. Caddy remains authoritative.
 
 ## Configuration
 
@@ -25,6 +25,6 @@ The snippet shows the action-specific fields, not a complete route. Supported fo
 
 ## Not yet covered
 
-The live Caddy source contains an `encode` handler (`zstd` then `gzip`) in a nested route. Native proxy-stream encoding, unknown upstream lengths, SSE incremental flushes, WebSocket upgrades, upstream pre-encoded bodies, response matcher placement, complete status/content type edge cases, exact Caddy compression defaults, and production-equivalent performance remain **unverified**. Do not enable native encoding on proxy routes, infer full source parity from this development feature, or deploy the candidate into production.
+The live Caddy source contains an `encode` handler (`zstd` then `gzip`) in a nested route. The separate, opt-in known-length proxy encoder is still narrowly scoped; unknown upstream lengths, SSE incremental flushes, WebSocket upgrades, upstream pre-encoded bodies, response matcher placement, complete status/content type edge cases, exact Caddy compression defaults, and production-equivalent performance remain **unverified**. Do not infer full source parity from either development feature or deploy the candidate into production.
 
-The next stage requires independently reviewed exact Caddy source semantics, isolated end-to-end streaming/backpressure tests, a recovery/rollback rehearsal, and the gated migration verification described in [issue #44](https://github.com/GoreeCloud/gateway/issues/44).
+The next stage requires independently reviewed exact Caddy source semantics, unknown-length/SSE compression parity, a recovery/rollback rehearsal, and the gated migration verification described in [issue #44](https://github.com/GoreeCloud/gateway/issues/44).

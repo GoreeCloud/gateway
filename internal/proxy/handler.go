@@ -311,7 +311,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			for name, value := range match.Route.ResponseHeaders {
 				response.Header.Set(name, value)
 			}
-			return nil
+			return responsecoding.EncodeKnownLengthProxy(req, response, match.Route.ProxyResponseEncoding)
 		},
 		FlushInterval: -1,
 	}

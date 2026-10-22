@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Opt-in streaming gzip/zstd for known-length proxy responses
+
+- Added opt-in `proxy_response_encoding` with validated codec preference and minimum length, separate from static-only encoding; incorporated the policy into migration-parity fingerprints.
+- Streamed eligible known-length GET/200 proxy responses through bounded-backpressure gzip/zstd with content negotiation, safe representation headers, and fail-closed bypasses for unknown-length, SSE, upgrades, ranges, trailers, existing encoding, no-transform, and other unsupported cases.
+- Added Go unit/integration regression coverage and a limitations guide. Caddy retains production traffic; unknown-length dynamic compression, exact Caddy handler parity, and target acceptance remain outstanding.
+
 ### 2026-10-22 — Opt-in bounded native gzip/zstd for static responses
 
 - Introduced a per-static-route response-encoding policy with `gzip`/`zstd` preference, a bounded minimum-length override, and fail-closed validation that forbids applying it to reverse-proxy streams.

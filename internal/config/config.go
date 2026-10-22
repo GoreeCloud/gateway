@@ -24,23 +24,24 @@ type Service struct {
 }
 
 type Route struct {
-	ID              string            `json:"id"`
-	Action          string            `json:"action,omitempty"`
-	ServiceID       string            `json:"service_id,omitempty"`
-	Hostname        string            `json:"hostname"`
-	PathPrefix      string            `json:"path_prefix"`
-	Methods         []string          `json:"methods"`
-	Exposure        string            `json:"exposure"`
-	Enabled         bool              `json:"enabled"`
-	TLS             RouteTLS          `json:"tls"`
-	ResponseHeaders  map[string]string `json:"response_headers,omitempty"`
-	StaticResponse   *StaticResponse   `json:"static_response,omitempty"`
-	ResponseEncoding *ResponseEncoding `json:"response_encoding,omitempty"`
+	ID                    string            `json:"id"`
+	Action                string            `json:"action,omitempty"`
+	ServiceID             string            `json:"service_id,omitempty"`
+	Hostname              string            `json:"hostname"`
+	PathPrefix            string            `json:"path_prefix"`
+	Methods               []string          `json:"methods"`
+	Exposure              string            `json:"exposure"`
+	Enabled               bool              `json:"enabled"`
+	TLS                   RouteTLS          `json:"tls"`
+	ResponseHeaders       map[string]string `json:"response_headers,omitempty"`
+	StaticResponse        *StaticResponse   `json:"static_response,omitempty"`
+	ResponseEncoding      *ResponseEncoding `json:"response_encoding,omitempty"`
+	ProxyResponseEncoding *ResponseEncoding `json:"proxy_response_encoding,omitempty"`
 }
 
-// ResponseEncoding is an opt-in bounded policy for literal static responses.
-// Streaming reverse-proxy responses are deliberately unsupported until their
-// Caddy behavior, backpressure, and upgrade semantics are verified separately.
+// ResponseEncoding selects a bounded, opt-in representation coding policy.
+// Proxy routes currently support only eligible known-length response bodies;
+// unknown-length streams, SSE, ranges, upgrades and already-coded bodies stay raw.
 type ResponseEncoding struct {
 	Formats       []string `json:"formats"`
 	MinimumLength *int     `json:"minimum_length,omitempty"`
@@ -202,24 +203,17 @@ func (c *Config) ValidateRouteActions() error {
 		return fmt.Errorf("gateway configuration is required")
 	}
 	for _, route := range c.Routes {
-		if route.ResponseEncoding != nil {
-			if !route.IsStaticResponse() {
-				return fmt.Errorf("route %q response encoding requires a static response", route.ID)
-			}
-			policy := route.ResponseEncoding
-			if len(policy.Formats) < 1 || len(policy.Formats) > 2 {
-				return fmt.Errorf("route %q response encoding requires one or two formats", route.ID)
-			}
-			seen := make(map[string]bool, len(policy.Formats))
-			for _, format := range policy.Formats {
-				if format != "zstd" && format != "gzip" || seen[format] {
-					return fmt.Errorf("route %q has invalid response encoding format", route.ID)
-				}
-				seen[format] = true
-			}
-			if policy.MinimumLength != nil && (*policy.MinimumLength < 0 || *policy.MinimumLength > 65536) {
-				return fmt.Errorf("route %q response encoding minimum length is outside supported bounds", route.ID)
-			}
+		if route.ResponseEncoding != nil && !route.IsStaticResponse() {
+			return fmt.Errorf("route %q response encoding requires a static response", route.ID)
+		}
+		if route.ProxyResponseEncoding != nil && route.IsStaticResponse() {
+			return fmt.Errorf("route %q proxy response encoding requires a reverse proxy", route.ID)
+		}
+		if err := validateResponseEncoding(route.ID, route.ResponseEncoding); err != nil {
+			return err
+		}
+		if err := validateResponseEncoding(route.ID, route.ProxyResponseEncoding); err != nil {
+			return err
 		}
 		switch route.Action {
 		case "", "reverse_proxy":
@@ -246,6 +240,26 @@ func (c *Config) ValidateRouteActions() error {
 		default:
 			return fmt.Errorf("route %q has unsupported action %q", route.ID, route.Action)
 		}
+	}
+	return nil
+}
+
+func validateResponseEncoding(routeID string, policy *ResponseEncoding) error {
+	if policy == nil {
+		return nil
+	}
+	if len(policy.Formats) < 1 || len(policy.Formats) > 2 {
+		return fmt.Errorf("route %q response encoding requires one or two formats", routeID)
+	}
+	seen := make(map[string]bool, len(policy.Formats))
+	for _, format := range policy.Formats {
+		if (format != "zstd" && format != "gzip") || seen[format] {
+			return fmt.Errorf("route %q has invalid response encoding format", routeID)
+		}
+		seen[format] = true
+	}
+	if policy.MinimumLength != nil && (*policy.MinimumLength < 0 || *policy.MinimumLength > 65536) {
+		return fmt.Errorf("route %q response encoding minimum length is outside supported bounds", routeID)
 	}
 	return nil
 }

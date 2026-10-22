@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/GoreeCloud/goreecloud-gateway/internal/config"
 	"github.com/GoreeCloud/goreecloud-gateway/internal/health"
+	"github.com/klauspost/compress/zstd"
 )
 
 type fakeChecker struct {
@@ -59,6 +61,70 @@ func TestProxyRoutesAndStreams(t *testing.T) {
 	}
 	if got := strings.TrimSpace(rw.Body.String()); got != "proxied:/stream" {
 		t.Fatalf("body=%q", got)
+	}
+}
+
+func TestProxyKnownLengthOptInEncodingAndUnknownLengthPassthrough(t *testing.T) {
+	body := []byte(strings.Repeat("GoreeCloud reverse proxy compression integration. ", 128))
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("ETag", "identity-representation")
+		if r.URL.Path == "/unknown" {
+			w.(http.Flusher).Flush() // force chunked upstream framing
+		} else {
+			w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		}
+		_, _ = w.Write(body)
+	}))
+	defer upstream.Close()
+	cfg := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	cfg.Routes[0].TLS = config.RouteTLS{Mode: "disabled"}
+	cfg.Routes[0].ProxyResponseEncoding = &config.ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
+	for _, tc := range []struct {
+		name, path, accept, want string
+	}{
+		{"zstd", "/known", "zstd, gzip", "zstd"},
+		{"gzip", "/known", "gzip;q=1, zstd;q=0", "gzip"},
+		{"unknown-length", "/unknown", "zstd, gzip", ""},
+		{"client-declined", "/known", "zstd;q=0, gzip;q=0", ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com"+tc.path, nil)
+			req.Header.Set("Accept-Encoding", tc.accept)
+			rw := httptest.NewRecorder()
+			handler.ServeHTTP(rw, req)
+			if rw.Code != http.StatusOK || rw.Header().Get("Content-Encoding") != tc.want || rw.Header().Get("ETag") != map[bool]string{true: "identity-representation", false: ""}[tc.want == ""] {
+				t.Fatalf("unexpected %s result: status=%d headers=%v", tc.name, rw.Code, rw.Header())
+			}
+			if !strings.Contains(rw.Header().Get("Vary"), "Accept-Encoding") {
+				t.Fatalf("missing Vary: %v", rw.Header())
+			}
+			var decoded []byte
+			var err error
+			switch tc.want {
+			case "gzip":
+				reader, initErr := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
+				if initErr != nil { t.Fatal(initErr) }
+				decoded, err = io.ReadAll(reader)
+				_ = reader.Close()
+			case "zstd":
+				reader, initErr := zstd.NewReader(nil)
+				if initErr != nil { t.Fatal(initErr) }
+				decoded, err = reader.DecodeAll(rw.Body.Bytes(), nil)
+				reader.Close()
+			default:
+				decoded = rw.Body.Bytes()
+			}
+			if err != nil || !bytes.Equal(decoded, body) {
+				t.Fatalf("%s body mismatch: error=%v", tc.name, err)
+			}
+		})
 	}
 }
 
