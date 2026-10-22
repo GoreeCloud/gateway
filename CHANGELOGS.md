@@ -4,10 +4,16 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-21 — Read-only Caddy migration evidence hardening
+
+- Merged PR #31 to enrich the Caddy/VPS discovery collector with image ID, available repository digests, and bounded OCI labels; escape untrusted metadata; and report inaccessible host certificate directories and Compose checksums explicitly.
+- Validated the exact collector source with Bash syntax checks, self-test, five green GitHub CI workflows, and read-only execution on `goreecloud-vps-01` against the running Caddy container.
+- Retained Caddy production authority. This evidence does not substitute for independently reviewed configuration parity, credential/certificate acceptance, recovery/rollback, or cutover authorization.
+
 ### 2026-10-21 — Backend health-check hardening and toolchain security
 
 - Integrated PR #18 into Development `main`: health probes no longer follow redirects, HTTP 2xx is required for readiness, and regression coverage guards against contacting redirect targets.
-- Raised the Go toolchain floor to 1.27.2 with PR #18. A subsequent exact merged-main vulnerability scan detected reachable standard-library advisory `GO-2026-6809`; the follow-up Development source advances `go.mod` to the documented fixed patch level, 1.27.3, subject to fresh exact-head CI.
+- Raised the Go toolchain floor to 1.27.2 with PR #18. A subsequent exact merged-main vulnerability scan detected reachable standard-library advisory `GO-2026-6809`; the follow-up merged PR #30 advanced `go.mod` to the documented fixed patch level, 1.27.3, with successful exact-head CI.
 - Preserved Caddy production authority. No production listeners, DNS, firewall, certificates, proxy configuration, deployment, or cutover were changed by these source revisions.
 
 
