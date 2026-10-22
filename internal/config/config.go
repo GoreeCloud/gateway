@@ -25,7 +25,8 @@ type Service struct {
 
 type Route struct {
 	ID              string            `json:"id"`
-	ServiceID       string            `json:"service_id"`
+	Action          string            `json:"action,omitempty"`
+	ServiceID       string            `json:"service_id,omitempty"`
 	Hostname        string            `json:"hostname"`
 	PathPrefix      string            `json:"path_prefix"`
 	Methods         []string          `json:"methods"`
@@ -33,6 +34,18 @@ type Route struct {
 	Enabled         bool              `json:"enabled"`
 	TLS             RouteTLS          `json:"tls"`
 	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
+	StaticResponse  *StaticResponse   `json:"static_response,omitempty"`
+}
+
+// StaticResponse is a literal, bounded response. It does not implement Caddy
+// expression evaluation, templates, or request-dependent interpolation.
+type StaticResponse struct {
+	StatusCode int    `json:"status_code"`
+	Body       string `json:"body,omitempty"`
+}
+
+func (r Route) IsStaticResponse() bool {
+	return r.Action == "static_response"
 }
 
 type RouteTLS struct {
@@ -125,13 +138,18 @@ func (c *Config) Validate() error {
 	if err := c.ValidateResponseHeaderPolicies(); err != nil {
 		return err
 	}
+	if err := c.ValidateRouteActions(); err != nil {
+		return err
+	}
 	seen := map[string]string{}
 	for _, r := range c.Routes {
 		if !r.Enabled {
 			continue
 		}
-		if _, ok := services[r.ServiceID]; !ok {
-			return fmt.Errorf("route %q references missing service %q", r.ID, r.ServiceID)
+		if !r.IsStaticResponse() {
+			if _, ok := services[r.ServiceID]; !ok {
+				return fmt.Errorf("route %q references missing service %q", r.ID, r.ServiceID)
+			}
 		}
 		if r.Hostname == "" {
 			return fmt.Errorf("route %q hostname is required", r.ID)
@@ -164,6 +182,42 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("route %q conflicts with %q", r.ID, prior)
 		}
 		seen[key] = r.ID
+	}
+	return nil
+}
+
+// ValidateRouteActions is enforced both during load and direct runtime-state
+// activation. Legacy routes without an action remain reverse proxies.
+func (c *Config) ValidateRouteActions() error {
+	if c == nil {
+		return fmt.Errorf("gateway configuration is required")
+	}
+	for _, route := range c.Routes {
+		switch route.Action {
+		case "", "reverse_proxy":
+			if route.StaticResponse != nil {
+				return fmt.Errorf("route %q reverse proxy cannot configure static_response", route.ID)
+			}
+		case "static_response":
+			if route.ServiceID != "" {
+				return fmt.Errorf("route %q static response cannot reference a service", route.ID)
+			}
+			if route.StaticResponse == nil {
+				return fmt.Errorf("route %q static response definition is required", route.ID)
+			}
+			response := route.StaticResponse
+			if response.StatusCode < 200 || response.StatusCode > 599 {
+				return fmt.Errorf("route %q has invalid static response status", route.ID)
+			}
+			if len(response.Body) > 16*1024 {
+				return fmt.Errorf("route %q static response exceeds 16 KiB", route.ID)
+			}
+			if (response.StatusCode == 204 || response.StatusCode == 205 || response.StatusCode == 304) && len(response.Body) > 0 {
+				return fmt.Errorf("route %q static response status cannot contain a body", route.ID)
+			}
+		default:
+			return fmt.Errorf("route %q has unsupported action %q", route.ID, route.Action)
+		}
 	}
 	return nil
 }

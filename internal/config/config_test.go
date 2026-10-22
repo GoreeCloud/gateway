@@ -16,6 +16,62 @@ func TestResponseHeaderSetPolicyValidates(t *testing.T) {
 	}
 }
 
+func TestStaticResponseRouteRequiresNoServiceOrBackend(t *testing.T) {
+	cfg := &Config{
+		Schema: "goreecloud-gateway-config/v1",
+		Routes: []Route{{
+			ID: "maintenance", Action: "static_response", Hostname: "maintenance.example.test",
+			PathPrefix: "/", Exposure: "public", Enabled: true,
+			TLS: RouteTLS{Mode: "disabled"},
+			StaticResponse: &StaticResponse{StatusCode: 503, Body: "Temporarily unavailable\n"},
+		}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("standalone static response should validate: %v", err)
+	}
+}
+
+func TestRouteActionsRejectAmbiguousOrUnsafeStaticResponses(t *testing.T) {
+	tests := []struct {
+		name string
+		edit func(*Route)
+	}{
+		{"unknown action", func(r *Route) { r.Action = "script" }},
+		{"proxy with static response", func(r *Route) { r.StaticResponse = &StaticResponse{StatusCode: 200} }},
+		{"static with service", func(r *Route) { r.Action = "static_response" }},
+		{"static missing response", func(r *Route) { r.Action = "static_response"; r.ServiceID = "" }},
+		{"informational status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 101} }},
+		{"invalid status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 600} }},
+		{"oversized body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 16*1024+1)} }},
+		{"no-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 204, Body: "no"} }},
+		{"reset-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 205, Body: "no"} }},
+		{"not-modified body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 304, Body: "no"} }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			tc.edit(&cfg.Routes[0])
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("invalid route action unexpectedly passed validation")
+			}
+			cfg.Routes[0].Enabled = false
+			if err := cfg.ValidateRouteActions(); err == nil {
+				t.Fatal("invalid disabled route action unexpectedly passed activation validation")
+			}
+		})
+	}
+}
+
+func TestLegacyReverseProxyRouteActionIsCompatible(t *testing.T) {
+	cfg := validConfig()
+	for _, action := range []string{"", "reverse_proxy"} {
+		cfg.Routes[0].Action = action
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("route action %q rejected: %v", action, err)
+		}
+	}
+}
+
 func TestResponseHeaderSetPolicyRejectsUnsafeValues(t *testing.T) {
 	tests := []struct {
 		name    string

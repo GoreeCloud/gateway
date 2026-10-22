@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -106,6 +107,9 @@ func (h *Handler) Reload(cfg *config.Config) {
 
 func (h *Handler) storeRuntimeState(cfg *config.Config) error {
 	if err := cfg.ValidateResponseHeaderPolicies(); err != nil {
+		return err
+	}
+	if err := cfg.ValidateRouteActions(); err != nil {
 		return err
 	}
 	policy, err := NewTrustedProxyPolicy(cfg.TrustedProxies)
@@ -240,6 +244,23 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	match, ok := routing.ResolveCandidates(state.cfg, req)
 	if !ok {
 		http.NotFound(w, req)
+		return
+	}
+	if match.Route.IsStaticResponse() {
+		response := match.Route.StaticResponse // non-nil after activation validation
+		for name, value := range match.Route.ResponseHeaders {
+			w.Header().Set(name, value)
+		}
+		if len(response.Body) > 0 {
+			if w.Header().Get("Content-Type") == "" {
+				w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+			}
+			w.Header().Set("Content-Length", strconv.Itoa(len(response.Body)))
+		}
+		w.WriteHeader(response.StatusCode)
+		if req.Method != http.MethodHead && len(response.Body) > 0 {
+			_, _ = w.Write([]byte(response.Body))
+		}
 		return
 	}
 

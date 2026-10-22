@@ -11,6 +11,12 @@ This repository-local record is the authoritative Git-native chronological chang
 - Migrated the Gateway declaration to versioned Platform Contract 2.1, with its nine-system `gc_ui` key, scoped Foundations target, Forge lifecycle metadata, and immutable reusable-workflow evaluator pin.
 - Corrected the development repository identity and stale unmerged-runtime blocker. Caddy retains production authority; no deployment or cutover occurred.
 
+### 2026-10-22 — Bounded native static-response routes
+
+- Added explicit `static_response` route action supporting literal HTTP 200–599 statuses and up to 16 KiB response bodies, independent of upstream services and health probing.
+- Preserved legacy reverse-proxy routes, required fail-closed validation of ambiguous actions, and included action/status/body semantics in deterministic parity evidence.
+- Added isolated routing, HTTP GET/HEAD, configuration, and reload regressions. Caddy handler inventory still requires exact route-level review before any migration rehearsal or production cutover.
+
 ### 2026-10-22 — Bounded response-header set policy
 
 - Added optional native route response-header set operations, with fail-closed control-character, duplicate-field, framing-header, and size validation.

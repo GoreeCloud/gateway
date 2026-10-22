@@ -41,6 +41,48 @@ func TestConfigParityFingerprintChangesWithRouteSemantics(t *testing.T) {
 	}
 }
 
+func TestStaticResponseParityBindsBodyAndStatusWithoutChangingLegacyProxyIdentity(t *testing.T) {
+	cfg := validConfig()
+	legacy, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Routes[0].Action = "reverse_proxy"
+	explicitProxy, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if legacy != explicitProxy {
+		t.Fatal("explicit reverse_proxy action must preserve legacy parity identity")
+	}
+	cfg.Routes[0].Action = "static_response"
+	cfg.Routes[0].ServiceID = ""
+	cfg.Routes[0].StaticResponse = &StaticResponse{StatusCode: 503, Body: "maintenance"}
+	staticFirst, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if staticFirst == legacy {
+		t.Fatal("changing from proxy to static response must change parity identity")
+	}
+	cfg.Routes[0].StaticResponse.StatusCode = 200
+	staticStatus, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if staticStatus == staticFirst {
+		t.Fatal("static response status change did not change parity identity")
+	}
+	cfg.Routes[0].StaticResponse.Body = "updated"
+	staticBody, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if staticBody == staticStatus {
+		t.Fatal("static response body change did not change parity identity")
+	}
+}
+
 func TestConfigParityFingerprintBindsResponseHeaders(t *testing.T) {
 	cfg := testParityConfig()
 	baseline, err := ConfigParityFingerprint(cfg)

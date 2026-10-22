@@ -42,6 +42,7 @@ type parityService struct {
 
 type parityRoute struct {
 	ID              string            `json:"id"`
+	Action          string            `json:"action,omitempty"`
 	ServiceID       string            `json:"service_id"`
 	Hostname        string            `json:"hostname"`
 	PathPrefix      string            `json:"path_prefix"`
@@ -51,6 +52,7 @@ type parityRoute struct {
 	TLSMode         string            `json:"tls_mode"`
 	TLSProfile      string            `json:"tls_profile,omitempty"`
 	ResponseHeaders map[string]string `json:"response_headers,omitempty"`
+	StaticResponse  *StaticResponse   `json:"static_response,omitempty"`
 }
 
 type parityBackend struct {
@@ -129,8 +131,13 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 				headers[http.CanonicalHeaderKey(name)] = value
 			}
 		}
+		var action string // Default and explicit reverse_proxy are equivalent.
+		if route.IsStaticResponse() {
+			action = "static_response"
+		}
 		canonical.Routes = append(canonical.Routes, parityRoute{
 			ID:         strings.TrimSpace(route.ID),
+			Action:     action,
 			ServiceID:  strings.TrimSpace(route.ServiceID),
 			Hostname:   strings.ToLower(strings.TrimSuffix(strings.TrimSpace(route.Hostname), ".")),
 			PathPrefix: pathPrefix,
@@ -140,6 +147,7 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			TLSMode:    strings.TrimSpace(route.TLS.Mode),
 			TLSProfile: strings.TrimSpace(route.TLS.CertificateProfile),
 			ResponseHeaders: headers,
+			StaticResponse: route.StaticResponse,
 		})
 	}
 	sort.Slice(canonical.Routes, func(i, j int) bool { return canonical.Routes[i].ID < canonical.Routes[j].ID })

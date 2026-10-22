@@ -60,6 +60,76 @@ func TestProxyRoutesAndStreams(t *testing.T) {
 	}
 }
 
+func TestStaticResponseSkipsBackendAndHandlesGETAndHEAD(t *testing.T) {
+	cfg := &config.Config{
+		Schema: "goreecloud-gateway-config/v1",
+		Routes: []config.Route{{
+			ID: "maintenance", Action: "static_response", Hostname: "app.goreecloud.com",
+			PathPrefix: "/", Enabled: true, TLS: config.RouteTLS{Mode: "disabled"},
+			StaticResponse: &config.StaticResponse{StatusCode: 503, Body: "Maintenance\n"},
+			ResponseHeaders: map[string]string{"Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8"},
+		}},
+	}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	checker := &fakeChecker{healthy: map[string]bool{}, checks: map[string]int{}}
+	handler.checker = checker
+
+	for _, method := range []string{http.MethodGet, http.MethodHead} {
+		rw := httptest.NewRecorder()
+		handler.ServeHTTP(rw, httptest.NewRequest(method, "http://app.goreecloud.com/", nil))
+		if rw.Code != 503 || rw.Header().Get("Cache-Control") != "no-store" || rw.Header().Get("Content-Length") != "12" {
+			t.Fatalf("%s response code=%d headers=%v", method, rw.Code, rw.Header())
+		}
+		wantBody := "Maintenance\n"
+		if method == http.MethodHead {
+			wantBody = ""
+		}
+		if rw.Body.String() != wantBody {
+			t.Fatalf("%s body=%q want=%q", method, rw.Body.String(), wantBody)
+		}
+	}
+	if len(checker.checks) != 0 {
+		t.Fatalf("static responses must never probe an upstream: %v", checker.checks)
+	}
+}
+
+func TestStaticResponseNoContentAndMalformedDirectActivation(t *testing.T) {
+	cfg := &config.Config{Schema: "goreecloud-gateway-config/v1", Routes: []config.Route{{
+		ID: "empty", Action: "static_response", Hostname: "app.goreecloud.com", PathPrefix: "/", Enabled: true,
+		TLS: config.RouteTLS{Mode: "disabled"}, StaticResponse: &config.StaticResponse{StatusCode: 204},
+	}}}
+	handler := New(cfg)
+	defer handler.Close()
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != 204 || rw.Body.Len() != 0 {
+		t.Fatalf("expected an empty 204 response, got %d %q", rw.Code, rw.Body.String())
+	}
+
+	invalid := &config.Config{Schema: "goreecloud-gateway-config/v1", Routes: []config.Route{{
+		ID: "bad", Action: "static_response", Hostname: "app.goreecloud.com", PathPrefix: "/", Enabled: true,
+		StaticResponse: &config.StaticResponse{StatusCode: 503, Body: strings.Repeat("x", 16*1024+1)},
+	}}}
+	handler.Reload(invalid)
+	rw = httptest.NewRecorder()
+	handler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != 204 {
+		t.Fatalf("unsafe reload replaced the last good static response: %d", rw.Code)
+	}
+
+	unsafeHandler := New(invalid)
+	defer unsafeHandler.Close()
+	rw = httptest.NewRecorder()
+	unsafeHandler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != 503 || rw.Body.String() == strings.Repeat("x", 16*1024+1) {
+		t.Fatal("malformed direct activation did not fail closed")
+	}
+}
+
 func TestProxyAppliesBoundedResponseHeaderSetPolicy(t *testing.T) {
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("X-Gateway-Policy", "upstream")
