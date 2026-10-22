@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Ambiguous Caddy container discovery fails closed
+
+- Prevented the VPS read-only collector from silently selecting the first Caddy image when several Caddy containers are running, including independent staging ingress services.
+- Required an independently verified explicit `CADDY_CONTAINER` selection in ambiguous environments; added single/ambiguous/missing-container self-tests and updated operator guidance.
+- Discovered this through a non-mutating VPS preflight mismatch; separately rechecked the production `caddy` container source identity. No production Caddy or network changes.
+
 ### 2026-10-22 — Fail-closed read-only Caddy source-report binding
 
 - Required the local migration verifier to compare the reviewed v2 Caddy source SHA-256 against a bounded, structurally complete read-only preflight report before emitting minimized parity evidence.
