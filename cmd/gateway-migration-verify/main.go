@@ -21,6 +21,7 @@ func run(args []string, stdout, stderr io.Writer, now func() time.Time) int {
 	flags.SetOutput(stderr)
 	configPath := flags.String("config", "", "validated Gateway candidate configuration path")
 	manifestPath := flags.String("manifest", "", "independently reviewed Caddy migration-source manifest path")
+	preflightPath := flags.String("preflight-report", "", "protected read-only Caddy collector report path")
 	sourceRevision := flags.String("source-revision", "", "exact 40-character lowercase Gateway source revision being evaluated")
 	if err := flags.Parse(args); err != nil {
 		return 2
@@ -29,8 +30,8 @@ func run(args []string, stdout, stderr io.Writer, now func() time.Time) int {
 		fmt.Fprintln(stderr, "gateway migration verify: positional arguments are not supported")
 		return 2
 	}
-	if strings.TrimSpace(*configPath) == "" || strings.TrimSpace(*manifestPath) == "" || strings.TrimSpace(*sourceRevision) == "" {
-		fmt.Fprintln(stderr, "gateway migration verify: -config, -manifest, and -source-revision are required")
+	if strings.TrimSpace(*configPath) == "" || strings.TrimSpace(*manifestPath) == "" || strings.TrimSpace(*preflightPath) == "" || strings.TrimSpace(*sourceRevision) == "" {
+		fmt.Fprintln(stderr, "gateway migration verify: -config, -manifest, -preflight-report, and -source-revision are required")
 		return 2
 	}
 	if now == nil {
@@ -48,6 +49,17 @@ func run(args []string, stdout, stderr io.Writer, now func() time.Time) int {
 		fmt.Fprintf(stderr, "gateway migration verify: load reviewed migration source: %v\n", err)
 		return 1
 	}
+	report, err := os.Open(strings.TrimSpace(*preflightPath))
+	if err != nil {
+		fmt.Fprintf(stderr, "gateway migration verify: open Caddy preflight report: %v\n", err)
+		return 1
+	}
+	defer report.Close()
+	if err := config.ValidateCaddyPreflightSourceIdentity(report, manifest); err != nil {
+		fmt.Fprintf(stderr, "gateway migration verify: preflight source rejected: %v\n", err)
+		return 1
+	}
+
 	evidence, err := config.BuildConfigParityEvidenceFromMigrationSource(
 		cfg,
 		strings.TrimSpace(*sourceRevision),
