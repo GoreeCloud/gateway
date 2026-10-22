@@ -67,6 +67,15 @@ Optional environment overrides may be supplied on the remote side when discovery
 
 Do not supply credentials through these variables.
 
+**Container targeting is fail-closed.** Automatic selection is permitted only
+when exactly one running container matches Caddy by its name or image. If
+multiple Caddy containers are running (such as production and a staging
+ingress), the collector emits
+`fatal=caddy-container-discovery-ambiguous-or-missing` and stops before reading
+any configuration. Verify the intended production container independently and
+pass its exact name, for example `CADDY_CONTAINER=caddy`, on the remote side.
+Do not treat a report from a staging Caddy container as production evidence.
+
 ## Review rule
 
 Before using the report as migration-source input:
