@@ -15,6 +15,8 @@ The manifest contains only:
 
 It deliberately excludes hostnames, backend URLs, certificate paths, credentials, request data, route contents, certificate material, and private runtime diagnostics.
 
+**Do not confuse the two digests:** the preflight collector's `config_sha256` is the SHA-256 of the source Caddy configuration file. In this manifest, `config_sha256` is the *reviewed expected Gateway configuration-parity fingerprint* produced from the translated Gateway candidate's validated semantics (including the trusted-proxy boundary). They are different identities and are not interchangeable. The independently retained review evidence must associate the exact Caddy source revision/configuration-file hash with the reviewed translation and expected Gateway fingerprint; `review_evidence_sha256` identifies that evidence. Neither digest alone proves faithful translation.
+
 Gateway strictly decodes the manifest, rejects unknown or trailing JSON, requires valid immutable identities, verifies the aggregate counts against the candidate Gateway configuration, and then evaluates the candidate configuration fingerprint against the reviewed migration-source fingerprint.
 
 ## Local parity verifier
