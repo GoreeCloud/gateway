@@ -41,6 +41,47 @@ func TestConfigParityFingerprintChangesWithRouteSemantics(t *testing.T) {
 	}
 }
 
+func TestConfigParityFingerprintTracksTrustedProxyTrustBoundary(t *testing.T) {
+	cfg := testParityConfig()
+	without, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.TrustedProxies = []string{"192.0.2.0/24"}
+	withFirst, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if without == withFirst {
+		t.Fatal("adding a trusted ingress proxy did not change parity fingerprint")
+	}
+	cfg.TrustedProxies = []string{"198.51.100.0/24"}
+	withSecond, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if withFirst == withSecond {
+		t.Fatal("changing the trusted proxy network did not change parity fingerprint")
+	}
+}
+
+func TestConfigParityFingerprintNormalizesTrustedProxyEntries(t *testing.T) {
+	cfg := testParityConfig()
+	cfg.TrustedProxies = []string{"198.51.100.9", "192.0.2.37/24", "192.0.2.0/24"}
+	first, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.TrustedProxies = []string{"192.0.2.0/24", "198.51.100.9/32"}
+	second, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first != second {
+		t.Fatalf("equivalent trusted-proxy sets changed parity fingerprint: %s != %s", first, second)
+	}
+}
+
 func TestBuildAndValidateConfigParityEvidence(t *testing.T) {
 	cfg := testParityConfig()
 	expected, err := ConfigParityFingerprint(cfg)
