@@ -1,6 +1,6 @@
 # Gateway Migration-Source Manifest
 
-GoreeCloud Gateway uses `goreecloud-gateway-migration-source-manifest/v1` to bind configuration-parity evaluation to a retained, independently reviewed identity for the migration source.
+GoreeCloud Gateway uses `goreecloud-gateway-migration-source-manifest/v2` to bind configuration-parity evaluation to a retained, independently reviewed identity for the migration source.
 
 For the current migration, `source_system` is fixed to `caddy`. A different source requires a separately reviewed contract rather than silently reusing this one.
 
@@ -8,14 +8,15 @@ The manifest contains only:
 
 - recording time;
 - migration-source system and environment labels;
-- exact reviewed configuration SHA-256;
+- SHA-256 of the exact reviewed source Caddy configuration file (`source_config_sha256`);
+- separately reviewed canonical Gateway configuration-parity fingerprint (`expected_gateway_config_sha256`);
 - aggregate service, route, backend, and certificate-profile counts;
 - SHA-256 identity of the independent review evidence; and
 - `production_cutover_authorized=false`.
 
 It deliberately excludes hostnames, backend URLs, certificate paths, credentials, request data, route contents, certificate material, and private runtime diagnostics.
 
-**Do not confuse the two digests:** the preflight collector's `config_sha256` is the SHA-256 of the source Caddy configuration file. In this manifest, `config_sha256` is the *reviewed expected Gateway configuration-parity fingerprint* produced from the translated Gateway candidate's validated semantics (including the trusted-proxy boundary). They are different identities and are not interchangeable. The independently retained review evidence must associate the exact Caddy source revision/configuration-file hash with the reviewed translation and expected Gateway fingerprint; `review_evidence_sha256` identifies that evidence. Neither digest alone proves faithful translation.
+**Distinct identities are mandatory:** the preflight collector's `config_sha256` is the SHA-256 of the source Caddy configuration file and belongs in the manifest's `source_config_sha256`. The manifest's `expected_gateway_config_sha256` is instead the *reviewed expected Gateway semantic fingerprint* of the translated, validated candidate (including trusted proxies). These identities must both be present and must differ; a legacy v1 manifest or an identical value in both fields fails closed. The independently retained review evidence must bind the exact Caddy source/configuration-file hash to the reviewed translation and expected Gateway fingerprint; `review_evidence_sha256` identifies that material. The verifier does not independently inspect live Caddy, so the review process still establishes source authenticity.
 
 Gateway strictly decodes the manifest, rejects unknown or trailing JSON, requires valid immutable identities, verifies the aggregate counts against the candidate Gateway configuration, and then evaluates the candidate configuration fingerprint against the reviewed migration-source fingerprint.
 
@@ -29,6 +30,8 @@ go run ./cmd/gateway-migration-verify \
   -manifest /path/to/reviewed-caddy-source.json \
   -source-revision 0123456789abcdef0123456789abcdef01234567
 ```
+
+The command accepts only the v2 manifest contract with separately identified source-Caddy and expected-Gateway fingerprints. It emits the source and review SHA-256 identities in the minimized evidence, without including any configuration values.
 
 The command:
 
