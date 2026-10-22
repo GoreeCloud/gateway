@@ -9,7 +9,9 @@ import (
 	"time"
 )
 
-const MigrationEvidenceSchemaV1 = "goreecloud-gateway-migration-evidence/v1"
+// V2 replaces the retired administration-design gate with the current
+// GoreeCloud UI integration gate. V1 evidence is deliberately not accepted.
+const MigrationEvidenceSchemaV2 = "goreecloud-gateway-migration-evidence/v2"
 
 // MigrationEvidence records bounded acceptance results for one exact Gateway
 // source revision and immutable runtime artifact. It intentionally carries no
@@ -34,7 +36,7 @@ type MigrationEvidence struct {
 	PrivacyShieldValidated         bool   `json:"privacy_shield_validated"`
 	WardveilSecurityValidated      bool   `json:"wardveil_security_validated"`
 	EverkeepValidated              bool   `json:"everkeep_validated"`
-	GlazeUIStableValidated         bool   `json:"glaze_ui_stable_validated"`
+	GoreeCloudUIValidated          bool   `json:"goreecloud_ui_validated"`
 	MeshCoordinationValidated      bool   `json:"mesh_coordination_validated"`
 	IdentityIntegrationValidated   bool   `json:"identity_integration_validated"`
 	GovernanceIntegrationValidated bool   `json:"governance_integration_validated"`
@@ -54,7 +56,7 @@ type MigrationDecision struct {
 // every incomplete migration gate. ProductionCutoverAuthorized is always false.
 func EvaluateMigrationReadiness(evidence MigrationEvidence) (MigrationDecision, error) {
 	decision := MigrationDecision{ProductionCutoverAuthorized: false}
-	if evidence.Schema != MigrationEvidenceSchemaV1 {
+	if evidence.Schema != MigrationEvidenceSchemaV2 {
 		return decision, errors.New("gateway acceptance: unsupported migration evidence schema")
 	}
 	if _, err := time.Parse(time.RFC3339Nano, evidence.RecordedAt); err != nil {
@@ -88,7 +90,7 @@ func EvaluateMigrationReadiness(evidence MigrationEvidence) (MigrationDecision, 
 		{"privacy_shield_validated", evidence.PrivacyShieldValidated},
 		{"wardveil_security_validated", evidence.WardveilSecurityValidated},
 		{"everkeep_validated", evidence.EverkeepValidated},
-		{"glaze_ui_stable_validated", evidence.GlazeUIStableValidated},
+		{"goreecloud_ui_validated", evidence.GoreeCloudUIValidated},
 		{"mesh_coordination_validated", evidence.MeshCoordinationValidated},
 		{"identity_integration_validated", evidence.IdentityIntegrationValidated},
 		{"governance_integration_validated", evidence.GovernanceIntegrationValidated},

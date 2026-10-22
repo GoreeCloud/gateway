@@ -98,7 +98,7 @@ Stable qualification requires substantive accepted evaluation and integration wi
 - **Privacy Shield** — minimal logging, redaction, sensitive-header protection, retention controls, client-information minimization, privacy-safe metrics, and truthful privacy evidence.
 - **Wardveil Security** — exposure risk, route/listener conflicts, TLS/certificate/backend findings, security headers, configuration integrity, and evidence-backed protection state.
 - **Everkeep** — configuration snapshots, route/configuration history, export/import, backup/restore, known-good retention, rollback, disaster recovery, and migration portability.
-- **Glaze UI** — administrative presentation, interaction, accessibility, responsive/adaptive behavior, and state semantics.
+- **GoreeCloud UI (GC UI)** — administrative presentation, interaction, accessibility, responsive/adaptive behavior, and state semantics; Gateway UI integration is not yet accepted.
 - **GoreeCloud Mesh** — governed cross-service coordination where required.
 - **GoreeCloud Identity** — approved administrative identity/authentication; Gateway must not become a competing identity authority.
 - **GoreeCloud Policy** — policy representation, decisions, version/freshness, enforcement coordination, explanation, and evidence while Gateway retains authority for Gateway-owned routing/publication rules.
@@ -126,4 +126,4 @@ Repository documentation must always distinguish accepted main, validated develo
 
 ## 14. Production qualification
 
-Gateway must remain Development and Caddy must remain production-authoritative until all applicable routing, TLS, certificate-renewal, publication, upgraded/streaming connection, backend health, configuration rollback, logging/observability, Wardveil, Privacy Shield, Everkeep, Mesh, Identity, Glaze UI, backup/restore, migration rollback, listener ownership, and explicit production approval gates pass together.
+Gateway must remain Development and Caddy must remain production-authoritative until all applicable routing, TLS, certificate-renewal, publication, upgraded/streaming connection, backend health, configuration rollback, logging/observability, Wardveil, Privacy Shield, Everkeep, Mesh, Identity, GoreeCloud UI, backup/restore, migration rollback, listener ownership, and explicit production approval gates pass together.

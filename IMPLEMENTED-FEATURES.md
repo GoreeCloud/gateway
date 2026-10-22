@@ -48,7 +48,7 @@ The integrated Development source does **not** establish:
 - production ACME/DNS credentials or live CA/Porkbun issuance/renewal acceptance;
 - production-representative SLO/load acceptance on the target;
 - target-environment backup/restore/recovery/rollback;
-- accepted runtime integration with Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, Mesh, Identity, Policy, or Observability;
+- accepted runtime integration with Manager, Privacy Shield, Wardveil Security, Everkeep, GoreeCloud UI, Mesh, Identity, Policy, or Observability;
 - production listener ownership, Caddy retirement, Release Candidate, Production Acceptance, or Stable status.
 
 Implementation status must remain narrower than production and lifecycle status.

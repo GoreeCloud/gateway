@@ -35,7 +35,7 @@ This file records work that remains planned, blocked by prerequisite, or not yet
 
 ## Platform integration and release
 
-- Complete evidence-backed target-environment integration with GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability.
+- Complete evidence-backed target-environment integration with GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, GoreeCloud UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability.
 - Complete release provenance, production signing/distribution where applicable, deployment approval, Production Acceptance, and Stable qualification.
 - Retire Caddy only after Gateway is the authorized and verified public gateway and rollback remains proven.
 

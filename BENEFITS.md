@@ -26,7 +26,7 @@ Control-plane/data-plane separation, last-known-good configuration, versioned hi
 
 ## Platform ownership
 
-An original GoreeCloud implementation can evolve around GoreeCloud Identity, DNS, Network, Mesh, Privacy Shield, Wardveil Security, Everkeep, and Glaze UI contracts without making another proxy product's configuration model the permanent GoreeCloud architecture.
+An original GoreeCloud implementation can evolve around GoreeCloud Identity, DNS, Network, Mesh, Privacy Shield, Wardveil Security, Everkeep, and GoreeCloud UI contracts without making another proxy product's configuration model the permanent GoreeCloud architecture.
 
 ## Migration discipline
 
