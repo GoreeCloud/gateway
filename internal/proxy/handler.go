@@ -76,11 +76,10 @@ func New(cfg *config.Config) *Handler {
 		healthStop:  healthStop,
 	}
 	if err := handler.storeRuntimeState(cfg); err != nil {
-		// Config.Load rejects invalid trusted-proxy entries before production
-		// construction. A direct caller that bypasses validation still fails
-		// closed to a policy that trusts no forwarding peer.
-		slog.Error("trusted proxy configuration rejected; using fail-closed direct-peer policy", "error", err)
-		handler.state.Store(&runtimeState{cfg: cfg, trustedProxyPolicy: TrustedProxyPolicy{}})
+		// Config.Load validates policies before normal production construction.
+		// Direct callers that bypass validation must not activate unsafe routing.
+		slog.Error("gateway runtime configuration rejected; refusing to serve", "error", err)
+		handler.state.Store(&runtimeState{trustedProxyPolicy: TrustedProxyPolicy{}})
 	}
 	go handler.healthLoop()
 	return handler
@@ -106,6 +105,9 @@ func (h *Handler) Reload(cfg *config.Config) {
 }
 
 func (h *Handler) storeRuntimeState(cfg *config.Config) error {
+	if err := cfg.ValidateResponseHeaderPolicies(); err != nil {
+		return err
+	}
 	policy, err := NewTrustedProxyPolicy(cfg.TrustedProxies)
 	if err != nil {
 		return err
@@ -273,6 +275,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			base:        h.transport,
 			candidates:  candidates,
 			maxAttempts: maxBackendAttempts,
+		},
+		ModifyResponse: func(response *http.Response) error {
+			for name, value := range match.Route.ResponseHeaders {
+				response.Header.Set(name, value)
+			}
+			return nil
 		},
 		FlushInterval: -1,
 	}

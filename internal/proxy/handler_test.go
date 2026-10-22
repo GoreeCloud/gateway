@@ -60,6 +60,70 @@ func TestProxyRoutesAndStreams(t *testing.T) {
 	}
 }
 
+func TestProxyAppliesBoundedResponseHeaderSetPolicy(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("X-Gateway-Policy", "upstream")
+		_, _ = io.WriteString(w, "original body")
+	}))
+	defer upstream.Close()
+
+	cfg := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	cfg.Routes[0].TLS = config.RouteTLS{Mode: "disabled"}
+	cfg.Routes[0].ResponseHeaders = map[string]string{"X-Gateway-Policy": "overridden", "X-Content-Type-Options": "nosniff"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	handler := New(cfg)
+	defer handler.Close()
+	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
+
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != http.StatusOK || rw.Body.String() != "original body" {
+		t.Fatalf("status=%d body=%q", rw.Code, rw.Body.String())
+	}
+	if got := rw.Header().Get("X-Gateway-Policy"); got != "overridden" {
+		t.Fatalf("response policy header=%q", got)
+	}
+	if got := rw.Header().Get("X-Content-Type-Options"); got != "nosniff" {
+		t.Fatalf("security header=%q", got)
+	}
+}
+
+func TestProxyRejectsUnsafeResponsePolicyFromDirectCaller(t *testing.T) {
+	cfg := testConfig(nil, nil)
+	cfg.Routes[0].ResponseHeaders = map[string]string{"X-Unsafe": "ok\r\nInjected: yes"}
+	handler := New(cfg)
+	defer handler.Close()
+
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != http.StatusServiceUnavailable || rw.Header().Get("X-Unsafe") != "" {
+		t.Fatalf("unsafe direct-call policy not rejected: status=%d headers=%v", rw.Code, rw.Header())
+	}
+}
+
+func TestReloadRetainsKnownGoodPolicyAfterInvalidResponseHeaders(t *testing.T) {
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, "healthy")
+	}))
+	defer upstream.Close()
+	cfg := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	cfg.Routes[0].ResponseHeaders = map[string]string{"X-Policy": "original"}
+	handler := New(cfg)
+	defer handler.Close()
+	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
+
+	unsafe := testConfig([]config.Backend{{ID: "b", URL: upstream.URL, Enabled: true}}, []string{"b"})
+	unsafe.Routes[0].ResponseHeaders = map[string]string{"X-Policy": "invalid\nheader"}
+	handler.Reload(unsafe)
+	rw := httptest.NewRecorder()
+	handler.ServeHTTP(rw, httptest.NewRequest(http.MethodGet, "http://app.goreecloud.com/", nil))
+	if rw.Code != http.StatusOK || rw.Header().Get("X-Policy") != "original" {
+		t.Fatalf("reload replaced known-good response policy: status=%d headers=%v", rw.Code, rw.Header())
+	}
+}
+
 func TestHealthAwareSelectionSkipsUnhealthyBackend(t *testing.T) {
 	unhealthy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("unhealthy backend received routed request")

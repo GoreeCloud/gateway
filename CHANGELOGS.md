@@ -11,6 +11,12 @@ This repository-local record is the authoritative Git-native chronological chang
 - Migrated the Gateway declaration to versioned Platform Contract 2.1, with its nine-system `gc_ui` key, scoped Foundations target, Forge lifecycle metadata, and immutable reusable-workflow evaluator pin.
 - Corrected the development repository identity and stale unmerged-runtime blocker. Caddy retains production authority; no deployment or cutover occurred.
 
+### 2026-10-22 — Bounded response-header set policy
+
+- Added optional native route response-header set operations, with fail-closed control-character, duplicate-field, framing-header, and size validation.
+- Applied route-specific headers to received proxied responses and bound their semantics into deterministic configuration-parity fingerprints.
+- Added focused runtime, validation, and parity regressions; the limited set operation does not claim full Caddy handler parity or production acceptance.
+
 ### 2026-10-22 — Ambiguous Caddy container discovery fails closed
 
 - Prevented the VPS read-only collector from silently selecting the first Caddy image when several Caddy containers are running, including independent staging ingress services.
