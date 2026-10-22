@@ -18,7 +18,7 @@ The product should support expressive routing, health-aware backend selection, u
 
 ### Approachable administration
 
-A Glaze UI administrative application should make services, routes, backends, certificates, discovery proposals, traffic, security, health, logs, configuration history, and rollback understandable without requiring a configuration file to be the primary user interface.
+A GoreeCloud UI (GC UI) administrative application should make services, routes, backends, certificates, discovery proposals, traffic, security, health, logs, configuration history, and rollback understandable without requiring a configuration file to be the primary user interface. This is planned, not yet accepted.
 
 ### Automation without hidden authority
 

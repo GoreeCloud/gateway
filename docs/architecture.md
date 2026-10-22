@@ -33,7 +33,7 @@ Composable request/response policy chains for headers, compression, redirects, a
 Private/public classification, service-to-route relationships, intended exposure, Conduit dependency state, Beacon hostname state, certificate state, backend health, and publication validation.
 
 ### Gateway Console and API
-Glaze UI administration and a versioned local-first API for routes, upstreams, certificates, policies, diagnostics, validation, export/import, and runtime status.
+Planned GoreeCloud UI (GC UI) administration and a versioned local-first API for routes, upstreams, certificates, policies, diagnostics, validation, export/import, and runtime status. The administration UI is not yet implemented and accepted for Gateway.
 
 ### Gateway Migration
 Parsers and import plans for approved Caddyfile, Traefik dynamic/static configuration, and Nginx Proxy Manager exports. Migration must generate a reviewable GoreeCloud Gateway plan; it must never silently cut over production.

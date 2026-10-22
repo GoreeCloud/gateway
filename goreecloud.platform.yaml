@@ -1,12 +1,22 @@
-schema_version: "0.4"
+schema_version: "2.1"
 
 component:
   type: service
   id: goreecloud-gateway
   product_name: GoreeCloud Gateway
-  repository: GoreeCloud/goreecloud-gateway
+  repository: GoreeCloud/gateway
 
-lifecycle: development
+lifecycle: forge
+lifecycle_metadata:
+  flags:
+    - blocked
+    - migration-required
+  deployment_state: development
+  qualification_state: in-progress
+  next_gate: weave
+  candidate_identity: null
+  last_transition: null
+  evidence: []
 version: unreleased-development
 
 supported_platforms:
@@ -47,13 +57,13 @@ platform_systems:
       - SPECIFICATIONS.md
       - docs/recovery.md
     notes: Native configuration snapshot, restore, and rollback primitives exist in Development, but Everkeep integration and production-representative recovery acceptance remain incomplete.
-  glaze_ui:
+  gc_ui:
     result: applicable-blocked
     version: null
     evidence:
       - README.md
       - SPECIFICATIONS.md
-    notes: The Gateway administration console is applicable and current Stable Glaze UI 1.6.0 is required. Live Glaze lifecycle authority records accepted release source a7180679ea851389e0f3004515f9a25f420e716d, but no accepted Glaze UI administration application exists for this Gateway candidate.
+    notes: GoreeCloud UI (GC UI) is the sole active design-system authority. Foundations 1.0.1 has limited scope; the broader GC UI workspace remains experimental/alpha. No accepted Gateway administration application or end-to-end GC UI integration exists for this Development candidate.
   mesh:
     result: applicable-blocked
     version: null
@@ -114,11 +124,10 @@ continuity:
 external_dependencies: []
 
 compatibility:
-  platform_contract: "0.4"
-  glaze_ui_required: "1.6.0"
+  platform_contract: "2.1"
+  gc_ui_required: "foundations-v1.0.1"
   requires:
-    - goreecloud-platform-contract==0.4
-    - glaze-ui==1.6.0
+    - goreecloud-platform-contract==2.1
   provides: []
 
 evidence:
@@ -133,13 +142,13 @@ conformance:
     - SPECIFICATIONS.md
     - FEATURES.md
   blockers:
-    - The native Gateway runtime remains an unmerged Development candidate and has not been accepted as production authority.
+    - The native Gateway runtime is merged in Development but has not been accepted as production authority on the target VPS.
     - Caddy remains production-authoritative and no production listener-ownership transfer or cutover is authorized.
     - GoreeCloud Manager integration and acceptance are incomplete.
     - Privacy Shield integration and acceptance are incomplete.
     - Wardveil Security integration and target-environment security acceptance are incomplete.
     - Everkeep integration and production-representative backup, restore, recovery, and rollback acceptance are incomplete.
-    - Current Stable Glaze UI 1.6.0 administration implementation and application acceptance are incomplete.
+    - GoreeCloud UI administration implementation, integration conformance, and application acceptance are incomplete; limited Foundations 1.0.1 availability does not establish Gateway UI readiness.
     - GoreeCloud Mesh integration and acceptance are incomplete.
     - GoreeCloud Identity integration and acceptance are incomplete.
     - GoreeCloud Policy decision, enforcement, and evidence acceptance are incomplete.

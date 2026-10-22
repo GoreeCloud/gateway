@@ -39,7 +39,7 @@ Accepted `main` now contains the PR #9 Development source foundation, including:
 - configuration-parity fingerprints and migration-source identity contracts;
 - local Infrastructure Status v1 and publication preflight/validation contracts;
 - privacy-minimized status/evidence outputs;
-- platform-system acceptance gates for GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability, with governance remaining separately authoritative for publication/cutover approval.
+- platform-system acceptance gates for GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, GoreeCloud UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability, with governance remaining separately authoritative for publication/cutover approval.
 
 These capabilities are integrated on `main` as **Development source**. Exact merge and workflow evidence is authoritative in GitHub; this does not establish target-VPS parity, deployment, production listener authority, Production Acceptance, or Stable status.
 
@@ -63,7 +63,7 @@ These capabilities are integrated on `main` as **Development source**. Exact mer
 - production-representative load/SLO/backpressure evidence;
 - target-environment backup/restore and rollback;
 - production certificate/TLS renewal evidence;
-- target-environment GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, Glaze UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability integration evidence, plus separately governed publication/cutover authorization;
+- target-environment GoreeCloud Manager, Privacy Shield, Wardveil Security, Everkeep, GoreeCloud UI, GoreeCloud Mesh, GoreeCloud Identity, GoreeCloud Policy, and GoreeCloud Observability integration evidence, plus separately governed publication/cutover authorization;
 - explicit production migration approval and Stable qualification.
 
 ## Evidence rule

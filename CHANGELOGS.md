@@ -4,6 +4,13 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — GC UI governance and migration-evidence schema v2
+
+- Reconciled the nine-system platform contract, capability declarations, and active documentation to GoreeCloud UI (GC UI), without claiming a production-ready administration UI.
+- Replaced the superseded design-system acceptance field with `gc_ui_validated` under a new `goreecloud-gateway-migration-evidence/v2` schema; old schema evidence is rejected, and the missing integration gate remains fail-closed.
+- Migrated the Gateway declaration to versioned Platform Contract 2.1, with its nine-system `gc_ui` key, scoped Foundations target, Forge lifecycle metadata, and immutable reusable-workflow evaluator pin.
+- Corrected the development repository identity and stale unmerged-runtime blocker. Caddy retains production authority; no deployment or cutover occurred.
+
 ### 2026-10-22 — Bounded response-header set policy
 
 - Added optional native route response-header set operations, with fail-closed control-character, duplicate-field, framing-header, and size validation.
@@ -54,7 +61,7 @@ This repository-local record is the authoritative Git-native chronological chang
 - Added provider-neutral DNS-01 handling, a bounded Porkbun adapter, RFC 8555 DNS-01 issuance, encrypted ACME account-state handling, explicit registration/TOS controls, protected wrapping-key loading, rollover preparation/execution, read-only authority probing, explicit recovery, and guarded operator tooling.
 - Added a read-only Caddy/VPS preflight collector for target evidence without mutating Caddy, Docker, firewall, DNS, certificates, or listeners.
 - Integrated the validated PR #9 Development source into `main` as `0e0172d4b7766b6e497e9182546277ff7ab537a7`, including runtime/control-plane, recovery/migration evidence, Infrastructure Status/publication preflight, and certificate/ACME foundations.
-- Reconciled the integrated source to current GLAZE UI V1.6 / 1.6.0 authority while keeping the future administration UI unaccepted.
+- Recorded the historical design-system assertion, which has since been superseded by the current GC UI authority; the Gateway administration UI remains unaccepted.
 - Migrated repository feature/change governance from retired `FEATURE-ROADMAP.md` / Drive-roadmap synchronization to `IMPLEMENTED-FEATURES.md`, `PLANNED-FEATURES.md`, and `CHANGELOGS.md`.
 - Preserved Caddy as production-authoritative. No source or documentation change in this record authorizes listener transfer, production deployment, Release Candidate, Production Acceptance, or Stable status.
 

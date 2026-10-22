@@ -25,7 +25,7 @@ Gateway is intended to provide:
 - safe Docker-oriented service discovery and publication proposals;
 - explicit Internal, Private, Restricted Public, and Public exposure classifications;
 - privacy-minimized operational metrics and events;
-- an administrative Glaze UI application, API, and CLI.
+- a planned GoreeCloud UI (GC UI) administrative application, API, and CLI (the UI is not yet accepted).
 
 Gateway does not replace GoreeCloud DNS, Network, Identity, firewall policy, or application authentication. Those systems remain authoritative for their own domains.
 
@@ -43,7 +43,7 @@ Stable qualification requires substantive, current accepted evaluation and integ
 - Privacy Shield for minimal logging, redaction, retention, sensitive-header protection, client-information minimization, and privacy-safe metrics;
 - Wardveil Security for exposure, listener, route, TLS, certificate, backend, and configuration-integrity security state;
 - Everkeep for configuration snapshots, export/import, known-good retention, backup/restore, rollback, and disaster-recovery evidence;
-- Glaze UI for the administrative application and adaptive/accessibility contract;
+- GoreeCloud UI for the administrative application and adaptive/accessibility contract, with integration acceptance still required;
 - GoreeCloud Mesh for governed service coordination where applicable;
 - GoreeCloud Identity for approved administrative identity/authentication without making Gateway the platform identity provider;
 - GoreeCloud Policy for shared policy decisions and enforcement coordination while preserving Gateway-owned routing/publication rule authority; and
