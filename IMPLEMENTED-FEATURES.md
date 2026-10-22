@@ -23,11 +23,12 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 - WebSocket/streaming and upgraded-connection handling;
 - trusted-proxy and forwarding-identity enforcement;
 - configuration validation, recovery, rollback, trusted-proxy-aware parity fingerprints, and explicit v2 Caddy source/Gateway expected-parity identity contracts, and fail-closed read-only preflight source-checksum binding;
+- Development configuration lifecycle CLI for snapshot, stage, activate, and restore, with candidate validation, SHA-256 compare-and-swap boundaries, automatic pre-activation recovery snapshot, and no runtime reload or production cutover authority;
 - bounded fixed-value response-header set policy for proxied responses (Development candidate; not full Caddy header parity);
 - bounded literal `static_response` route action without upstream dependencies (Development candidate; not complete Caddy `respond` parity);
 - opt-in bounded `gzip`/`zstd` negotiation for static responses only (Development candidate; not streaming reverse-proxy or full Caddy `encode` parity);
 - opt-in streaming `gzip`/`zstd` for eligible known-length proxy GET/200 responses, with backpressure and conservative SSE/upgrade/range/unknown-length exclusions (Development candidate; not full Caddy `encode` parity);
-- candidate-only explicit zero-threshold unknown-length proxy streaming with incremental compressor flush and SSE/Incremental bypass; not equivalent to live Caddy's default minimum length or streaming semantics until independently accepted;
+- Development explicit zero-threshold opt-in for unknown-length proxy streaming with incremental compressor flush and SSE/Incremental bypass; not equivalent to live Caddy's default minimum length or streaming semantics until independently accepted;
 - isolated runtime and sustained-load/backpressure acceptance harnesses;
 - privacy-minimized Infrastructure Status and publication-preflight contracts;
 - a read-only target-Caddy/VPS preflight collector that does not mutate Caddy, Docker, firewall, DNS, certificates, or listeners, including image ID, available repository digests, bounded OCI provenance labels, metadata line-injection protection, and explicit reporting of inaccessible host-side evidence;

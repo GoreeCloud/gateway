@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Recovery CLI stage/activate lifecycle candidate
+
+- Exposed the existing validated `StageRevision` and digest-guarded `ActivateStagedRevision` operations through explicit `gateway-recovery -action stage` and `-action activate` commands, preserving snapshot/restore compatibility.
+- Added isolated CLI round-trip tests covering candidate staging, activation, automatic snapshot and restore, active-config compare-and-swap rejection, and invalid input.
+- This lifecycle changes bounded configuration files only. It does not reload a running service, transfer listeners or TLS, validate backups from Everkeep, or authorize Caddy production cutover.
+
 ### 2026-10-22 — Isolated opt-in unknown-length proxy streaming and Caddy evidence correction
 
 - Added an explicitly gated `allow_unknown_length` proxy encoding option that requires `minimum_length: 0`, streams gzip/zstd incrementally, and preserves SSE/Incremental pass-through; exact-head validation and real streaming tests are required before integration.
