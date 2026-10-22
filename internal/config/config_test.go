@@ -9,7 +9,7 @@ func TestResponseHeaderSetPolicyValidates(t *testing.T) {
 	cfg := validConfig()
 	cfg.Routes[0].ResponseHeaders = map[string]string{
 		"Strict-Transport-Security": "max-age=31536000",
-		"X-Frame-Options": "DENY",
+		"X-Frame-Options":           "DENY",
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("bounded response headers rejected: %v", err)
@@ -22,7 +22,7 @@ func TestStaticResponseRouteRequiresNoServiceOrBackend(t *testing.T) {
 		Routes: []Route{{
 			ID: "maintenance", Action: "static_response", Hostname: "maintenance.example.test",
 			PathPrefix: "/", Exposure: "public", Enabled: true,
-			TLS: RouteTLS{Mode: "disabled"},
+			TLS:            RouteTLS{Mode: "disabled"},
 			StaticResponse: &StaticResponse{StatusCode: 503, Body: "Temporarily unavailable\n"},
 		}},
 	}
@@ -40,12 +40,36 @@ func TestRouteActionsRejectAmbiguousOrUnsafeStaticResponses(t *testing.T) {
 		{"proxy with static response", func(r *Route) { r.StaticResponse = &StaticResponse{StatusCode: 200} }},
 		{"static with service", func(r *Route) { r.Action = "static_response" }},
 		{"static missing response", func(r *Route) { r.Action = "static_response"; r.ServiceID = "" }},
-		{"informational status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 101} }},
-		{"invalid status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 600} }},
-		{"oversized body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 16*1024+1)} }},
-		{"no-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 204, Body: "no"} }},
-		{"reset-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 205, Body: "no"} }},
-		{"not-modified body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 304, Body: "no"} }},
+		{"informational status", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 101}
+		}},
+		{"invalid status", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 600}
+		}},
+		{"oversized body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 16*1024+1)}
+		}},
+		{"no-content body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 204, Body: "no"}
+		}},
+		{"reset-content body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 205, Body: "no"}
+		}},
+		{"not-modified body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 304, Body: "no"}
+		}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -196,6 +220,49 @@ func TestStaticResponseEncodingValidationFailsClosed(t *testing.T) {
 	proxy.Routes[0].ResponseEncoding = &ResponseEncoding{Formats: []string{"gzip"}}
 	if err := proxy.Validate(); err == nil {
 		t.Fatal("reverse-proxy response encoding was permitted before streaming parity")
+	}
+}
+
+func TestProxyResponseEncodingValidationFailsClosed(t *testing.T) {
+	for _, action := range []string{"", "reverse_proxy"} {
+		cfg := validConfig()
+		cfg.Routes[0].Action = action
+		cfg.Routes[0].ProxyResponseEncoding = &ResponseEncoding{Formats: []string{"zstd", "gzip"}}
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("reverse proxy action %q rejected valid encoding policy: %v", action, err)
+		}
+	}
+	for _, tc := range []struct {
+		name   string
+		policy *ResponseEncoding
+	}{
+		{"missing formats", &ResponseEncoding{}},
+		{"unsupported format", &ResponseEncoding{Formats: []string{"br"}}},
+		{"duplicate format", &ResponseEncoding{Formats: []string{"gzip", "gzip"}}},
+		{"too many formats", &ResponseEncoding{Formats: []string{"gzip", "zstd", "br"}}},
+		{"uppercase format", &ResponseEncoding{Formats: []string{"GZIP"}}},
+		{"negative threshold", &ResponseEncoding{Formats: []string{"gzip"}, MinimumLength: intPointer(-1)}},
+		{"oversized threshold", &ResponseEncoding{Formats: []string{"zstd"}, MinimumLength: intPointer(65537)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := validConfig()
+			cfg.Routes[0].ProxyResponseEncoding = tc.policy
+			if err := cfg.Validate(); err == nil {
+				t.Fatal("unsafe proxy encoding policy was accepted")
+			}
+			cfg.Routes[0].Enabled = false
+			if err := cfg.ValidateRouteActions(); err == nil {
+				t.Fatal("direct runtime activation bypassed proxy policy validation")
+			}
+		})
+	}
+	static := validConfig()
+	static.Routes[0].Action = "static_response"
+	static.Routes[0].ServiceID = ""
+	static.Routes[0].StaticResponse = &StaticResponse{StatusCode: 200, Body: "static"}
+	static.Routes[0].ProxyResponseEncoding = &ResponseEncoding{Formats: []string{"gzip"}}
+	if err := static.Validate(); err == nil {
+		t.Fatal("static route unexpectedly accepted proxy-only policy")
 	}
 }
 

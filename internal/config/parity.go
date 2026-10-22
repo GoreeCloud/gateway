@@ -41,19 +41,20 @@ type parityService struct {
 }
 
 type parityRoute struct {
-	ID              string            `json:"id"`
-	Action          string            `json:"action,omitempty"`
-	ServiceID       string            `json:"service_id"`
-	Hostname        string            `json:"hostname"`
-	PathPrefix      string            `json:"path_prefix"`
-	Methods         []string          `json:"methods"`
-	Exposure        string            `json:"exposure"`
-	Enabled         bool              `json:"enabled"`
-	TLSMode         string            `json:"tls_mode"`
-	TLSProfile      string            `json:"tls_profile,omitempty"`
-	ResponseHeaders  map[string]string `json:"response_headers,omitempty"`
-	StaticResponse   *StaticResponse   `json:"static_response,omitempty"`
-	ResponseEncoding *ResponseEncoding `json:"response_encoding,omitempty"`
+	ID                    string            `json:"id"`
+	Action                string            `json:"action,omitempty"`
+	ServiceID             string            `json:"service_id"`
+	Hostname              string            `json:"hostname"`
+	PathPrefix            string            `json:"path_prefix"`
+	Methods               []string          `json:"methods"`
+	Exposure              string            `json:"exposure"`
+	Enabled               bool              `json:"enabled"`
+	TLSMode               string            `json:"tls_mode"`
+	TLSProfile            string            `json:"tls_profile,omitempty"`
+	ResponseHeaders       map[string]string `json:"response_headers,omitempty"`
+	StaticResponse        *StaticResponse   `json:"static_response,omitempty"`
+	ResponseEncoding      *ResponseEncoding `json:"response_encoding,omitempty"`
+	ProxyResponseEncoding *ResponseEncoding `json:"proxy_response_encoding,omitempty"`
 }
 
 type parityBackend struct {
@@ -137,19 +138,20 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 			action = "static_response"
 		}
 		canonical.Routes = append(canonical.Routes, parityRoute{
-			ID:         strings.TrimSpace(route.ID),
-			Action:     action,
-			ServiceID:  strings.TrimSpace(route.ServiceID),
-			Hostname:   strings.ToLower(strings.TrimSuffix(strings.TrimSpace(route.Hostname), ".")),
-			PathPrefix: pathPrefix,
-			Methods:    methods,
-			Exposure:   strings.TrimSpace(route.Exposure),
-			Enabled:    route.Enabled,
-			TLSMode:    strings.TrimSpace(route.TLS.Mode),
-			TLSProfile: strings.TrimSpace(route.TLS.CertificateProfile),
-			ResponseHeaders: headers,
-			StaticResponse: route.StaticResponse,
-			ResponseEncoding: route.ResponseEncoding,
+			ID:                    strings.TrimSpace(route.ID),
+			Action:                action,
+			ServiceID:             strings.TrimSpace(route.ServiceID),
+			Hostname:              strings.ToLower(strings.TrimSuffix(strings.TrimSpace(route.Hostname), ".")),
+			PathPrefix:            pathPrefix,
+			Methods:               methods,
+			Exposure:              strings.TrimSpace(route.Exposure),
+			Enabled:               route.Enabled,
+			TLSMode:               strings.TrimSpace(route.TLS.Mode),
+			TLSProfile:            strings.TrimSpace(route.TLS.CertificateProfile),
+			ResponseHeaders:       headers,
+			StaticResponse:        route.StaticResponse,
+			ResponseEncoding:      route.ResponseEncoding,
+			ProxyResponseEncoding: route.ProxyResponseEncoding,
 		})
 	}
 	sort.Slice(canonical.Routes, func(i, j int) bool { return canonical.Routes[i].ID < canonical.Routes[j].ID })
