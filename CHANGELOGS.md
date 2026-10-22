@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Opt-in bounded native gzip/zstd for static responses
+
+- Introduced a per-static-route response-encoding policy with `gzip`/`zstd` preference, a bounded minimum-length override, and fail-closed validation that forbids applying it to reverse-proxy streams.
+- Encoded eligible bounded GET/HEAD literal bodies with quality-aware negotiation, cache variance, safe framing/validator handling, and no-transform/range guards. Added compression round-trip, negative-path, route integration, and parity-identity tests.
+- Kept Caddy as the production authority. Native proxy/SSE/WebSocket compression, exact Caddy behavior parity, target acceptance, and production cutover are outside this change.
+
 ### 2026-10-22 — Sanitized Caddy encode-policy evidence gate
 
 - Added a redacted, route-indexed `encode` inventory to the exact-source read-only Caddy collector: supported codecs, preference order, explicit minimum length or unspecified setting, response matcher presence, and subroute depth, with no raw matcher values or compressor options exposed.
