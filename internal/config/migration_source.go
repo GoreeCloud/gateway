@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-const MigrationSourceManifestSchemaV1 = "goreecloud-gateway-migration-source-manifest/v1"
+const MigrationSourceManifestSchemaV2 = "goreecloud-gateway-migration-source-manifest/v2"
 
 // MigrationSourceManifest is a minimized, independently reviewed identity for
 // the configuration that Gateway is expected to replace. It intentionally
@@ -23,7 +23,8 @@ type MigrationSourceManifest struct {
 	RecordedAt                  string `json:"recorded_at"`
 	SourceSystem                string `json:"source_system"`
 	Environment                 string `json:"environment"`
-	ConfigSHA256                string `json:"config_sha256"`
+	SourceConfigSHA256          string `json:"source_config_sha256"`
+	ExpectedGatewayConfigSHA256 string `json:"expected_gateway_config_sha256"`
 	ServiceCount                int    `json:"service_count"`
 	RouteCount                  int    `json:"route_count"`
 	BackendCount                int    `json:"backend_count"`
@@ -63,7 +64,7 @@ func LoadMigrationSourceManifest(path string) (MigrationSourceManifest, error) {
 // source system is deliberately fixed to Caddy for the current migration; a
 // future source requires a new reviewed contract rather than silent reuse.
 func ValidateMigrationSourceManifest(manifest MigrationSourceManifest) error {
-	if manifest.Schema != MigrationSourceManifestSchemaV1 {
+	if manifest.Schema != MigrationSourceManifestSchemaV2 {
 		return errors.New("gateway migration source: unsupported manifest schema")
 	}
 	if _, err := time.Parse(time.RFC3339Nano, manifest.RecordedAt); err != nil {
@@ -75,8 +76,14 @@ func ValidateMigrationSourceManifest(manifest MigrationSourceManifest) error {
 	if strings.TrimSpace(manifest.Environment) == "" {
 		return errors.New("gateway migration source: environment is required")
 	}
-	if !validSHA256(strings.ToLower(strings.TrimSpace(manifest.ConfigSHA256))) {
-		return errors.New("gateway migration source: configuration SHA-256 is invalid")
+	if !validSHA256(strings.ToLower(strings.TrimSpace(manifest.SourceConfigSHA256))) {
+		return errors.New("gateway migration source: source Caddy configuration SHA-256 is invalid")
+	}
+	if !validSHA256(strings.ToLower(strings.TrimSpace(manifest.ExpectedGatewayConfigSHA256))) {
+		return errors.New("gateway migration source: expected Gateway parity SHA-256 is invalid")
+	}
+	if strings.EqualFold(strings.TrimSpace(manifest.SourceConfigSHA256), strings.TrimSpace(manifest.ExpectedGatewayConfigSHA256)) {
+		return errors.New("gateway migration source: Caddy source and expected Gateway fingerprints must be independently identified")
 	}
 	if !validSHA256(strings.ToLower(strings.TrimSpace(manifest.ReviewEvidenceSHA256))) {
 		return errors.New("gateway migration source: review evidence SHA-256 is invalid")
@@ -115,5 +122,11 @@ func BuildConfigParityEvidenceFromMigrationSource(
 		len(cfg.CertificateProfiles) != manifest.CertificateProfileCount {
 		return ConfigParityEvidence{}, errors.New("gateway migration source: aggregate configuration counts do not match reviewed source")
 	}
-	return BuildConfigParityEvidence(cfg, sourceRevision, manifest.ConfigSHA256, now)
+	evidence, err := BuildConfigParityEvidence(cfg, sourceRevision, manifest.ExpectedGatewayConfigSHA256, now)
+	if err != nil {
+		return ConfigParityEvidence{}, err
+	}
+	evidence.MigrationSourceConfigSHA256 = strings.ToLower(strings.TrimSpace(manifest.SourceConfigSHA256))
+	evidence.MigrationReviewEvidenceSHA256 = strings.ToLower(strings.TrimSpace(manifest.ReviewEvidenceSHA256))
+	return evidence, nil
 }
