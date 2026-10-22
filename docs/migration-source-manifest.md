@@ -22,7 +22,7 @@ Gateway strictly decodes the manifest, rejects unknown or trailing JSON, require
 
 ## Local parity verifier
 
-`cmd/gateway-migration-verify` provides a fail-closed local verification path for a candidate Gateway configuration and an independently reviewed migration-source manifest. It requires all four inputs explicitly, including the bounded read-only Caddy preflight report:
+`cmd/gateway-migration-verify` provides a fail-closed local verification path for a candidate Gateway configuration and an independently reviewed migration-source manifest. It requires all four inputs explicitly, including the bounded read-only Caddy preflight report. The report must also contain a nonempty, count-consistent sanitized route inventory: every enumerated handler record needs its server, handler, and explicit matcher/upstream fields (which can be empty when inapplicable). Missing, duplicate, out-of-range, or incomplete records fail closed; the verifier does not assert that their content has been independently verified:
 
 ```sh
 go run ./cmd/gateway-migration-verify \
