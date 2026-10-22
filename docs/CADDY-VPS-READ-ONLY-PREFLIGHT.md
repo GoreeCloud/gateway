@@ -75,7 +75,7 @@ Before using the report as migration-source input:
 2. independently review the reported container/config identity against the target VPS;
 3. review the actual Caddy source configuration through the separately approved secure process;
 4. construct and retain the governed migration-source manifest and independent review evidence;
-5. use `gateway-migration-verify` only after that review; and
+5. keep the bounded report in an approved protected location, then pass it to `gateway-migration-verify` as `-preflight-report` only after the independent review; the verifier rejects mismatched Caddy source identity and unsafe/incomplete report status but does not attest report provenance; and
 6. keep `production_cutover_authorized=false`.
 
 Caddy remains production-authoritative until all target acceptance and governance gates pass.

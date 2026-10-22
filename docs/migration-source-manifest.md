@@ -22,28 +22,30 @@ Gateway strictly decodes the manifest, rejects unknown or trailing JSON, require
 
 ## Local parity verifier
 
-`cmd/gateway-migration-verify` provides a fail-closed local verification path for a candidate Gateway configuration and an independently reviewed migration-source manifest. It requires all three inputs explicitly:
+`cmd/gateway-migration-verify` provides a fail-closed local verification path for a candidate Gateway configuration and an independently reviewed migration-source manifest. It requires all four inputs explicitly, including the bounded read-only Caddy preflight report:
 
 ```sh
 go run ./cmd/gateway-migration-verify \
   -config /path/to/gateway-candidate.json \
   -manifest /path/to/reviewed-caddy-source.json \
+  -preflight-report /protected/path/to/caddy-read-only-preflight.txt \
   -source-revision 0123456789abcdef0123456789abcdef01234567
 ```
 
-The command accepts only the v2 manifest contract with separately identified source-Caddy and expected-Gateway fingerprints. It emits the source and review SHA-256 identities in the minimized evidence, without including any configuration values.
+The command accepts only the v2 manifest contract. It additionally requires a report from the exact reviewed read-only collector and fails closed if its Caddy source checksum differs from the manifest, its adapted configuration failed to parse, its safety markers are incomplete/ambiguous, or its report is oversized. The original report must stay in an approved protected location; it may contain internal infrastructure identifiers and is never copied into minimized output. The verifier emits only source and review SHA-256 identities, without configuration values.
 
 The command:
 
 1. validates the candidate Gateway configuration;
 2. strictly loads and validates the reviewed Caddy migration-source manifest;
-3. verifies aggregate counts and the deterministic configuration fingerprint;
-4. validates the resulting parity evidence; and
-5. emits only the minimized `goreecloud-gateway-config-parity-evidence/v1` JSON on success.
+3. bounds and checks the read-only collector report's status and source Caddy configuration hash against the manifest;
+4. verifies aggregate counts and the deterministic Gateway configuration fingerprint;
+5. validates the resulting parity evidence; and
+6. emits only the minimized `goreecloud-gateway-config-parity-evidence/v1` JSON on success.
 
-A mismatch, malformed input, invalid source revision, or cutover-authorizing source manifest exits nonzero and emits no acceptance evidence. The verifier does not discover, connect to, read, reload, or mutate Caddy. It operates only on the explicit reviewed files supplied to it and cannot authorize production cutover.
+A missing preflight report, stale/mismatched Caddy source, malformed input, invalid source revision, or cutover-authorizing source manifest exits nonzero and emits no acceptance evidence. The verifier does not discover, connect to, read, reload, or mutate Caddy. It operates only on the explicit reviewed files supplied to it and cannot authorize production cutover.
 
-A valid manifest does not prove that it was correctly derived from live Caddy state. The target-environment migration-preparation process must independently produce, review, retain, and govern the source configuration identity and its review evidence. Only then can the resulting parity evidence support a migration gate.
+A matching report and manifest still do not prove that the report came from the current live Caddy container, that the reviewed source was faithfully translated, or that the host-side Compose and certificate evidence is complete. The target-environment migration-preparation process must independently produce, review, retain, and govern the source configuration identity and its review evidence. Only then can the resulting parity evidence support a migration gate.
 
 This contract cannot authorize production cutover. Caddy remains production-authoritative until all remaining migration gates and explicit production approval pass.
 

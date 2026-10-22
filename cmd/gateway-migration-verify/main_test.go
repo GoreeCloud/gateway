@@ -20,12 +20,14 @@ func TestRunEmitsValidatedMinimizedParityEvidence(t *testing.T) {
 	}
 	configPath := writeJSONFile(t, "gateway.json", cfg)
 	manifestPath := writeJSONFile(t, "migration-source.json", migrationVerifierManifest(cfg, fingerprint))
+	preflightPath := writePreflightFile(t, strings.Repeat("d", 64))
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	code := run([]string{
 		"-config", configPath,
 		"-manifest", manifestPath,
+		"-preflight-report", preflightPath,
 		"-source-revision", strings.Repeat("a", 40),
 	}, &stdout, &stderr, func() time.Time {
 		return time.Date(2026, 9, 4, 16, 0, 0, 0, time.UTC)
@@ -56,12 +58,14 @@ func TestRunFailsClosedOnParityMismatch(t *testing.T) {
 	configPath := writeJSONFile(t, "gateway.json", cfg)
 	manifest := migrationVerifierManifest(cfg, strings.Repeat("f", 64))
 	manifestPath := writeJSONFile(t, "migration-source.json", manifest)
+	preflightPath := writePreflightFile(t, manifest.SourceConfigSHA256)
 
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
 	code := run([]string{
 		"-config", configPath,
 		"-manifest", manifestPath,
+		"-preflight-report", preflightPath,
 		"-source-revision", strings.Repeat("b", 40),
 	}, &stdout, &stderr, func() time.Time { return time.Now().UTC() })
 	if code != 1 {
@@ -71,6 +75,32 @@ func TestRunFailsClosedOnParityMismatch(t *testing.T) {
 		t.Fatalf("parity mismatch unexpectedly emitted acceptance evidence: %s", stdout.String())
 	}
 	if !strings.Contains(stderr.String(), "parity rejected") {
+		t.Fatalf("stderr=%q", stderr.String())
+	}
+}
+
+func TestRunRejectsPreflightSourceDrift(t *testing.T) {
+	cfg := migrationVerifierTestConfig()
+	fingerprint, err := config.ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	configPath := writeJSONFile(t, "gateway.json", cfg)
+	manifestPath := writeJSONFile(t, "migration-source.json", migrationVerifierManifest(cfg, fingerprint))
+	preflightPath := writePreflightFile(t, strings.Repeat("e", 64))
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	code := run([]string{
+		"-config", configPath,
+		"-manifest", manifestPath,
+		"-preflight-report", preflightPath,
+		"-source-revision", strings.Repeat("a", 40),
+	}, &stdout, &stderr, time.Now)
+	if code != 1 || stdout.Len() != 0 {
+		t.Fatalf("stale Caddy identity accepted: code=%d stdout=%q", code, stdout.String())
+	}
+	if !strings.Contains(stderr.String(), "preflight source rejected") {
 		t.Fatalf("stderr=%q", stderr.String())
 	}
 }
@@ -135,6 +165,21 @@ func writeJSONFile(t *testing.T, name string, value any) string {
 	}
 	path := filepath.Join(t.TempDir(), name)
 	if err := os.WriteFile(path, encoded, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func writePreflightFile(t *testing.T, sourceSHA string) string {
+	t.Helper()
+	report := "GoreeCloud Gateway Caddy VPS read-only preflight\n" +
+		"mode=read-only\nmutation_permitted=no\nsecret_values_printed=no\nlive_provider_query_performed=no\n" +
+		"config_sha256=" + sourceSHA + "\nadapted_config_status=parsed\n" +
+		"=== Safety Summary ===\n" +
+		"mode=read-only\nmutation_permitted=no\nsecret_values_printed=no\nlive_provider_query_performed=no\n" +
+		"caddy_production_authority_unchanged=yes\n"
+	path := filepath.Join(t.TempDir(), "read-only-caddy-preflight.txt")
+	if err := os.WriteFile(path, []byte(report), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path

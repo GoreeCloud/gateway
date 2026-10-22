@@ -22,7 +22,7 @@ Accepted `main` implements the PR #9 foundation at Development source/test level
 - health-aware failover;
 - WebSocket/streaming and upgraded-connection handling;
 - trusted-proxy and forwarding-identity enforcement;
-- configuration validation, recovery, rollback, trusted-proxy-aware parity fingerprints, and explicit v2 Caddy source/Gateway expected-parity identity contracts;
+- configuration validation, recovery, rollback, trusted-proxy-aware parity fingerprints, and explicit v2 Caddy source/Gateway expected-parity identity contracts, and fail-closed read-only preflight source-checksum binding;
 - isolated runtime and sustained-load/backpressure acceptance harnesses;
 - privacy-minimized Infrastructure Status and publication-preflight contracts;
 - a read-only target-Caddy/VPS preflight collector that does not mutate Caddy, Docker, firewall, DNS, certificates, or listeners, including image ID, available repository digests, bounded OCI provenance labels, metadata line-injection protection, and explicit reporting of inaccessible host-side evidence;
