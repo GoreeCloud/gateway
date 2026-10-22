@@ -38,6 +38,17 @@ func TestValidateCaddyPreflightSourceIdentityFailsClosed(t *testing.T) {
 		{name: "incomplete header", report: strings.Replace(valid, "mode=read-only\n", "", 1)},
 		{name: "unsafe mutation", report: strings.Replace(valid, "mutation_permitted=no", "mutation_permitted=yes", 1)},
 		{name: "adaptation failed", report: strings.Replace(valid, "adapted_config_status=parsed", "adapted_config_status=parse-failed", 1)},
+		{name: "missing route count", report: strings.Replace(valid, "sanitized_route_record_count=1\n", "", 1)},
+		{name: "zero routes", report: strings.Replace(valid, "sanitized_route_record_count=1", "sanitized_route_record_count=0", 1)},
+		{name: "route count mismatch", report: strings.Replace(valid, "sanitized_route_record_count=1", "sanitized_route_record_count=2", 1)},
+		{name: "duplicate route count", report: valid + "sanitized_route_record_count=1\n"},
+		{name: "missing route handler", report: strings.Replace(valid, "route_record[001].handler=reverse_proxy\n", "", 1)},
+		{name: "missing route server", report: strings.Replace(valid, "route_record[001].server=srv0\n", "", 1)},
+		{name: "missing optional-empty route field", report: strings.Replace(valid, "route_record[001].paths=\n", "", 1)},
+		{name: "duplicate route handler", report: valid + "route_record[001].handler=reverse_proxy\n"},
+		{name: "invalid route handler", report: strings.Replace(valid, "route_record[001].handler=reverse_proxy", "route_record[001].handler=", 1)},
+		{name: "out of range route", report: strings.Replace(valid, "route_record[001].handler=reverse_proxy", "route_record[002].handler=reverse_proxy", 1)},
+		{name: "invalid row key", report: strings.Replace(valid, "route_record[001].handler=reverse_proxy", "route_record[foo].handler=reverse_proxy", 1)},
 		{name: "fatal collector status", report: valid + "fatal=mock-failure\n"},
 		{name: "conflicting footer", report: strings.Replace(valid, "live_provider_query_performed=no", "live_provider_query_performed=yes", 1)},
 		{name: "oversized report", report: valid + strings.Repeat("ignored=synthetic\n", 300000)},
@@ -64,7 +75,13 @@ func syntheticCaddyPreflightReport(sourceSHA string) string {
 		"=== Sanitized Adapted Caddy Structure ===\n" +
 		"adapted_config_status=parsed\n" +
 		"sanitized_route_record_count=1\n" +
+		"route_record[001].server=srv0\n" +
 		"route_record[001].hosts=synthetic.invalid\n" +
+		"route_record[001].paths=\n" +
+		"route_record[001].methods=\n" +
+		"route_record[001].protocols=\n" +
+		"route_record[001].handler=reverse_proxy\n" +
+		"route_record[001].upstreams=backend:8080\n" +
 		"=== Safety Summary ===\n" +
 		"mode=read-only\n" +
 		"mutation_permitted=no\n" +

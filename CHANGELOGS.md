@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Sanitized Caddy route-inventory completeness gate
+
+- Strengthened the read-only migration verifier to reject missing, empty, contradictory, duplicated, or incomplete sanitized Caddy route records even when the source Caddyfile checksum matches.
+- Bounded the number of accepted route records and validated each route's mandatory server, matcher fields, handler, and upstream entry presence, including intentionally empty matcher/upstream lists.
+- Preserved the existing report format and kept independent source review and Caddy production authority mandatory. No target-VPS changes.
+
 ### 2026-10-22 — GC UI governance and migration-evidence schema v2
 
 - Reconciled the nine-system platform contract, capability declarations, and active documentation to GoreeCloud UI (GC UI), without claiming a production-ready administration UI.

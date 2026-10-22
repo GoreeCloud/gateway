@@ -3,7 +3,9 @@ package config
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -38,6 +40,11 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 	}
 	counts := make(map[string]int, len(required))
 	var sourceSHA string
+	const maxRouteRecords = 8192
+	var declaredRouteCount int
+	var routeCountSeen bool
+	routeRecords := make(map[int]map[string]bool)
+	requiredRouteFields := []string{"server", "hosts", "paths", "methods", "protocols", "handler", "upstreams"}
 	for scanner.Scan() {
 		line := strings.TrimSuffix(scanner.Text(), "\r")
 		key, value, ok := strings.Cut(line, "=")
@@ -46,6 +53,41 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 		}
 		if key == "fatal" {
 			return errors.New("gateway preflight: collector reported a fatal error")
+		}
+		if key == "sanitized_route_record_count" {
+			if routeCountSeen {
+				return errors.New("gateway preflight: duplicate sanitized route count")
+			}
+			routeCountSeen = true
+			parsed, err := strconv.Atoi(value)
+			if err != nil || parsed < 1 || parsed > maxRouteRecords {
+				return errors.New("gateway preflight: sanitized route count is invalid or empty")
+			}
+			declaredRouteCount = parsed
+			continue
+		}
+		if strings.HasPrefix(key, "route_record[") {
+			indexText, field, found := strings.Cut(strings.TrimPrefix(key, "route_record["), "].")
+			index, err := strconv.Atoi(indexText)
+			if !found || err != nil || index < 1 || index > maxRouteRecords || fmt.Sprintf("%03d", index) != indexText || !routeCountSeen || index > declaredRouteCount {
+				return errors.New("gateway preflight: invalid or out-of-range sanitized route record")
+			}
+			switch field {
+			case "server", "hosts", "paths", "methods", "protocols", "handler", "upstreams":
+			default:
+				return errors.New("gateway preflight: unsupported sanitized route field")
+			}
+			if (field == "server" || field == "handler") && value == "" {
+				return errors.New("gateway preflight: sanitized route has no server or handler")
+			}
+			if routeRecords[index] == nil {
+				routeRecords[index] = make(map[string]bool, len(requiredRouteFields))
+			}
+			if routeRecords[index][field] {
+				return errors.New("gateway preflight: duplicate sanitized route field")
+			}
+			routeRecords[index][field] = true
+			continue
 		}
 		spec, tracked := required[key]
 		if !tracked {
@@ -70,6 +112,17 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 	for key, spec := range required {
 		if counts[key] != spec.count {
 			return errors.New("gateway preflight: required collector fields are missing or incomplete")
+		}
+	}
+	if !routeCountSeen || len(routeRecords) != declaredRouteCount {
+		return errors.New("gateway preflight: sanitized route inventory is incomplete")
+	}
+	for index := 1; index <= declaredRouteCount; index++ {
+		fields := routeRecords[index]
+		for _, field := range requiredRouteFields {
+			if !fields[field] {
+				return errors.New("gateway preflight: sanitized route record is incomplete")
+			}
 		}
 	}
 	if !validSHA256(strings.ToLower(sourceSHA)) {
