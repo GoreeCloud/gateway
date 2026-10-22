@@ -49,4 +49,4 @@ This contract cannot authorize production cutover. Caddy remains production-auth
 
 `deploy/vps/caddy-read-only-preflight.sh` provides a bounded live-state discovery step before a migration-source manifest is created. It reports Caddy container/config identity, safe route/upstream/TLS structure, listeners, relevant firewall matches, Docker-network membership, and public certificate metadata without printing raw Caddy configuration, Docker environment values, provider credentials, or private-key material.
 
-The preflight report is **not** a migration-source manifest and is **not** parity evidence. Its purpose is to identify and retain the live inputs that must then be independently reviewed through the approved migration-preparation process. See `docs/vps-caddy-read-only-preflight.md`.
+The preflight report is **not** a migration-source manifest and is **not** parity evidence. Its purpose is to identify and retain the live inputs that must then be independently reviewed through the approved migration-preparation process. See [`docs/CADDY-VPS-READ-ONLY-PREFLIGHT.md`](./CADDY-VPS-READ-ONLY-PREFLIGHT.md).
