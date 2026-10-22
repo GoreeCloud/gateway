@@ -18,17 +18,19 @@ const ConfigParityEvidenceSchemaV1 = "goreecloud-gateway-config-parity-evidence/
 // does not expose hostnames, backend URLs, certificate paths, credentials, or
 // route contents.
 type ConfigParityEvidence struct {
-	Schema                      string `json:"schema"`
-	RecordedAt                  string `json:"recorded_at"`
-	SourceRevision              string `json:"source_revision"`
-	ExpectedConfigSHA256        string `json:"expected_config_sha256"`
-	ActualConfigSHA256          string `json:"actual_config_sha256"`
-	ServiceCount                int    `json:"service_count"`
-	RouteCount                  int    `json:"route_count"`
-	BackendCount                int    `json:"backend_count"`
-	CertificateProfileCount     int    `json:"certificate_profile_count"`
-	ConfigurationParityMatched  bool   `json:"configuration_parity_matched"`
-	ProductionCutoverAuthorized bool   `json:"production_cutover_authorized"`
+	Schema                        string `json:"schema"`
+	RecordedAt                    string `json:"recorded_at"`
+	SourceRevision                string `json:"source_revision"`
+	ExpectedConfigSHA256          string `json:"expected_config_sha256"`
+	MigrationSourceConfigSHA256   string `json:"migration_source_config_sha256,omitempty"`
+	MigrationReviewEvidenceSHA256 string `json:"migration_review_evidence_sha256,omitempty"`
+	ActualConfigSHA256            string `json:"actual_config_sha256"`
+	ServiceCount                  int    `json:"service_count"`
+	RouteCount                    int    `json:"route_count"`
+	BackendCount                  int    `json:"backend_count"`
+	CertificateProfileCount       int    `json:"certificate_profile_count"`
+	ConfigurationParityMatched    bool   `json:"configuration_parity_matched"`
+	ProductionCutoverAuthorized   bool   `json:"production_cutover_authorized"`
 }
 
 type parityService struct {
@@ -213,6 +215,16 @@ func ValidateConfigParityEvidence(evidence ConfigParityEvidence) error {
 	}
 	if !validSHA256(evidence.ExpectedConfigSHA256) || !validSHA256(evidence.ActualConfigSHA256) {
 		return errors.New("gateway parity: configuration fingerprint is invalid")
+	}	if (evidence.MigrationSourceConfigSHA256 == "") != (evidence.MigrationReviewEvidenceSHA256 == "") {
+		return errors.New("gateway parity: source and review identities must be present together")
+	}
+	if evidence.MigrationSourceConfigSHA256 != "" {
+		if !validSHA256(evidence.MigrationSourceConfigSHA256) || !validSHA256(evidence.MigrationReviewEvidenceSHA256) {
+			return errors.New("gateway parity: migration source or review SHA-256 is invalid")
+		}
+		if evidence.MigrationSourceConfigSHA256 == evidence.ExpectedConfigSHA256 {
+			return errors.New("gateway parity: Caddy source identity must not substitute for Gateway parity fingerprint")
+		}
 	}
 	if evidence.ServiceCount < 0 || evidence.RouteCount < 0 || evidence.BackendCount < 0 || evidence.CertificateProfileCount < 0 {
 		return errors.New("gateway parity: aggregate counts are invalid")
