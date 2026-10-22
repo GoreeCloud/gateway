@@ -174,7 +174,17 @@ func writePreflightFile(t *testing.T, sourceSHA string) string {
 	t.Helper()
 	report := "GoreeCloud Gateway Caddy VPS read-only preflight\n" +
 		"mode=read-only\nmutation_permitted=no\nsecret_values_printed=no\nlive_provider_query_performed=no\n" +
-		"config_sha256=" + sourceSHA + "\nadapted_config_status=parsed\n" +
+		"config_sha256=" + sourceSHA + "\n" +
+		"=== Sanitized Adapted Caddy Structure ===\n" +
+		"adapted_config_status=parsed\n" +
+		"sanitized_route_record_count=1\n" +
+		"route_record[001].server=srv0\n" +
+		"route_record[001].hosts=synthetic.invalid\n" +
+		"route_record[001].paths=\n" +
+		"route_record[001].methods=\n" +
+		"route_record[001].protocols=\n" +
+		"route_record[001].handler=reverse_proxy\n" +
+		"route_record[001].upstreams=backend:8080\n" +
 		"=== Safety Summary ===\n" +
 		"mode=read-only\nmutation_permitted=no\nsecret_values_printed=no\nlive_provider_query_performed=no\n" +
 		"caddy_production_authority_unchanged=yes\n"
