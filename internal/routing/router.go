@@ -43,6 +43,9 @@ func ResolveCandidates(cfg *config.Config, req *http.Request) (CandidateMatch, b
 			!transportAllowed(route, req) {
 			continue
 		}
+		if route.IsStaticResponse() {
+			return CandidateMatch{Route: route}, true
+		}
 
 		service, ok := cfg.Service(route.ServiceID)
 		if !ok {
@@ -68,6 +71,9 @@ func Resolve(cfg *config.Config, req *http.Request) (Match, bool) {
 	match, ok := ResolveCandidates(cfg, req)
 	if !ok {
 		return Match{}, false
+	}
+	if match.Route.IsStaticResponse() {
+		return Match{Route: match.Route}, true
 	}
 	return Match{Route: match.Route, Service: match.Service, Backend: match.Backends[0]}, true
 }

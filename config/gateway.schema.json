@@ -30,10 +30,25 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["id", "service_id", "hostname", "path_prefix", "exposure", "enabled", "tls"],
+        "required": ["id", "hostname", "path_prefix", "exposure", "enabled", "tls"],
+        "allOf": [{
+          "if": {"properties": {"action": {"const": "static_response"}}, "required": ["action"]},
+          "then": {"required": ["static_response"], "not": {"required": ["service_id"]}},
+          "else": {"required": ["service_id"], "not": {"required": ["static_response"]}}
+        }],
         "properties": {
           "id": {"$ref": "#/$defs/id"},
+          "action": {"enum": ["reverse_proxy", "static_response"]},
           "service_id": {"$ref": "#/$defs/id"},
+          "static_response": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["status_code"],
+            "properties": {
+              "status_code": {"type": "integer", "minimum": 200, "maximum": 599},
+              "body": {"type": "string", "maxLength": 16384}
+            }
+          },
           "hostname": {"type": "string", "minLength": 1, "maxLength": 253},
           "path_prefix": {"type": "string", "pattern": "^/"},
           "methods": {"type": "array", "uniqueItems": true, "items": {"enum": ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]}},
