@@ -33,6 +33,7 @@ The report includes:
   - HTTP server/listener counts;
   - per-route safe match records for host, path, method, and protocol;
   - per-route handler module names and reverse-proxy upstream dial targets;
+  - a counted `encode` handler inventory linked to exact sanitized route-record indices, containing only supported codec names, codec preference order, whether a minimum length was explicitly configured (and its nonnegative value), whether a response matcher was explicit, and subroute nesting depth;
   - aggregate route host matchers, upstream dials, and handler module names;
   - TLS automation subjects;
   - issuer module names; and
@@ -42,6 +43,8 @@ The report includes:
 - certificate metadata from Caddy's mounted data directory: relative certificate file identity, SHA-256, subject, issuer, serial, validity dates, fingerprint, and SAN extension, using bounded read-only privilege when required.
 
 Private-key files are never read. Raw Caddy configuration, Docker environment variables, API tokens, provider secrets, private keys, and full firewall configuration are never printed.
+
+`encode_minimum_length=unspecified` means the adapted handler omitted the setting; it is **not** proof of a specific effective threshold. `encode_match=implicit` means no explicit response matcher was present in the adapted handler; it does **not** attest that the native Gateway matches Caddy's defaults. The collector deliberately does not disclose any response matcher patterns or compressor-specific options. The verifier rejects missing/duplicate encode records, unsupported encoders, invalid preferences, and mismatched inventory counts, but a validated report still does not establish equivalent native compression, response streaming, or cutover readiness. Reports from collector revisions predating the encode inventory need a fresh read-only capture for the tightened verifier.
 
 Metadata values selected from OCI labels are escaped as single-line evidence to prevent a label from forging additional report fields. Repository digests are Docker-reported metadata, and a missing digest is reported as `unavailable`; a local image ID is not proof of trusted provenance. A certificate directory that cannot be validated with available host privileges is reported as `host-directory-missing-or-inaccessible`. This must not be interpreted as a certificate absence, and independent certificate review remains required.
 

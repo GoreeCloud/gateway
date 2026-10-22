@@ -43,8 +43,11 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 	const maxRouteRecords = 8192
 	var declaredRouteCount int
 	var routeCountSeen bool
-	routeRecords := make(map[int]map[string]bool)
+	var declaredEncodeCount int
+	var encodeCountSeen bool
+	routeRecords := make(map[int]map[string]string)
 	requiredRouteFields := []string{"server", "hosts", "paths", "methods", "protocols", "handler", "upstreams"}
+	requiredEncodeFields := []string{"encode_codecs", "encode_prefer", "encode_minimum_length", "encode_match", "encode_depth"}
 	for scanner.Scan() {
 		line := strings.TrimSuffix(scanner.Text(), "\r")
 		key, value, ok := strings.Cut(line, "=")
@@ -66,6 +69,18 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 			declaredRouteCount = parsed
 			continue
 		}
+		if key == "encode_handler_count" {
+			if encodeCountSeen {
+				return errors.New("gateway preflight: duplicate encode handler count")
+			}
+			encodeCountSeen = true
+			parsed, err := strconv.Atoi(value)
+			if err != nil || parsed < 0 || parsed > maxRouteRecords {
+				return errors.New("gateway preflight: invalid encode handler count")
+			}
+			declaredEncodeCount = parsed
+			continue
+		}
 		if strings.HasPrefix(key, "route_record[") {
 			indexText, field, found := strings.Cut(strings.TrimPrefix(key, "route_record["), "].")
 			index, err := strconv.Atoi(indexText)
@@ -73,7 +88,7 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 				return errors.New("gateway preflight: invalid or out-of-range sanitized route record")
 			}
 			switch field {
-			case "server", "hosts", "paths", "methods", "protocols", "handler", "upstreams":
+			case "server", "hosts", "paths", "methods", "protocols", "handler", "upstreams", "encode_codecs", "encode_prefer", "encode_minimum_length", "encode_match", "encode_depth":
 			default:
 				return errors.New("gateway preflight: unsupported sanitized route field")
 			}
@@ -81,12 +96,12 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 				return errors.New("gateway preflight: sanitized route has no server or handler")
 			}
 			if routeRecords[index] == nil {
-				routeRecords[index] = make(map[string]bool, len(requiredRouteFields))
+				routeRecords[index] = make(map[string]string, len(requiredRouteFields)+len(requiredEncodeFields))
 			}
-			if routeRecords[index][field] {
+			if _, duplicate := routeRecords[index][field]; duplicate {
 				return errors.New("gateway preflight: duplicate sanitized route field")
 			}
-			routeRecords[index][field] = true
+			routeRecords[index][field] = value
 			continue
 		}
 		spec, tracked := required[key]
@@ -114,16 +129,67 @@ func ValidateCaddyPreflightSourceIdentity(report io.Reader, manifest MigrationSo
 			return errors.New("gateway preflight: required collector fields are missing or incomplete")
 		}
 	}
-	if !routeCountSeen || len(routeRecords) != declaredRouteCount {
+	if !routeCountSeen || !encodeCountSeen || len(routeRecords) != declaredRouteCount {
 		return errors.New("gateway preflight: sanitized route inventory is incomplete")
 	}
+	var actualEncodeCount int
 	for index := 1; index <= declaredRouteCount; index++ {
 		fields := routeRecords[index]
 		for _, field := range requiredRouteFields {
-			if !fields[field] {
+			if _, present := fields[field]; !present {
 				return errors.New("gateway preflight: sanitized route record is incomplete")
 			}
 		}
+		if fields["handler"] != "encode" {
+			for _, field := range requiredEncodeFields {
+				if _, present := fields[field]; present {
+					return errors.New("gateway preflight: non-encode route contains encode policy")
+				}
+			}
+			continue
+		}
+		actualEncodeCount++
+		for _, field := range requiredEncodeFields {
+			if _, present := fields[field]; !present {
+				return errors.New("gateway preflight: encode policy inventory is incomplete")
+			}
+		}
+		codecs := strings.Split(fields["encode_codecs"], ";")
+		if len(codecs) == 0 || len(codecs) > 2 {
+			return errors.New("gateway preflight: encode codecs are unsupported")
+		}
+		codecSet := make(map[string]bool, len(codecs))
+		for i, codec := range codecs {
+			if codec != "gzip" && codec != "zstd" || codecSet[codec] || (i > 0 && codecs[i-1] >= codec) {
+				return errors.New("gateway preflight: encode codecs are unsupported or ambiguous")
+			}
+			codecSet[codec] = true
+		}
+		if fields["encode_prefer"] != "" {
+			seen := make(map[string]bool, len(codecs))
+			for _, preferred := range strings.Split(fields["encode_prefer"], ";") {
+				if !codecSet[preferred] || seen[preferred] {
+					return errors.New("gateway preflight: encode preference is unsupported or ambiguous")
+				}
+				seen[preferred] = true
+			}
+		}
+		if fields["encode_minimum_length"] != "unspecified" {
+			minimum, err := strconv.Atoi(fields["encode_minimum_length"])
+			if err != nil || minimum < 0 || minimum > 1<<30 {
+				return errors.New("gateway preflight: encode minimum length is unsupported")
+			}
+		}
+		if fields["encode_match"] != "implicit" && fields["encode_match"] != "explicit" {
+			return errors.New("gateway preflight: encode response matcher is invalid")
+		}
+		depth, err := strconv.Atoi(fields["encode_depth"])
+		if err != nil || depth < 0 || depth > 64 {
+			return errors.New("gateway preflight: encode route depth is invalid")
+		}
+	}
+	if actualEncodeCount != declaredEncodeCount {
+		return errors.New("gateway preflight: encode handler inventory count mismatch")
 	}
 	if !validSHA256(strings.ToLower(sourceSHA)) {
 		return errors.New("gateway preflight: source configuration SHA-256 is invalid")

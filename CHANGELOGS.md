@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Sanitized Caddy encode-policy evidence gate
+
+- Added a redacted, route-indexed `encode` inventory to the exact-source read-only Caddy collector: supported codecs, preference order, explicit minimum length or unspecified setting, response matcher presence, and subroute depth, with no raw matcher values or compressor options exposed.
+- Required complete, non-contradictory, bounded per-encode fields and a matching handler count in migration-source report validation; added collector self-tests and negative verifier regressions.
+- This evidence does not implement native gzip/zstd, attest exact Caddy response semantics, or authorize production migration; previously captured reports must be refreshed using the reviewed collector before being accepted by the tightened verifier.
+
 ### 2026-10-22 — Sanitized Caddy route-inventory completeness gate
 
 - Strengthened the read-only migration verifier to reject missing, empty, contradictory, duplicated, or incomplete sanitized Caddy route records even when the source Caddyfile checksum matches.
