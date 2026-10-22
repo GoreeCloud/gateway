@@ -1,6 +1,6 @@
 # Bounded native static-response encoding (Development)
 
-This native `gzip`/`zstd` implementation is deliberately **opt-in** and applies only to literal `static_response` routes. A separate [known-length proxy encoding feature](proxy-response-encoding.md) is available at Development source level; neither feature establishes Caddy `encode` parity, target-environment acceptance, or a production cutover signal. Caddy remains authoritative.
+This native `gzip`/`zstd` implementation is deliberately **opt-in** and applies only to literal `static_response` routes. A separate [proxy encoding feature](proxy-response-encoding.md), with a strictly experimental unknown-length option, is available at Development source level; neither feature establishes Caddy `encode` parity, target-environment acceptance, or a production cutover signal. Caddy remains authoritative.
 
 ## Configuration
 

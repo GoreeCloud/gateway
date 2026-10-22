@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Isolated opt-in unknown-length proxy streaming and Caddy evidence correction
+
+- Added an explicitly gated `allow_unknown_length` proxy encoding option that requires `minimum_length: 0`, streams gzip/zstd incrementally, and preserves SSE/Incremental pass-through; exact-head validation and real streaming tests are required before integration.
+- Bound the switch into deterministic configuration parity and rejected unsupported static-route or implicit zero-threshold use.
+- Identified the saved VPS preflight as belonging to a separate search ingress container; validated sanitized production Caddy encode sequence independently. This is **not** production route/TLS acceptance or exact Caddy `encode` parity.
+
 ### 2026-10-22 — Opt-in streaming gzip/zstd for known-length proxy responses
 
 - Added opt-in `proxy_response_encoding` with validated codec preference and minimum length, separate from static-only encoding; incorporated the policy into migration-parity fingerprints.
