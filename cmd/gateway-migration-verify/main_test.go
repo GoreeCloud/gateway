@@ -178,6 +178,7 @@ func writePreflightFile(t *testing.T, sourceSHA string) string {
 		"=== Sanitized Adapted Caddy Structure ===\n" +
 		"adapted_config_status=parsed\n" +
 		"sanitized_route_record_count=1\n" +
+		"encode_handler_count=0\n" +
 		"route_record[001].server=srv0\n" +
 		"route_record[001].hosts=synthetic.invalid\n" +
 		"route_record[001].paths=\n" +
