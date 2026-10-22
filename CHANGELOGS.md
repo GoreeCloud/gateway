@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-22 — Fail-closed read-only Caddy source-report binding
+
+- Required the local migration verifier to compare the reviewed v2 Caddy source SHA-256 against a bounded, structurally complete read-only preflight report before emitting minimized parity evidence.
+- Rejected absent, stale, ambiguous, oversized, malformed, or unsafe-status preflight evidence with synthetic regression cases; kept infrastructure detail out of minimized output.
+- This source check cannot authenticate the report, replace protected source review, or authorize live cutover. No production mutation.
+
 ### 2026-10-21 — Explicit Caddy migration-source identity
 
 - Advanced the reviewed migration-source manifest contract to v2, requiring separate immutable SHA-256 identities for the source Caddy configuration and the expected translated Gateway parity fingerprint.
