@@ -167,6 +167,21 @@ for policy in policies:
 '
 }
 
+select_unambiguous_caddy_container() {
+  # Multiple Caddy images can run on one VPS (for example, staging ingress and
+  # production). Never silently select whichever Docker lists first.
+  local listing="$1" name image
+  local candidates=()
+  while IFS=$'\t' read -r name image; do
+    [[ -n "$name" ]] || continue
+    if [[ "${name,,}" == *caddy* || "${image,,}" == *caddy* ]]; then
+      candidates+=("$name")
+    fi
+  done <<< "$listing"
+  [[ "${#candidates[@]}" -eq 1 ]] || return 1
+  printf '%s\n' "${candidates[0]}"
+}
+
 self_test() {
   local sample output
   sample='{"apps":{"http":{"servers":{"srv0":{"listen":[":80",":443"],"routes":[{"match":[{"host":["example.goreecloud.test","evil\\nforged_status=accepted"]}],"handle":[{"handler":"reverse_proxy","upstreams":[{"dial":"backend:8080"},{"dial":"backend\\tforged:9090"}]}]}]}}},"tls":{"automation":{"policies":[{"subjects":["example.goreecloud.test"],"issuers":[{"module":"acme","challenges":{"dns":{"provider":{"name":"porkbun","api_key":"SELF_TEST_SECRET"}}}}]}]}}}}'
@@ -192,6 +207,19 @@ self_test() {
   escaped_scalar="$(safe_report_scalar $'image\nforged_status=accepted')"
   if [[ "$escaped_scalar" != 'image\nforged_status=accepted' ]]; then
     echo "self_test=failed-metadata-line-escaping"
+    return 1
+  fi
+  local selected
+  if ! selected="$(select_unambiguous_caddy_container $'caddy\tcaddy:2.11')" || [[ "$selected" != 'caddy' ]]; then
+    echo "self_test=failed-single-container-discovery"
+    return 1
+  fi
+  if select_unambiguous_caddy_container $'search-ingress\tcaddy:2.11\ncaddy\tcaddy:2.11' >/dev/null; then
+    echo "self_test=failed-ambiguous-container-discovery"
+    return 1
+  fi
+  if select_unambiguous_caddy_container $'other\tnginx:stable' >/dev/null; then
+    echo "self_test=failed-missing-container-discovery"
     return 1
   fi
   echo "self_test=passed"
@@ -220,11 +248,10 @@ fi
 
 container="${CADDY_CONTAINER:-}"
 if [[ -z "$container" ]]; then
-  container="$(docker ps --format '{{.Names}}\t{{.Image}}' 2>/dev/null | awk 'tolower($0) ~ /caddy/ {print $1; exit}')"
-fi
-if [[ -z "$container" ]]; then
-  echo "fatal=caddy-container-not-found"
-  exit 1
+  if ! container="$(select_unambiguous_caddy_container "$(docker ps --format '{{.Names}}\t{{.Image}}' 2>/dev/null)")"; then
+    echo "fatal=caddy-container-discovery-ambiguous-or-missing"
+    exit 1
+  fi
 fi
 if ! docker inspect "$container" >/dev/null 2>&1; then
   echo "fatal=caddy-container-not-readable"
