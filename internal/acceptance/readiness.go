@@ -36,7 +36,7 @@ type MigrationEvidence struct {
 	PrivacyShieldValidated         bool   `json:"privacy_shield_validated"`
 	WardveilSecurityValidated      bool   `json:"wardveil_security_validated"`
 	EverkeepValidated              bool   `json:"everkeep_validated"`
-	GoreeCloudUIValidated          bool   `json:"goreecloud_ui_validated"`
+	GCUIValidated                  bool   `json:"gc_ui_validated"`
 	MeshCoordinationValidated      bool   `json:"mesh_coordination_validated"`
 	IdentityIntegrationValidated   bool   `json:"identity_integration_validated"`
 	GovernanceIntegrationValidated bool   `json:"governance_integration_validated"`
@@ -90,7 +90,7 @@ func EvaluateMigrationReadiness(evidence MigrationEvidence) (MigrationDecision, 
 		{"privacy_shield_validated", evidence.PrivacyShieldValidated},
 		{"wardveil_security_validated", evidence.WardveilSecurityValidated},
 		{"everkeep_validated", evidence.EverkeepValidated},
-		{"goreecloud_ui_validated", evidence.GoreeCloudUIValidated},
+		{"gc_ui_validated", evidence.GCUIValidated},
 		{"mesh_coordination_validated", evidence.MeshCoordinationValidated},
 		{"identity_integration_validated", evidence.IdentityIntegrationValidated},
 		{"governance_integration_validated", evidence.GovernanceIntegrationValidated},

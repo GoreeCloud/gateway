@@ -83,19 +83,19 @@ func TestEvaluateMigrationReadinessRejectsPreviousEvidenceSchema(t *testing.T) {
 
 func TestEvaluateMigrationReadinessRequiresGoreeCloudUIAcceptance(t *testing.T) {
 	evidence := completeMigrationEvidence()
-	evidence.GoreeCloudUIValidated = false
+	evidence.GCUIValidated = false
 	decision, err := EvaluateMigrationReadiness(evidence)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if decision.EligibleForMigrationRehearsal || len(decision.MissingGates) != 1 || decision.MissingGates[0] != "goreecloud_ui_validated" {
+	if decision.EligibleForMigrationRehearsal || len(decision.MissingGates) != 1 || decision.MissingGates[0] != "gc_ui_validated" {
 		t.Fatalf("incomplete UI integration unexpectedly accepted: %+v", decision)
 	}
 }
 
 func TestEvaluateMigrationReadinessDoesNotCountUnknownJSONFields(t *testing.T) {
 	source := completeMigrationEvidence()
-	source.GoreeCloudUIValidated = false
+	source.GCUIValidated = false
 	encoded, err := json.Marshal(source)
 	if err != nil {
 		t.Fatal(err)
@@ -108,7 +108,7 @@ func TestEvaluateMigrationReadinessDoesNotCountUnknownJSONFields(t *testing.T) {
 	// The current gate must still be proved explicitly, even if another
 	// input field asserts an unrelated UI acceptance state.
 	decision, err := EvaluateMigrationReadiness(evidence)
-	if err != nil || decision.EligibleForMigrationRehearsal || len(decision.MissingGates) != 1 || decision.MissingGates[0] != "goreecloud_ui_validated" {
+	if err != nil || decision.EligibleForMigrationRehearsal || len(decision.MissingGates) != 1 || decision.MissingGates[0] != "gc_ui_validated" {
 		t.Fatalf("missing UI integration gate unexpectedly accepted: decision=%+v err=%v", decision, err)
 	}
 }
@@ -133,7 +133,7 @@ func completeMigrationEvidence() MigrationEvidence {
 		PrivacyShieldValidated:        true,
 		WardveilSecurityValidated:     true,
 		EverkeepValidated:             true,
-		GoreeCloudUIValidated:         true,
+		GCUIValidated:                 true,
 		MeshCoordinationValidated:     true,
 		IdentityIntegrationValidated:  true,
 		GovernanceIntegrationValidated: true,

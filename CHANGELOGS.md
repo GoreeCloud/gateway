@@ -7,7 +7,8 @@ This repository-local record is the authoritative Git-native chronological chang
 ### 2026-10-22 — GC UI governance and migration-evidence schema v2
 
 - Reconciled the nine-system platform contract, capability declarations, and active documentation to GoreeCloud UI (GC UI), without claiming a production-ready administration UI.
-- Replaced the superseded design-system acceptance field with `goreecloud_ui_validated` under a new `goreecloud-gateway-migration-evidence/v2` schema; old schema evidence is rejected, and the missing integration gate remains fail-closed.
+- Replaced the superseded design-system acceptance field with `gc_ui_validated` under a new `goreecloud-gateway-migration-evidence/v2` schema; old schema evidence is rejected, and the missing integration gate remains fail-closed.
+- Migrated the Gateway declaration to versioned Platform Contract 2.1, with its nine-system `gc_ui` key, scoped Foundations target, Forge lifecycle metadata, and immutable reusable-workflow evaluator pin.
 - Corrected the development repository identity and stale unmerged-runtime blocker. Caddy retains production authority; no deployment or cutover occurred.
 
 ### 2026-10-22 — Ambiguous Caddy container discovery fails closed

@@ -1,4 +1,4 @@
-schema_version: "0.4"
+schema_version: "2.1"
 
 component:
   type: service
@@ -6,7 +6,17 @@ component:
   product_name: GoreeCloud Gateway
   repository: GoreeCloud/gateway
 
-lifecycle: development
+lifecycle: forge
+lifecycle_metadata:
+  flags:
+    - blocked
+    - migration-required
+  deployment_state: development
+  qualification_state: in-progress
+  next_gate: weave
+  candidate_identity: null
+  last_transition: null
+  evidence: []
 version: unreleased-development
 
 supported_platforms:
@@ -47,7 +57,7 @@ platform_systems:
       - SPECIFICATIONS.md
       - docs/recovery.md
     notes: Native configuration snapshot, restore, and rollback primitives exist in Development, but Everkeep integration and production-representative recovery acceptance remain incomplete.
-  goreecloud_ui:
+  gc_ui:
     result: applicable-blocked
     version: null
     evidence:
@@ -114,9 +124,10 @@ continuity:
 external_dependencies: []
 
 compatibility:
-  platform_contract: "0.4"
+  platform_contract: "2.1"
+  gc_ui_required: "foundations-v1.0.1"
   requires:
-    - goreecloud-platform-contract==0.4
+    - goreecloud-platform-contract==2.1
   provides: []
 
 evidence:
