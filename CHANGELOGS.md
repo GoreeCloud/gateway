@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-21 — Explicit Caddy migration-source identity
+
+- Advanced the reviewed migration-source manifest contract to v2, requiring separate immutable SHA-256 identities for the source Caddy configuration and the expected translated Gateway parity fingerprint.
+- Bound the source configuration and retained review-evidence hashes into minimized parity evidence; added fail-closed tests for missing, conflated, malformed, and legacy identities.
+- Kept Caddy authoritative and made no production deployment, certificate, firewall, DNS, or listener changes.
+
 ### 2026-10-21 — Configuration-parity trusted-proxy boundary
 
 - Included canonical trusted-ingress-proxy prefixes in the deterministic Gateway migration-parity fingerprint; regression tests reject changes to the trust boundary while treating equivalent CIDR sets consistently.
