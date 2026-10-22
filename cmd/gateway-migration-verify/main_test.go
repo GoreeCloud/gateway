@@ -46,6 +46,9 @@ func TestRunEmitsValidatedMinimizedParityEvidence(t *testing.T) {
 	if evidence.ProductionCutoverAuthorized {
 		t.Fatal("migration verifier unexpectedly authorized production cutover")
 	}
+	if evidence.MigrationSourceConfigSHA256 != strings.Repeat("d", 64) || evidence.MigrationReviewEvidenceSHA256 != strings.Repeat("c", 64) {
+		t.Fatal("minimized migration evidence did not bind source and review identities")
+	}
 }
 
 func TestRunFailsClosedOnParityMismatch(t *testing.T) {
@@ -109,11 +112,12 @@ func migrationVerifierTestConfig() *config.Config {
 
 func migrationVerifierManifest(cfg *config.Config, fingerprint string) config.MigrationSourceManifest {
 	return config.MigrationSourceManifest{
-		Schema:                      config.MigrationSourceManifestSchemaV1,
+		Schema:                      config.MigrationSourceManifestSchemaV2,
 		RecordedAt:                  "2026-09-04T15:55:00Z",
 		SourceSystem:                "caddy",
 		Environment:                 "target-review",
-		ConfigSHA256:                fingerprint,
+		SourceConfigSHA256:          strings.Repeat("d", 64),
+		ExpectedGatewayConfigSHA256: fingerprint,
 		ServiceCount:                len(cfg.Services),
 		RouteCount:                  len(cfg.Routes),
 		BackendCount:                len(cfg.Backends),

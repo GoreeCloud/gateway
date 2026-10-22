@@ -31,6 +31,9 @@ func TestBuildConfigParityEvidenceFromMigrationSource(t *testing.T) {
 	if evidence.ProductionCutoverAuthorized {
 		t.Fatal("migration-source parity unexpectedly authorized production cutover")
 	}
+	if evidence.MigrationSourceConfigSHA256 != manifest.SourceConfigSHA256 || evidence.MigrationReviewEvidenceSHA256 != manifest.ReviewEvidenceSHA256 {
+		t.Fatal("migration evidence lost reviewed source or review identity")
+	}
 }
 
 func TestBuildConfigParityEvidenceFromMigrationSourceRejectsCountMismatch(t *testing.T) {
@@ -64,6 +67,33 @@ func TestValidateMigrationSourceManifestRejectsWrongSystemAndCutover(t *testing.
 	}
 }
 
+func TestValidateMigrationSourceManifestRejectsMissingOrConflatedSourceIdentity(t *testing.T) {
+	cfg := testParityConfig()
+	fingerprint, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manifest := testMigrationSourceManifest(cfg, fingerprint)
+	manifest.SourceConfigSHA256 = ""
+	if err := ValidateMigrationSourceManifest(manifest); err == nil {
+		t.Fatal("missing Caddy source identity accepted")
+	}
+	manifest.SourceConfigSHA256 = fingerprint
+	if err := ValidateMigrationSourceManifest(manifest); err == nil {
+		t.Fatal("source Caddy identity conflated with expected Gateway fingerprint")
+	}
+	manifest.SourceConfigSHA256 = strings.Repeat("d", 64)
+	manifest.ExpectedGatewayConfigSHA256 = "invalid"
+	if err := ValidateMigrationSourceManifest(manifest); err == nil {
+		t.Fatal("invalid expected Gateway fingerprint accepted")
+	}
+	manifest.ExpectedGatewayConfigSHA256 = fingerprint
+	manifest.Schema = "goreecloud-gateway-migration-source-manifest/v1"
+	if err := ValidateMigrationSourceManifest(manifest); err == nil {
+		t.Fatal("legacy source manifest without an explicit Caddy/Gateway identity distinction accepted")
+	}
+}
+
 func TestLoadMigrationSourceManifestStrictJSON(t *testing.T) {
 	cfg := testParityConfig()
 	fingerprint, err := ConfigParityFingerprint(cfg)
@@ -94,11 +124,12 @@ func TestLoadMigrationSourceManifestStrictJSON(t *testing.T) {
 
 func testMigrationSourceManifest(cfg *Config, fingerprint string) MigrationSourceManifest {
 	return MigrationSourceManifest{
-		Schema:                      MigrationSourceManifestSchemaV1,
+		Schema:                      MigrationSourceManifestSchemaV2,
 		RecordedAt:                  "2026-08-30T13:40:00Z",
 		SourceSystem:                "caddy",
 		Environment:                 "target-review",
-		ConfigSHA256:                fingerprint,
+		SourceConfigSHA256:          strings.Repeat("d", 64),
+		ExpectedGatewayConfigSHA256: fingerprint,
 		ServiceCount:                len(cfg.Services),
 		RouteCount:                  len(cfg.Routes),
 		BackendCount:                len(cfg.Backends),
