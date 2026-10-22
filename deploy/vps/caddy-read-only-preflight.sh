@@ -308,8 +308,9 @@ if [[ -n "$compose_files" ]]; then
     file="$(echo "$file" | xargs)"
     [[ -n "$file" ]] || continue
     echo "compose_file=$file"
-    if [[ -f "$file" ]]; then
-      echo "compose_file_sha256=$(run_privileged_read sha256sum "$file" 2>/dev/null | awk '{print $1}')"
+    if run_privileged_read test -f "$file"; then
+      compose_file_sha="$(run_privileged_read sha256sum "$file" 2>/dev/null | awk '{print $1}')"
+      echo "compose_file_sha256=${compose_file_sha:-unavailable}"
     else
       echo "compose_file_sha256=unavailable"
     fi
