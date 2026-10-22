@@ -18,6 +18,11 @@ run_privileged_read() {
   return 126
 }
 
+safe_report_scalar() {
+  # Keep metadata-derived evidence on one line, with control characters escaped.
+  printf '%s' "$1" | python3 -c 'import json, sys; print(json.dumps(sys.stdin.read(), ensure_ascii=True)[1:-1])'
+}
+
 sanitize_caddy_json() {
   python3 -c '
 import json
@@ -183,6 +188,12 @@ self_test() {
     echo "self_test=failed-secret-leak"
     return 1
   fi
+  local escaped_scalar
+  escaped_scalar="$(safe_report_scalar $'image\nforged_status=accepted')"
+  if [[ "$escaped_scalar" != 'image\nforged_status=accepted' ]]; then
+    echo "self_test=failed-metadata-line-escaping"
+    return 1
+  fi
   echo "self_test=passed"
 }
 
@@ -247,7 +258,27 @@ echo
 echo "=== Caddy Container ==="
 echo "container_name=$container"
 echo "container_image=$(docker inspect --format '{{.Config.Image}}' "$container" 2>/dev/null || echo unavailable)"
-echo "container_image_id=$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || echo unavailable)"
+image_id="$(docker inspect --format '{{.Image}}' "$container" 2>/dev/null || true)"
+echo "container_image_id=${image_id:-unavailable}"
+if [[ -n "$image_id" ]]; then
+  repo_digests="$(docker image inspect --format '{{json .RepoDigests}}' "$image_id" 2>/dev/null || true)"
+  echo "container_image_repo_digests=${repo_digests:-unavailable}"
+  for label in org.opencontainers.image.revision org.opencontainers.image.version org.opencontainers.image.created org.opencontainers.image.source; do
+    value="$(docker image inspect --format "{{ index .Config.Labels \"$label\" }}" "$image_id" 2>/dev/null || true)"
+    if [[ -z "$value" || "$value" == "<no value>" || "$value" == "<nil>" ]]; then
+      value="unavailable"
+    fi
+    key="${label#org.opencontainers.image.}"
+    key="${key//./_}"
+    echo "container_image_oci_${key}=$(safe_report_scalar "$value")"
+  done
+else
+  echo "container_image_repo_digests=unavailable"
+  echo "container_image_oci_revision=unavailable"
+  echo "container_image_oci_version=unavailable"
+  echo "container_image_oci_created=unavailable"
+  echo "container_image_oci_source=unavailable"
+fi
 echo "container_state=$(docker inspect --format '{{.State.Status}}' "$container" 2>/dev/null || echo unavailable)"
 echo "restart_policy=$(docker inspect --format '{{.HostConfig.RestartPolicy.Name}}' "$container" 2>/dev/null || echo unavailable)"
 echo "network_mode=$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$container" 2>/dev/null || echo unavailable)"
@@ -277,8 +308,9 @@ if [[ -n "$compose_files" ]]; then
     file="$(echo "$file" | xargs)"
     [[ -n "$file" ]] || continue
     echo "compose_file=$file"
-    if [[ -f "$file" ]]; then
-      echo "compose_file_sha256=$(run_privileged_read sha256sum "$file" 2>/dev/null | awk '{print $1}')"
+    if run_privileged_read test -f "$file"; then
+      compose_file_sha="$(run_privileged_read sha256sum "$file" 2>/dev/null | awk '{print $1}')"
+      echo "compose_file_sha256=${compose_file_sha:-unavailable}"
     else
       echo "compose_file_sha256=unavailable"
     fi
@@ -351,8 +383,8 @@ echo "=== Public Certificate Metadata ==="
 data_source="$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$container" 2>/dev/null || true)"
 if [[ -z "$data_source" ]]; then
   echo "certificate_store_status=data-mount-unavailable"
-elif [[ ! -d "$data_source/caddy/certificates" ]]; then
-  echo "certificate_store_status=certificate-directory-unavailable"
+elif ! run_privileged_read test -d "$data_source/caddy/certificates"; then
+  echo "certificate_store_status=host-directory-missing-or-inaccessible"
 elif ! command -v openssl >/dev/null 2>&1; then
   echo "certificate_store_status=openssl-unavailable"
 else
