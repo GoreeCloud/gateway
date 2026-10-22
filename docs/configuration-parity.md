@@ -2,7 +2,7 @@
 
 GoreeCloud Gateway must not replace Caddy merely because the native proxy can start or pass isolated traffic tests. Before a migration rehearsal, the intended Gateway configuration must be compared with an independently reviewed migration-candidate identity.
 
-`internal/config/parity.go` provides a deterministic SHA-256 fingerprint for the complete validated Gateway configuration. Services, routes, backends, certificate profiles, backend membership, and route methods are normalized into stable ordering before hashing. The emitted evidence contains only aggregate counts and immutable fingerprints; it does not expose route hostnames, backend URLs, certificate paths, credentials, or request data.
+`internal/config/parity.go` provides a deterministic SHA-256 fingerprint for the complete validated Gateway configuration. Services, routes, backends, certificate profiles, backend membership, route methods, and the trusted-ingress-proxy CIDR set are normalized before hashing. Trusted proxy addresses and prefixes are canonicalized and sorted; changing the trusted-proxy trust boundary must change the fingerprint. The emitted evidence contains only aggregate counts and immutable fingerprints; it does not expose route hostnames, backend URLs, certificate paths, credentials, or request data.
 
 The expected fingerprint must come from a separately reviewed migration preparation step. The parity function does not inspect the live Caddy runtime, translate a Caddyfile, discover production routes, or claim that the expected fingerprint is trustworthy merely because an operator supplied it. Target-environment migration tooling must derive and retain that reviewed source identity using the approved GoreeCloud deployment process.
 
