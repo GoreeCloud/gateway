@@ -153,11 +153,17 @@ func TestProxyResponseEncodingParityBindsPreferenceAndThreshold(t *testing.T) {
 	zero := 0
 	cfg.Routes[0].ProxyResponseEncoding.MinimumLength = &zero
 	beforeStreaming, err := ConfigParityFingerprint(cfg)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	cfg.Routes[0].ProxyResponseEncoding.AllowUnknownLength = true
 	afterStreaming, err := ConfigParityFingerprint(cfg)
-	if err != nil { t.Fatal(err) }
-	if beforeStreaming == afterStreaming { t.Fatal("unknown-length opt-in must alter parity identity") }
+	if err != nil {
+		t.Fatal(err)
+	}
+	if beforeStreaming == afterStreaming {
+		t.Fatal("unknown-length opt-in must alter parity identity")
+	}
 }
 
 func TestConfigParityFingerprintBindsResponseHeaders(t *testing.T) {

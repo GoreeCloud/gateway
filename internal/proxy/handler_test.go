@@ -110,12 +110,16 @@ func TestProxyKnownLengthOptInEncodingAndUnknownLengthPassthrough(t *testing.T) 
 			switch tc.want {
 			case "gzip":
 				reader, initErr := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
-				if initErr != nil { t.Fatal(initErr) }
+				if initErr != nil {
+					t.Fatal(initErr)
+				}
 				decoded, err = io.ReadAll(reader)
 				_ = reader.Close()
 			case "zstd":
 				reader, initErr := zstd.NewReader(nil)
-				if initErr != nil { t.Fatal(initErr) }
+				if initErr != nil {
+					t.Fatal(initErr)
+				}
 				decoded, err = reader.DecodeAll(rw.Body.Bytes(), nil)
 				reader.Close()
 			default:
@@ -142,7 +146,9 @@ func TestProxyUnknownLengthExplicitStreamingEncoding(t *testing.T) {
 	cfg.Routes[0].ProxyResponseEncoding = &config.ResponseEncoding{
 		Formats: []string{"gzip"}, MinimumLength: &zero, AllowUnknownLength: true,
 	}
-	if err := cfg.Validate(); err != nil { t.Fatal(err) }
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
 	handler := New(cfg)
 	defer handler.Close()
 	handler.checker = &fakeChecker{healthy: map[string]bool{"b": true}}
@@ -150,12 +156,18 @@ func TestProxyUnknownLengthExplicitStreamingEncoding(t *testing.T) {
 	req.Header.Set("Accept-Encoding", "gzip")
 	rw := httptest.NewRecorder()
 	handler.ServeHTTP(rw, req)
-	if rw.Code != 200 || rw.Header().Get("Content-Encoding") != "gzip" { t.Fatalf("status=%d headers=%v", rw.Code, rw.Header()) }
+	if rw.Code != 200 || rw.Header().Get("Content-Encoding") != "gzip" {
+		t.Fatalf("status=%d headers=%v", rw.Code, rw.Header())
+	}
 	reader, err := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	decoded, err := io.ReadAll(reader)
 	_ = reader.Close()
-	if err != nil || !bytes.Equal(decoded, body) { t.Fatalf("unknown stream did not round-trip: %v", err) }
+	if err != nil || !bytes.Equal(decoded, body) {
+		t.Fatalf("unknown stream did not round-trip: %v", err)
+	}
 }
 
 func TestProxySSEHeadersAndEventsStreamWithoutEncoding(t *testing.T) {
@@ -189,16 +201,24 @@ func TestProxySSEHeadersAndEventsStreamWithoutEncoding(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, gateway.URL+"/events", nil)
-	if err != nil { t.Fatal(err) }
+	if err != nil {
+		t.Fatal(err)
+	}
 	req.Host = "app.goreecloud.com"
 	req.Header.Set("Accept-Encoding", "gzip")
 	client := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 	resp, err := client.Do(req)
-	if err != nil { t.Fatalf("SSE headers stalled: %v", err) }
+	if err != nil {
+		t.Fatalf("SSE headers stalled: %v", err)
+	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 || resp.Header.Get("Content-Encoding") != "" { t.Fatalf("SSE transformed: %d %v", resp.StatusCode, resp.Header) }
+	if resp.StatusCode != 200 || resp.Header.Get("Content-Encoding") != "" {
+		t.Fatalf("SSE transformed: %d %v", resp.StatusCode, resp.Header)
+	}
 	line, err := bufio.NewReader(resp.Body).ReadString('\n')
-	if err != nil || line != "data: first\n" { t.Fatalf("SSE first event stalled: %q %v", line, err) }
+	if err != nil || line != "data: first\n" {
+		t.Fatalf("SSE first event stalled: %q %v", line, err)
+	}
 	releaseOnce.Do(func() { close(release) })
 }
 
@@ -208,7 +228,7 @@ func TestStaticResponseSkipsBackendAndHandlesGETAndHEAD(t *testing.T) {
 		Routes: []config.Route{{
 			ID: "maintenance", Action: "static_response", Hostname: "app.goreecloud.com",
 			PathPrefix: "/", Enabled: true, TLS: config.RouteTLS{Mode: "disabled"},
-			StaticResponse: &config.StaticResponse{StatusCode: 503, Body: "Maintenance\n"},
+			StaticResponse:  &config.StaticResponse{StatusCode: 503, Body: "Maintenance\n"},
 			ResponseHeaders: map[string]string{"Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8"},
 		}},
 	}
