@@ -82,6 +82,30 @@ func TestConfigParityFingerprintNormalizesTrustedProxyEntries(t *testing.T) {
 	}
 }
 
+func TestValidateConfigParityEvidenceRejectsIncompleteMigrationIdentity(t *testing.T) {
+	cfg := testParityConfig()
+	expected, err := ConfigParityFingerprint(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence, err := BuildConfigParityEvidence(cfg, strings.Repeat("a", 40), expected, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
+	}
+	evidence.MigrationSourceConfigSHA256 = strings.Repeat("d", 64)
+	if err := ValidateConfigParityEvidence(evidence); err == nil {
+		t.Fatal("source identity without reviewed evidence was accepted")
+	}
+	evidence.MigrationReviewEvidenceSHA256 = strings.Repeat("c", 64)
+	if err := ValidateConfigParityEvidence(evidence); err != nil {
+		t.Fatalf("fully bound migration identity rejected: %v", err)
+	}
+	evidence.MigrationSourceConfigSHA256 = expected
+	if err := ValidateConfigParityEvidence(evidence); err == nil {
+		t.Fatal("Gateway fingerprint reused as Caddy source identity was accepted")
+	}
+}
+
 func TestBuildAndValidateConfigParityEvidence(t *testing.T) {
 	cfg := testParityConfig()
 	expected, err := ConfigParityFingerprint(cfg)
