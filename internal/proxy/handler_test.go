@@ -110,12 +110,16 @@ func TestProxyKnownLengthOptInEncodingAndUnknownLengthPassthrough(t *testing.T) 
 			switch tc.want {
 			case "gzip":
 				reader, initErr := gzip.NewReader(bytes.NewReader(rw.Body.Bytes()))
-				if initErr != nil { t.Fatal(initErr) }
+				if initErr != nil {
+					t.Fatal(initErr)
+				}
 				decoded, err = io.ReadAll(reader)
 				_ = reader.Close()
 			case "zstd":
 				reader, initErr := zstd.NewReader(nil)
-				if initErr != nil { t.Fatal(initErr) }
+				if initErr != nil {
+					t.Fatal(initErr)
+				}
 				decoded, err = reader.DecodeAll(rw.Body.Bytes(), nil)
 				reader.Close()
 			default:
@@ -134,7 +138,7 @@ func TestStaticResponseSkipsBackendAndHandlesGETAndHEAD(t *testing.T) {
 		Routes: []config.Route{{
 			ID: "maintenance", Action: "static_response", Hostname: "app.goreecloud.com",
 			PathPrefix: "/", Enabled: true, TLS: config.RouteTLS{Mode: "disabled"},
-			StaticResponse: &config.StaticResponse{StatusCode: 503, Body: "Maintenance\n"},
+			StaticResponse:  &config.StaticResponse{StatusCode: 503, Body: "Maintenance\n"},
 			ResponseHeaders: map[string]string{"Cache-Control": "no-store", "Content-Type": "text/plain; charset=utf-8"},
 		}},
 	}

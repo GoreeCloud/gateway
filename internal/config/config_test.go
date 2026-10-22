@@ -9,7 +9,7 @@ func TestResponseHeaderSetPolicyValidates(t *testing.T) {
 	cfg := validConfig()
 	cfg.Routes[0].ResponseHeaders = map[string]string{
 		"Strict-Transport-Security": "max-age=31536000",
-		"X-Frame-Options": "DENY",
+		"X-Frame-Options":           "DENY",
 	}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("bounded response headers rejected: %v", err)
@@ -22,7 +22,7 @@ func TestStaticResponseRouteRequiresNoServiceOrBackend(t *testing.T) {
 		Routes: []Route{{
 			ID: "maintenance", Action: "static_response", Hostname: "maintenance.example.test",
 			PathPrefix: "/", Exposure: "public", Enabled: true,
-			TLS: RouteTLS{Mode: "disabled"},
+			TLS:            RouteTLS{Mode: "disabled"},
 			StaticResponse: &StaticResponse{StatusCode: 503, Body: "Temporarily unavailable\n"},
 		}},
 	}
@@ -40,12 +40,36 @@ func TestRouteActionsRejectAmbiguousOrUnsafeStaticResponses(t *testing.T) {
 		{"proxy with static response", func(r *Route) { r.StaticResponse = &StaticResponse{StatusCode: 200} }},
 		{"static with service", func(r *Route) { r.Action = "static_response" }},
 		{"static missing response", func(r *Route) { r.Action = "static_response"; r.ServiceID = "" }},
-		{"informational status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 101} }},
-		{"invalid status", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 600} }},
-		{"oversized body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 16*1024+1)} }},
-		{"no-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 204, Body: "no"} }},
-		{"reset-content body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 205, Body: "no"} }},
-		{"not-modified body", func(r *Route) { r.Action = "static_response"; r.ServiceID = ""; r.StaticResponse = &StaticResponse{StatusCode: 304, Body: "no"} }},
+		{"informational status", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 101}
+		}},
+		{"invalid status", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 600}
+		}},
+		{"oversized body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 200, Body: strings.Repeat("a", 16*1024+1)}
+		}},
+		{"no-content body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 204, Body: "no"}
+		}},
+		{"reset-content body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 205, Body: "no"}
+		}},
+		{"not-modified body", func(r *Route) {
+			r.Action = "static_response"
+			r.ServiceID = ""
+			r.StaticResponse = &StaticResponse{StatusCode: 304, Body: "no"}
+		}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
