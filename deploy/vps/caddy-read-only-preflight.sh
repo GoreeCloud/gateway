@@ -69,7 +69,7 @@ def merge_match(route, inherited):
                 result.setdefault(key, set()).add(value)
     return result
 
-def record(server_name, match, handler, dials):
+def record(server_name, match, handler, dials, handle, depth):
     row = {
         "server": server_name,
         "hosts": sorted(match.get("host", set())),
@@ -79,12 +79,23 @@ def record(server_name, match, handler, dials):
         "handler": handler,
         "upstreams": sorted(set(dials)),
     }
+    if handler == "encode":
+        # Encode module names and numeric policy shape only. Do not expose
+        # response matcher values, extension fields, or arbitrary module JSON.
+        codecs = handle.get("encodings", {})
+        prefer = handle.get("prefer", [])
+        minimum = handle.get("minimum_length", "unspecified")
+        row["encode_codecs"] = sorted(codecs) if isinstance(codecs, dict) and all(isinstance(x, str) for x in codecs) else ["unsupported"]
+        row["encode_prefer"] = prefer if isinstance(prefer, list) and all(isinstance(x, str) for x in prefer) else ["unsupported"]
+        row["encode_minimum_length"] = str(minimum) if isinstance(minimum, int) and not isinstance(minimum, bool) else "unspecified" if minimum == "unspecified" else "unsupported"
+        row["encode_match"] = "explicit" if "match" in handle else "implicit"
+        row["encode_depth"] = depth
     route_rows.append(row)
     hosts.update(row["hosts"])
     upstreams.update(row["upstreams"])
     handlers.add(handler)
 
-def walk_routes(server_name, routes, inherited=None):
+def walk_routes(server_name, routes, inherited=None, depth=0):
     inherited = inherited or {}
     for route in routes if isinstance(routes, list) else []:
         if not isinstance(route, dict):
@@ -97,14 +108,14 @@ def walk_routes(server_name, routes, inherited=None):
             if not isinstance(handler, str):
                 continue
             if handler == "subroute":
-                walk_routes(server_name, handle.get("routes", []), match)
+                walk_routes(server_name, handle.get("routes", []), match, depth + 1)
                 continue
             dials = []
             if handler == "reverse_proxy":
                 for upstream in handle.get("upstreams", []):
                     if isinstance(upstream, dict) and isinstance(upstream.get("dial"), str):
                         dials.append(upstream["dial"])
-            record(server_name, match, handler, dials)
+            record(server_name, match, handler, dials, handle, depth)
 
 print(f"http_server_count={len(servers)}")
 for name in sorted(servers):
@@ -119,6 +130,8 @@ for name in sorted(servers):
     walk_routes(name, server.get("routes", []), {})
 
 print(f"sanitized_route_record_count={len(route_rows)}")
+encode_count = sum(1 for row in route_rows if row["handler"] == "encode")
+print(f"encode_handler_count={encode_count}")
 for index, row in enumerate(route_rows, 1):
     prefix = f"route_record[{index:03d}]"
     print(prefix + ".server=" + safe_line(row["server"]))
@@ -128,6 +141,12 @@ for index, row in enumerate(route_rows, 1):
     print(prefix + ".protocols=" + ";".join(safe_line(value) for value in row["protocols"]))
     print(prefix + ".handler=" + safe_line(row["handler"]))
     print(prefix + ".upstreams=" + ";".join(safe_line(value) for value in row["upstreams"]))
+    if row["handler"] == "encode":
+        print(prefix + ".encode_codecs=" + ";".join(safe_line(value) for value in row["encode_codecs"]))
+        print(prefix + ".encode_prefer=" + ";".join(safe_line(value) for value in row["encode_prefer"]))
+        print(prefix + ".encode_minimum_length=" + safe_line(row["encode_minimum_length"]))
+        print(prefix + ".encode_match=" + row["encode_match"])
+        print(prefix + ".encode_depth=" + str(row["encode_depth"]))
 
 for host in sorted(hosts):
     print("route_host=" + safe_line(host))
@@ -192,6 +211,7 @@ self_test() {
   grep -qx 'route_record[001].hosts=example.goreecloud.test' <<<"$output"
   grep -qx 'route_record[001].handler=reverse_proxy' <<<"$output"
   grep -qx 'route_record[001].upstreams=backend:8080' <<<"$output"
+  grep -qx 'encode_handler_count=0' <<<"$output"
   grep -qx 'tls_dns_provider=porkbun' <<<"$output"
   grep -Fqx 'route_host=evil\nforged_status=accepted' <<<"$output"
   grep -Fqx 'upstream_dial=backend\tforged:9090' <<<"$output"
@@ -201,6 +221,19 @@ self_test() {
   fi
   if grep -q 'SELF_TEST_SECRET' <<<"$output"; then
     echo "self_test=failed-secret-leak"
+    return 1
+  fi
+  local encoded
+  encoded='{"apps":{"http":{"servers":{"srv0":{"routes":[{"handle":[{"handler":"subroute","routes":[{"handle":[{"handler":"encode","encodings":{"gzip":{},"zstd":{}},"prefer":["zstd","gzip"],"minimum_length":1024,"match":{"headers":{"Content-Type":["private.example"]}},"internal_secret":"NEVER_EXPOSE_ENCODE_OPTIONS"}]}]}]}]}}}}}'
+  encoded="$(printf '%s' "$encoded" | sanitize_caddy_json)"
+  grep -qx 'encode_handler_count=1' <<<"$encoded"
+  grep -Fqx 'route_record[001].encode_codecs=gzip;zstd' <<<"$encoded"
+  grep -Fqx 'route_record[001].encode_prefer=zstd;gzip' <<<"$encoded"
+  grep -Fqx 'route_record[001].encode_minimum_length=1024' <<<"$encoded"
+  grep -Fqx 'route_record[001].encode_match=explicit' <<<"$encoded"
+  grep -Fqx 'route_record[001].encode_depth=1' <<<"$encoded"
+  if grep -Eq 'private\.example|NEVER_EXPOSE_ENCODE_OPTIONS' <<<"$encoded"; then
+    echo "self_test=failed-encode-secret-leak"
     return 1
   fi
   local escaped_scalar
