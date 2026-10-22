@@ -46,6 +46,23 @@ type RecoveryReceipt struct {
 // and the snapshot remain path-bounded to recoveryRoot so a rehearsal cannot
 // accidentally capture arbitrary host files.
 func CreateRecoverySnapshot(recoveryRoot, activeConfigPath, sourceRevision string, now time.Time) (string, RecoverySnapshot, error) {
+	root, _, err := validateRecoveryPaths(recoveryRoot, activeConfigPath)
+	if err != nil {
+		return "", RecoverySnapshot{}, err
+	}
+	var dir string
+	var snapshot RecoverySnapshot
+	err = withRecoveryLock(root, func() error {
+		var lockedErr error
+		dir, snapshot, lockedErr = createRecoverySnapshotUnlocked(recoveryRoot, activeConfigPath, sourceRevision, now)
+		return lockedErr
+	})
+	return dir, snapshot, err
+}
+
+// Call only while holding recoveryRoot's process-shared recovery lock. The
+// activation path must not recursively acquire the same advisory lock.
+func createRecoverySnapshotUnlocked(recoveryRoot, activeConfigPath, sourceRevision string, now time.Time) (string, RecoverySnapshot, error) {
 	var snapshot RecoverySnapshot
 	root, active, err := validateRecoveryPaths(recoveryRoot, activeConfigPath)
 	if err != nil {
@@ -71,6 +88,9 @@ func CreateRecoverySnapshot(recoveryRoot, activeConfigPath, sourceRevision strin
 	if err := os.MkdirAll(snapshotsRoot, 0o700); err != nil {
 		return "", snapshot, fmt.Errorf("gateway recovery: create snapshots directory: %w", err)
 	}
+	if err := syncDirectory(root); err != nil {
+		return "", snapshot, err
+	}
 	if err := rejectSymlinkPath(root, snapshotsRoot); err != nil {
 		return "", snapshot, err
 	}
@@ -80,6 +100,9 @@ func CreateRecoverySnapshot(recoveryRoot, activeConfigPath, sourceRevision strin
 	)
 	if err := os.Mkdir(snapshotDir, 0o700); err != nil {
 		return "", snapshot, fmt.Errorf("gateway recovery: create snapshot directory: %w", err)
+	}
+	if err := syncDirectory(snapshotsRoot); err != nil {
+		return "", snapshot, err
 	}
 
 	configName := "gateway.json"
@@ -108,6 +131,28 @@ func CreateRecoverySnapshot(recoveryRoot, activeConfigPath, sourceRevision strin
 // the active configuration still matches expectedCurrentSHA256. This
 // compare-and-swap boundary prevents rollback from overwriting a newer state.
 func RestoreRecoverySnapshot(
+	recoveryRoot,
+	activeConfigPath,
+	snapshotDir,
+	expectedCurrentSHA256 string,
+	now time.Time,
+) (RecoveryReceipt, error) {
+	root, _, err := validateRecoveryPaths(recoveryRoot, activeConfigPath)
+	if err != nil {
+		return RecoveryReceipt{}, err
+	}
+	var receipt RecoveryReceipt
+	err = withRecoveryLock(root, func() error {
+		var lockedErr error
+		receipt, lockedErr = restoreRecoverySnapshotUnlocked(recoveryRoot, activeConfigPath, snapshotDir, expectedCurrentSHA256, now)
+		return lockedErr
+	})
+	return receipt, err
+}
+
+// This digest check and replacement must share the same recovery lock with
+// activation and snapshot creation to serialize cooperating processes.
+func restoreRecoverySnapshotUnlocked(
 	recoveryRoot,
 	activeConfigPath,
 	snapshotDir,
@@ -327,6 +372,20 @@ func atomicWrite(path string, data []byte, mode os.FileMode) error {
 	}
 	if err := os.Rename(temporaryName, path); err != nil {
 		return fmt.Errorf("gateway recovery: atomically replace file: %w", err)
+	}
+	return syncDirectory(directory)
+}
+
+// Persist the directory entry created by rename (and newly-created snapshot
+// directories). A file fsync alone cannot make the replacement crash durable.
+func syncDirectory(path string) error {
+	dir, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("gateway recovery: open directory for sync: %w", err)
+	}
+	defer dir.Close()
+	if err := dir.Sync(); err != nil {
+		return fmt.Errorf("gateway recovery: sync parent directory; target may already have changed: %w", err)
 	}
 	return nil
 }

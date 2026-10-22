@@ -4,6 +4,8 @@
 
 `cmd/gateway-recovery` exposes four explicit actions: `snapshot`, `stage`, `activate`, and `restore`. Each emits a machine-readable JSON record. Staging does not mutate the active configuration. Activation requires the expected SHA-256 of the active configuration and creates a recovery snapshot before replacing its file. Restoration likewise requires the expected active SHA-256, so a stale rollback instruction fails closed.
 
+On Linux, configuration snapshot, activation, and restoration operations now use an owner-only, process-shared advisory lock within the lifecycle root. This serializes cooperating Gateway recovery commands across processes while they verify expected digests and replace configuration files. Atomic replacement also syncs its parent directory for crash-durability support. The lock **does not** protect against manual edits or other tools that bypass these APIs; non-Linux recovery lifecycle operations fail closed until an equivalent locking implementation is qualified. Directory-sync failures can occur after a rename has taken effect, so an error is **not** proof that the active file remained unchanged: inspect its digest before retrying.
+
 ## Isolated operator sequence
 
 Use a dedicated, access-restricted test lifecycle root containing a synthetic Gateway configuration. Replace the placeholders with verified **isolated** paths and exact source revisions; do not run these examples against production without separately established service, backup, and rollback acceptance.
