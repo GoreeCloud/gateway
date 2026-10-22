@@ -4,6 +4,12 @@ This repository-local record is the authoritative Git-native chronological chang
 
 ## Unreleased — Development
 
+### 2026-10-21 — Configuration-parity trusted-proxy boundary
+
+- Included canonical trusted-ingress-proxy prefixes in the deterministic Gateway migration-parity fingerprint; regression tests reject changes to the trust boundary while treating equivalent CIDR sets consistently.
+- Clarified that the reviewed expected Gateway parity fingerprint is distinct from the raw source Caddyfile SHA-256, and that a reviewed translation must bind both identities.
+- No production Caddy, listener, DNS, firewall, certificate, or routing changes.
+
 ### 2026-10-21 — Read-only Caddy migration evidence hardening
 
 - Merged PR #31 to enrich the Caddy/VPS discovery collector with image ID, available repository digests, and bounded OCI labels; escape untrusted metadata; and report inaccessible host certificate directories and Compose checksums explicitly.

@@ -65,6 +65,7 @@ type parityCertificateProfile struct {
 
 type parityConfig struct {
 	Schema              string                     `json:"schema"`
+	TrustedProxies      []string                   `json:"trusted_proxies,omitempty"`
 	Services            []parityService            `json:"services"`
 	Routes              []parityRoute              `json:"routes"`
 	Backends            []parityBackend            `json:"backends"`
@@ -84,6 +85,18 @@ func ConfigParityFingerprint(cfg *Config) (string, error) {
 	}
 
 	canonical := parityConfig{Schema: cfg.Schema}
+	parsedTrustedProxies, err := ParseTrustedProxyPrefixes(cfg.TrustedProxies)
+	if err != nil {
+		return "", err
+	}
+	trustedProxySet := make(map[string]struct{}, len(parsedTrustedProxies))
+	for _, prefix := range parsedTrustedProxies {
+		trustedProxySet[prefix.String()] = struct{}{}
+	}
+	for prefix := range trustedProxySet {
+		canonical.TrustedProxies = append(canonical.TrustedProxies, prefix)
+	}
+	sort.Strings(canonical.TrustedProxies)
 	for _, service := range cfg.Services {
 		backendIDs := append([]string(nil), service.BackendIDs...)
 		sort.Strings(backendIDs)
