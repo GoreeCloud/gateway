@@ -62,12 +62,18 @@ func StageRevision(lifecycleRoot string, candidate []byte, sourceRevision string
 	if err := os.MkdirAll(stagingRoot, 0o700); err != nil {
 		return "", staged, fmt.Errorf("gateway activation: create staging directory: %w", err)
 	}
+	if err := syncDirectory(root); err != nil {
+		return "", staged, err
+	}
 	if err := rejectSymlinkPath(root, stagingRoot); err != nil {
 		return "", staged, err
 	}
 	stageDir := filepath.Join(stagingRoot, now.UTC().Format("20060102T150405.000000000Z")+"-"+digest[:12])
 	if err := os.Mkdir(stageDir, 0o700); err != nil {
 		return "", staged, fmt.Errorf("gateway activation: create staged revision directory: %w", err)
+	}
+	if err := syncDirectory(stagingRoot); err != nil {
+		return "", staged, err
 	}
 
 	const configName = "gateway.json"
@@ -98,6 +104,29 @@ func StageRevision(lifecycleRoot string, candidate []byte, sourceRevision string
 // created before replacement. Runtime reload remains a separate acceptance
 // boundary; this function only commits the canonical configuration file.
 func ActivateStagedRevision(
+	lifecycleRoot,
+	activeConfigPath,
+	stageDir,
+	expectedCurrentSHA256,
+	currentSourceRevision string,
+	now time.Time,
+) (ActivationReceipt, error) {
+	root, _, err := validateRecoveryPaths(lifecycleRoot, activeConfigPath)
+	if err != nil {
+		return ActivationReceipt{}, err
+	}
+	var receipt ActivationReceipt
+	err = withRecoveryLock(root, func() error {
+		var lockedErr error
+		receipt, lockedErr = activateStagedRevisionUnlocked(lifecycleRoot, activeConfigPath, stageDir, expectedCurrentSHA256, currentSourceRevision, now)
+		return lockedErr
+	})
+	return receipt, err
+}
+
+// Called with recoveryRoot's process-shared lock held, including through
+// snapshot creation, validation and the compare-and-swap replacement.
+func activateStagedRevisionUnlocked(
 	lifecycleRoot,
 	activeConfigPath,
 	stageDir,
@@ -174,7 +203,7 @@ func ActivateStagedRevision(
 		return receipt, errors.New("gateway activation: staged configuration is already active")
 	}
 
-	snapshotDir, _, err := CreateRecoverySnapshot(root, active, currentSourceRevision, now)
+	snapshotDir, _, err := createRecoverySnapshotUnlocked(root, active, currentSourceRevision, now)
 	if err != nil {
 		return receipt, fmt.Errorf("gateway activation: create previous-known-good snapshot: %w", err)
 	}
