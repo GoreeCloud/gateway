@@ -8,6 +8,8 @@ I require GoreeCloud Gateway to keep Caddy's privileged admin API on loopback, r
 - Use a private/VPN-connected administrative route where possible. Set ingress request-size limits, TLS and auth, and restrict firewall access.
 - Validate routing policy, origin controls, cookie behavior, shutdown/restart behavior, recoverability and TLS in a staging environment before production.
 - Configuration snapshots may include sensitive module settings. Guard, rotate and securely purge these with a dedicated retention policy.
+- The change-review endpoint shows structural paths and node types, not configuration values. A review is bound to the authenticated session, exact draft fingerprint and live base revision. It cannot replace staging validation.
+- The current pre-apply read and /load are two separate operations; another independent Caddy writer can race between them. Avoid concurrent writers until a tested conditional API update workflow is introduced.
 - Gateway's activity log is only a process-local convenience, not a compliance audit log.
 
 Report vulnerabilities privately to GoreeCloud's administrator rather than publishing exploits or credentials in repository issues.

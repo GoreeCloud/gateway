@@ -33,6 +33,32 @@ test('demo JSON syntax endpoint clarifies limited verification', async () => {
     const result = await response.json(); assert.equal(result.valid, true); assert.match(result.scope, /not Caddy runtime/);
   });
 });
+test('preview API rejects invalid JSON safely and requires a CSRF token', async () => {
+  await withServer({ GATEWAY_DEMO: '1' }, async origin => {
+    const options = {
+      method: 'POST',
+      headers: { Origin: origin, 'Content-Type': 'application/json', 'X-CSRF-Token': 'demo' },
+      body: JSON.stringify({ baseFingerprint: 'irrelevant', content: '{invalid' }),
+    };
+    const invalid = await fetch(`${origin}/api/review`, options);
+    assert.equal(invalid.status, 400);
+    const invalidBody = await invalid.text();
+    assert.doesNotMatch(invalidBody, /SyntaxError|at position|unexpected token/i);
+    const missingCSRF = await fetch(`${origin}/api/review`, {
+      ...options, headers: { Origin: origin, 'Content-Type': 'application/json' },
+    });
+    assert.equal(missingCSRF.status, 403);
+  });
+});
+test('live preview data requires authenticated session', async () => {
+  await withServer({ GATEWAY_ACCESS_TOKEN: 'a'.repeat(36) }, async origin => {
+    const response = await fetch(`${origin}/api/review`, {
+      method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ baseFingerprint: 'x', content: '{}' }),
+    });
+    assert.equal(response.status, 401);
+  });
+});
 test('live mode requires session for API data', async () => {
   await withServer({ GATEWAY_ACCESS_TOKEN: 'a'.repeat(36) }, async origin => {
     const response = await fetch(`${origin}/api/overview`);
@@ -83,10 +109,30 @@ test('live read and guarded reload work against an isolated Caddy API simulator'
       const desired = structuredClone(active);
       desired.apps.http.servers.demo.routes = [{ match: [{ host: ['new.example.com'] }], handle: [{ handler: 'reverse_proxy', upstreams: [{ dial: '127.0.0.1:3030' }] }] }];
       const call = () => fetch(`${origin}/api/apply`, { method: 'POST', headers, body: JSON.stringify({ confirm: 'APPLY', baseFingerprint: config.fingerprint, content: JSON.stringify(desired) }) });
+      const noReview = await call(); assert.equal(noReview.status, 409);
+      assert.equal(loadCount, 0, 'unreviewed drafts must not reach Caddy');
+      const reviewRequest = (content, baseFingerprint = config.fingerprint) => fetch(`${origin}/api/review`, {
+        method: 'POST', headers, body: JSON.stringify({ baseFingerprint, content }),
+      });
+      const reviewed = await reviewRequest(JSON.stringify(desired));
+      assert.equal(reviewed.status, 200);
+      const changePreview = await reviewed.json();
+      assert.equal(changePreview.changed, true);
+      assert.equal(changePreview.counts.modified, 1);
+      const tampered = structuredClone(desired);
+      tampered.apps.http.servers.demo.listen = [':8443'];
+      const unreviewedMutation = await fetch(`${origin}/api/apply`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ confirm: 'APPLY', baseFingerprint: config.fingerprint, content: JSON.stringify(tampered) }),
+      });
+      assert.equal(unreviewedMutation.status, 409);
+      assert.equal(loadCount, 0, 'review token is bound to exact draft content');
       const success = await call(); assert.equal(success.status, 200); assert.equal((await success.json()).changed, true);
       assert.equal(loadCount, 1); assert.equal(active.apps.http.servers.demo.routes.length, 1);
       const [snapshot] = await readdir(backup); assert.match(snapshot, /\.json$/);
       assert.equal((await stat(join(backup, snapshot))).mode & 0o777, 0o600);
+      const staleReview = await reviewRequest(JSON.stringify(desired));
+      assert.equal(staleReview.status, 409);
       const stale = await call(); assert.equal(stale.status, 409); assert.equal(loadCount, 1);
     });
   } finally {
