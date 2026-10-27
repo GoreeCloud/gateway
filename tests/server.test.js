@@ -140,3 +140,51 @@ test('live read and guarded reload work against an isolated Caddy API simulator'
     await rm(backup, { recursive: true, force: true });
   }
 });
+
+test('optional upstream and metrics failures are visible without misreporting zero health', async () => {
+  const http = await import('node:http');
+  let invalidUpstreams = false;
+  const caddy = http.createServer((req, res) => {
+    if (req.url === '/config/') {
+      res.setHeader('content-type', 'application/json');
+      return res.end(JSON.stringify({ apps: { http: { servers: {} } } }));
+    }
+    if (req.url === '/reverse_proxy/upstreams' && invalidUpstreams) {
+      res.setHeader('content-type', 'application/json');
+      return res.end('not-json');
+    }
+    res.statusCode = 404;
+    return res.end('disabled');
+  });
+  await new Promise(resolve => caddy.listen(0, '127.0.0.1', resolve));
+  try {
+    await withServer({
+      GATEWAY_ACCESS_TOKEN: 'z'.repeat(40),
+      CADDY_ADMIN_URL: `http://127.0.0.1:${caddy.address().port}`,
+    }, async origin => {
+      const login = await fetch(`${origin}/api/login`, {
+        method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: 'z'.repeat(40) }),
+      });
+      assert.equal(login.status, 200);
+      const cookie = login.headers.get('set-cookie').split(';')[0];
+      const sample = async () => {
+        const result = await fetch(`${origin}/api/overview`, { headers: { Cookie: cookie } });
+        assert.equal(result.status, 200);
+        return result.json();
+      };
+      const unavailable = await sample();
+      assert.equal(unavailable.connected, true);
+      assert.equal(unavailable.sources.upstreams, 'unavailable');
+      assert.equal(unavailable.sources.metrics, 'unavailable');
+      assert.equal(unavailable.upstreams.length, 0);
+      assert.deepEqual(unavailable.metrics, {});
+      invalidUpstreams = true;
+      const invalid = await sample();
+      assert.equal(invalid.sources.upstreams, 'invalid');
+      assert.equal(invalid.sources.metrics, 'unavailable');
+    });
+  } finally {
+    await new Promise(resolve => caddy.close(resolve));
+  }
+});
