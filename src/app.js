@@ -119,7 +119,7 @@ function button(label, action, type = 'primary', ico = '') {
   return `<button type="button" class="btn ${type}" data-action="${action}">${ico ? icon(ico, 17) : ''}${escape(label)}</button>`;
 }
 function pageContent() {
-  if (!state.overview && state.page !== 'settings') return `<div class="loading-card">${icon('refresh', 25)}<h2>Connecting to Caddy</h2><p>Waiting for current configuration and upstream information.</p>${button('Retry connection', 'refresh', 'secondary')}</div>`;
+  if (!state.overview && !['settings', 'snapshots'].includes(state.page)) return `<div class="loading-card">${icon('refresh', 25)}<h2>Connecting to Caddy</h2><p>Waiting for current configuration and upstream information.</p>${button('Retry connection', 'refresh', 'secondary')}</div>`;
   switch (state.page) {
     case 'routes': return routesPage();
     case 'upstreams': return upstreamsPage();
