@@ -187,3 +187,22 @@ code { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; color: va
 @media (max-width: 390px) { .metric-grid, .metric-grid.three { grid-template-columns: 1fr; }.hero-footer { gap: 10px; }.hero { min-height: 315px; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; scroll-behavior: auto !important; } }
 @media (forced-colors: active) { .btn, .nav-item, .panel, .metric-card, .dialog { border: 1px solid CanvasText; }.pulse { border: 1px solid CanvasText; } }
+
+/* Change-impact review: terse structural information without config values. */
+.review-impact { margin: 18px 0; }
+.review-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; margin-bottom: 12px; }
+.review-stats span { background: var(--inset); border: 1px solid var(--line); padding: 10px 8px; border-radius: 9px; text-align: center; color: var(--muted); font-size: 11px; }
+.review-stats strong { font-size: 17px; display: block; color: var(--text); margin-bottom: 3px; }
+.review-note { font-size: 11px; line-height: 1.65; color: var(--muted); margin: 10px 0; }
+.review-changes { list-style: none; padding: 0; margin: 13px 0; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 10px; }
+.review-changes li { padding: 11px 12px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 6px 9px; align-items: baseline; font-size: 11px; min-width: 0; }
+.review-changes li:last-child { border-bottom: 0; }
+.review-changes code { color: var(--text); overflow-wrap: anywhere; word-break: break-all; }
+.review-changes small { width: 100%; color: var(--subtle); }
+.change-kind { text-transform: uppercase; letter-spacing: .05em; font-size: 9px; font-weight: 750; }
+.change-kind.added { color: var(--success); }
+.change-kind.removed { color: var(--danger); }
+.change-kind.modified { color: var(--accent); }
+.review-warning { display: flex; align-items: flex-start; gap: 8px; color: var(--muted); font-size: 11px; line-height: 1.55; padding: 9px 10px; background: var(--accent-panel); border-radius: 8px; }
+.review-warning svg { flex: none; color: var(--accent); }
+@media (prefers-reduced-motion: reduce) { .review-impact *, .review-impact *::before, .review-impact *::after { transition-duration: 0s !important; animation-duration: 0s !important; } }

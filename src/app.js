@@ -35,7 +35,7 @@ const glyph = {
 };
 const icon = (name, size = 18) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyph[name] ?? glyph.grid}</svg>`;
 const escape = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const state = { session: null, page: 'overview', overview: null, events: [], config: null, editor: '', base: '', dirty: false, validated: '', search: '', routeFilter: 'all', modal: null, error: null, theme: localStorage.getItem('gateway-theme') || 'dark', menu: false, busy: false };
+const state = { session: null, page: 'overview', overview: null, events: [], config: null, editor: '', base: '', dirty: false, validated: '', review: null, search: '', routeFilter: 'all', modal: null, error: null, theme: localStorage.getItem('gateway-theme') || 'dark', menu: false, busy: false };
 document.documentElement.dataset.theme = state.theme;
 
 async function request(url, { method = 'GET', data } = {}) {
@@ -76,6 +76,7 @@ async function ensureConfig({ force = false } = {}) {
   state.base = record.fingerprint;
   state.dirty = false;
   state.validated = '';
+  state.review = null;
 }
 function setPage(page) {
   state.page = page; state.menu = false; state.search = '';
@@ -162,7 +163,7 @@ function configPage() {
   return `${header('CONFIGURATION STUDIO', 'Work with confidence.', 'Review, edit and validate a JSON draft before considering a live reload.', button('Reload from Caddy', 'reload-config', 'secondary', 'refresh'))}
   <div class="config-grid"><section class="panel editor-panel"><div class="editor-toolbar"><div><span class="editor-dot"></span><strong>caddy.json</strong><span class="editor-path">Live configuration · editable draft</span></div><span class="editor-meta">${formatNumber(parsedBytes)} bytes</span></div>
    <label for="config-editor" class="sr-only">Caddy JSON draft</label><textarea id="config-editor" class="config-editor" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off">${escape(state.editor)}</textarea>
-   <div class="editor-bottom"><div class="revision">${icon('lock', 14)} Base revision <code>${escape(state.base.slice(0, 12))}</code>${state.dirty ? '<span class="unsaved">• Unsaved draft</span>' : '<span class="saved">• Unchanged</span>'}</div><div class="editor-actions">${button('Download', 'download', 'subtle', 'download')}${button('Validate JSON', 'validate', 'secondary', 'check')}${button('Review & apply', 'review-apply', 'primary', 'arrow')}</div></div></section>
+   <div class="editor-bottom"><div class="revision">${icon('lock', 14)} Base revision <code>${escape(state.base.slice(0, 12))}</code>${state.dirty ? '<span class="unsaved">• Unsaved draft</span>' : '<span class="saved">• Unchanged</span>'}</div><div class="editor-actions">${button('Download', 'download', 'subtle', 'download')}${button('Validate JSON', 'validate', 'secondary', 'check')}${button('Preview changes', 'preview-draft', 'secondary', 'search')}${button('Review & apply', 'review-apply', 'primary', 'arrow')}</div></div></section>
   <aside class="config-aside"><section class="panel info-card"><span class="card-symbol violet-bg">${icon('shield', 22)}</span><h3>Protected by default</h3><p>${state.session.readOnly ? 'Live changes are disabled. Enable them explicitly in the server environment after review.' : 'Live reload requires a matching base revision and a deliberate APPLY confirmation.'}</p><div class="quiet-badge">${state.session.readOnly ? 'READ ONLY' : 'RELOAD ENABLED'}</div></section>
   <section class="panel info-card"><span class="card-symbol blue-bg">${icon('code', 21)}</span><h3>Draft verification</h3><p>JSON validation checks syntax and basic structure. It is not a full Caddy runtime validation or deployment guarantee.</p><div class="validation-result">${state.validated ? `${icon('check', 17)} ${escape(state.validated)}` : 'No validation run on this draft yet'}</div></section>
   <section class="panel info-card"><span class="card-symbol teal-bg">${icon('route', 21)}</span><h3>Available HTTP servers</h3><div class="server-pills">${serverNames.length ? serverNames.map(s => `<span class="pill">${escape(s)}</span>`).join('') : '<span class="soft">None</span>'}</div><p>New proxy routes can be inserted into an existing server as an editable draft.</p></section></aside></div>`;
@@ -175,11 +176,22 @@ function settingsPage() {
   return `${header('WORKSPACE', 'Settings', 'Adjust local appearance and review this instance’s security posture.')}
   <div class="settings-grid"><section class="panel settings-card"><h2>Appearance</h2><p>Choose a comfortable workspace theme. Only this preference is stored locally.</p><div class="theme-choices"><button type="button" data-theme="dark" class="theme-choice ${state.theme === 'dark' ? 'chosen' : ''}">${icon('moon', 19)} Dark canvas ${state.theme === 'dark' ? icon('check', 18) : ''}</button><button type="button" data-theme="light" class="theme-choice ${state.theme === 'light' ? 'chosen' : ''}">${icon('sun', 19)} Light canvas ${state.theme === 'light' ? icon('check', 18) : ''}</button></div></section>
   <section class="panel settings-card"><h2>Security</h2><p>Administrative access is managed by the gateway’s server process.</p><div class="settings-rows">${smallMeta('Session', state.session.authenticated ? 'Authenticated' : 'Signed out')}${smallMeta('Live config writes', state.session.readOnly ? 'Disabled' : 'Explicitly enabled')}${smallMeta('Caddy API exposure', 'Server-side loopback only')}${smallMeta('Config storage in browser', 'No persistent draft storage')}</div></section>
-  <section class="panel settings-card"><h2>About Gateway</h2><p>An original GoreeCloud interface, aligned with the GC UI design language.</p><div class="settings-rows">${smallMeta('Edition', 'Gateway Alpha 0.1.0')}${smallMeta('Source', 'GoreeCloud/gateway')}${smallMeta('Caddy data', state.overview?.demo ? 'Synthetic preview' : 'Live API read')}</div><p><a href="https://caddyserver.com/docs/api" target="_blank" rel="noopener noreferrer">Caddy API documentation ${icon('external', 14)}</a></p></section>
+  <section class="panel settings-card"><h2>About Gateway</h2><p>An original GoreeCloud interface, aligned with the GC UI design language.</p><div class="settings-rows">${smallMeta('Edition', 'Gateway Alpha 0.2.0')}${smallMeta('Source', 'GoreeCloud/gateway')}${smallMeta('Caddy data', state.overview?.demo ? 'Synthetic preview' : 'Live API read')}</div><p><a href="https://caddyserver.com/docs/api" target="_blank" rel="noopener noreferrer">Caddy API documentation ${icon('external', 14)}</a></p></section>
   <section class="panel settings-card"><h2>Session</h2><p>Sign out to invalidate this browser session. Existing other sessions remain valid until they expire or the gateway restarts.</p>${state.session.demo ? '<span class="quiet-badge">DEMO SESSION</span>' : button('Sign out', 'logout', 'secondary', 'logout')}</section></div>`;
 }
 function loginMarkup() {
   return `<div class="login-screen"><div class="login-glow" aria-hidden="true"></div><div class="login-panel"><div class="login-brand"><img src="/mark.svg" width="48" height="48" alt=""><div>GoreeCloud <span>GATEWAY</span></div></div><div class="login-icon">${icon('shield', 32)}</div><div class="eyebrow">SECURE CONTROL PLANE</div><h1>Welcome to your edge.</h1><p>Sign in to view and manage your Caddy infrastructure. The access token is never stored in your browser.</p><form id="login-form"><label for="access-token">Administrator access token</label><input type="password" name="token" id="access-token" placeholder="Enter your access token" required autocomplete="off" minlength="32"><button type="submit" class="btn primary login-button">Unlock workspace ${icon('arrow', 18)}</button></form><small class="login-foot">${icon('lock', 14)} Private access · HttpOnly session · No cloud dependency</small></div><div class="login-bottom">GoreeCloud Gateway <span>Built for ownership and control</span></div></div>`;
+}
+function reviewMarkup() {
+  const review = state.review;
+  if (!review) return '';
+  return `<section class="review-impact" aria-label="Configuration changes">
+    <div class="review-stats"><span><strong>${review.counts.added}</strong> added</span><span><strong>${review.counts.removed}</strong> removed</span><span><strong>${review.counts.modified}</strong> modified</span></div>
+    <p class="review-note">Structural JSON paths only. Previous and proposed values are intentionally not displayed. No Caddy runtime validation has occurred.</p>
+    ${review.changes.length ? `<ol class="review-changes">${review.changes.slice(0, 20).map(change => `<li><span class="change-kind ${escape(change.operation)}">${escape(change.operation)}</span><code title="${escape(change.path)}">${escape(change.path)}</code>${change.note ? `<small>${escape(change.note)}</small>` : ''}</li>`).join('')}</ol>` : '<p class="review-note">No semantic changes from the live revision.</p>'}
+    ${review.changes.length > 20 || review.truncated ? '<p class="review-note">Preview is abbreviated. Inspect the complete draft before applying.</p>' : ''}
+    ${review.warnings.map(w => `<p class="review-warning">${icon('alert', 15)} ${escape(w)}</p>`).join('')}
+  </section>`;
 }
 function modalMarkup() {
   if (!state.modal) return '';
@@ -187,8 +199,10 @@ function modalMarkup() {
   if (state.modal.type === 'new-route') {
     const servers = Object.keys(state.config?.apps?.http?.servers ?? {});
     body = `<div class="dialog-head"><span class="dialog-icon">${icon('plus', 21)}</span><button type="button" data-action="close-modal" class="icon-button" aria-label="Close dialog">×</button></div><h2 id="dialog-title">New reverse proxy draft</h2><p>Create an editable route on an existing Caddy HTTP server. Nothing changes live until you review and apply the draft.</p><form id="new-route-form"><label for="new-host">Public hostname</label><input id="new-host" name="host" placeholder="app.example.com" required><label for="new-upstream">Upstream address</label><input id="new-upstream" name="dial" placeholder="127.0.0.1:8080" required><label for="new-server">HTTP server</label><select name="server" id="new-server" required>${servers.map(s => `<option value="${escape(s)}">${escape(s)}</option>`).join('')}</select><div class="dialog-note">This is a draft-only change. Review listener, TLS and routing semantics before a live reload.</div><div class="dialog-actions"><button type="button" class="btn secondary" data-action="close-modal">Cancel</button><button type="submit" class="btn primary" ${servers.length ? '' : 'disabled'}>Create draft ${icon('arrow', 17)}</button></div></form>`;
+  } else if (state.modal.type === 'preview') {
+    body = `<div class="dialog-head"><span class="dialog-icon">${icon('search', 21)}</span><button type="button" data-action="close-modal" class="icon-button" aria-label="Close dialog">×</button></div><h2 id="dialog-title">Change preview</h2><p>Compared this draft with the current Caddy JSON revision. This preview does not modify the server.</p>${reviewMarkup()}<div class="dialog-actions">${button('Close', 'close-modal', 'secondary')}${state.session.readOnly || !state.review?.changed ? '' : button('Continue to apply review', 'review-apply', 'primary', 'arrow')}</div>`;
   } else if (state.modal.type === 'apply') {
-    body = `<div class="dialog-head"><span class="dialog-icon danger">${icon('alert', 22)}</span><button type="button" data-action="close-modal" class="icon-button" aria-label="Close dialog">×</button></div><h2 id="dialog-title">Review live configuration change</h2><p>A successful request reloads Caddy immediately. Gateway creates a private pre-change snapshot, but changing proxy configuration can affect traffic. Basic JSON validation is not a runtime guarantee.</p><div class="apply-summary">${smallMeta('Base revision', `${state.base.slice(0, 14)}…`)}${smallMeta('Editor bytes', String(new TextEncoder().encode(state.editor).length))}${smallMeta('Write access', state.session.readOnly ? 'Disabled' : 'Enabled')}</div><form id="apply-form"><label for="apply-confirm">Type <strong>APPLY</strong> to confirm</label><input name="confirm" id="apply-confirm" placeholder="APPLY" required autocomplete="off"><div class="dialog-actions"><button type="button" class="btn secondary" data-action="close-modal">Cancel</button><button type="submit" class="btn danger-btn" ${state.session.readOnly ? 'disabled' : ''}>Apply to Caddy</button></div></form>`;
+    body = `<div class="dialog-head"><span class="dialog-icon danger">${icon('alert', 22)}</span><button type="button" data-action="close-modal" class="icon-button" aria-label="Close dialog">×</button></div><h2 id="dialog-title">Review live configuration change</h2><p>A successful request reloads Caddy immediately. Gateway creates a private pre-change snapshot, but changing proxy configuration can affect traffic. Basic JSON validation is not a runtime guarantee.</p>${reviewMarkup()}<div class="apply-summary">${smallMeta('Base revision', `${state.base.slice(0, 14)}…`)}${smallMeta('Editor bytes', String(new TextEncoder().encode(state.editor).length))}${smallMeta('Write access', state.session.readOnly ? 'Disabled' : 'Enabled')}</div><form id="apply-form"><label for="apply-confirm">Type <strong>APPLY</strong> to confirm</label><input name="confirm" id="apply-confirm" placeholder="APPLY" required autocomplete="off"><div class="dialog-actions"><button type="button" class="btn secondary" data-action="close-modal">Cancel</button><button type="submit" class="btn danger-btn" ${state.session.readOnly ? 'disabled' : ''}>Apply to Caddy</button></div></form>`;
   } else if (state.modal.type === 'route') {
     const route = state.overview?.routes.find(r => r.id === state.modal.route);
     body = `<div class="dialog-head"><span class="dialog-icon">${icon('route', 21)}</span><button type="button" data-action="close-modal" class="icon-button" aria-label="Close dialog">×</button></div><h2 id="dialog-title">Route details</h2><p>${escape(route?.hosts.join(', ') || 'Catch-all / unnamed route')}</p><div class="apply-summary">${smallMeta('HTTP server', route?.server || '—')}${smallMeta('Listeners', route?.listeners.join(', ') || '—')}${smallMeta('Handlers', route?.handlers.join(' → ') || '—')}${smallMeta('Upstreams', route?.upstreams.join(', ') || '—')}</div><div class="dialog-actions">${button('Close', 'close-modal', 'secondary')}${button('Open configuration', 'go-config', 'primary', 'code')}</div>`;
@@ -199,7 +213,7 @@ function render() {
   const focused = document.activeElement;
   const preserveSearch = focused?.id === 'route-search' ? { id: 'route-search', index: focused.selectionStart } : null;
   // Avoid overwriting a user's active draft editor while they type.
-  if (focused?.id === 'config-editor' && state.page === 'configuration' && app.querySelector('.layout')) return;
+  if (focused?.id === 'config-editor' && !state.modal && state.page === 'configuration' && app.querySelector('.layout')) return;
   app.innerHTML = state.session?.authenticated ? shell() : loginMarkup();
   if (preserveSearch) { const el = document.getElementById(preserveSearch.id); el?.focus(); el?.setSelectionRange(preserveSearch.index, preserveSearch.index); }
   document.querySelector('.dialog')?.focus();
@@ -209,8 +223,13 @@ async function openRouteModal() {
   catch (e) { toast(e.message, 'error'); }
 }
 async function validate() {
-  try { const r = await request('/api/validate', { method: 'POST', data: { content: state.editor } }); state.validated = `${r.summary} parsed route(s) · basic JSON valid`; toast('Draft passed basic JSON checks', 'success'); render(); }
-  catch (e) { state.validated = ''; toast(e.message, 'error'); }
+  try { const r = await request('/api/validate', { method: 'POST', data: { content: state.editor } }); state.validated = `${r.summary} parsed route(s) · basic JSON valid`; toast('Draft passed basic JSON checks', 'success'); render(); return true; }
+  catch (e) { state.validated = ''; state.review = null; toast(e.message, 'error'); return false; }
+}
+async function reviewDraft() {
+  const result = await request('/api/review', { method: 'POST', data: { content: state.editor, baseFingerprint: state.base } });
+  state.review = result;
+  return result;
 }
 function download() {
   const blob = new Blob([state.editor], { type: 'application/json' });
@@ -231,8 +250,15 @@ async function action(name, el) {
       case 'reload-config': if (state.dirty && !confirm('Discard your current draft and reload from Caddy?')) return; await ensureConfig({ force: true }); render(); toast('Live configuration fetched again', 'success'); break;
       case 'validate': await validate(); break;
       case 'download': download(); break;
-      case 'review-apply': if (state.session.readOnly) return toast('Live writes are disabled by server policy', 'error'); await validate(); if (!state.validated) return; state.modal = { type: 'apply' }; render(); break;
-      case 'logout': await request('/api/logout', { method: 'POST', data: {} }); state.session = await request('/api/session'); state.overview = null; state.config = null; state.events = []; render(); break;
+      case 'preview-draft': await reviewDraft(); state.modal = { type: 'preview' }; render(); break;
+      case 'review-apply': {
+        if (state.session.readOnly) return toast('Live writes are disabled by server policy', 'error');
+        if (!await validate()) return;
+        const review = await reviewDraft();
+        if (!review.changed) return toast('The draft matches the live configuration', 'success');
+        state.modal = { type: 'apply' }; render(); break;
+      }
+      case 'logout': await request('/api/logout', { method: 'POST', data: {} }); state.session = await request('/api/session'); state.overview = null; state.config = null; state.review = null; state.events = []; render(); break;
     }
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -251,7 +277,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('input', e => {
   if (e.target.id === 'route-search') { state.search = e.target.value; render(); }
-  if (e.target.id === 'config-editor') { state.editor = e.target.value; state.dirty = true; state.validated = ''; }
+  if (e.target.id === 'config-editor') { state.editor = e.target.value; state.dirty = true; state.validated = ''; state.review = null; }
 });
 document.addEventListener('submit', async e => {
   if (!['login-form', 'new-route-form', 'apply-form'].includes(e.target.id)) return;
@@ -267,7 +293,7 @@ document.addEventListener('submit', async e => {
       await ensureConfig();
       const current = JSON.parse(state.editor);
       const draft = withProxyDraft(current, fields);
-      state.editor = pretty(draft); state.dirty = true; state.validated = ''; state.modal = null;
+      state.editor = pretty(draft); state.dirty = true; state.validated = ''; state.review = null; state.modal = null;
       setPage('configuration'); toast('Proxy route added to your local draft', 'success');
     } else {
       const result = await request('/api/apply', { method: 'POST', data: { content: state.editor, baseFingerprint: state.base, confirm: fields.confirm } });

@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { demoConfig, demoUpstreams, demoMetrics } from './demo.js';
 import { fingerprint, summarize, validateDraft, validateAdminUrl } from './caddy.js';
+import { reviewChanges } from './review.js';
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = path.join(projectDir, 'dist');
@@ -143,19 +144,45 @@ export function createGatewayServer(env = process.env) {
         if (pathname === '/api/events' && req.method === 'GET') return json(res, 200, { events });
         if (pathname === '/api/validate' && req.method === 'POST') {
           const payload = await body(req);
-          const config = validateDraft(payload?.content);
+          let config;
+          try { config = validateDraft(payload?.content); }
+          catch { return error(res, 400, 'Draft JSON or structure is invalid'); }
           return json(res, 200, { valid: true, scope: 'JSON syntax and basic structure only (not Caddy runtime validation)', fingerprint: fingerprint(config), summary: summarize(config, {}, '').routeCount });
+        }
+        if (pathname === '/api/review' && req.method === 'POST') {
+          const payload = await body(req);
+          if (typeof payload?.baseFingerprint !== 'string') return error(res, 400, 'A base revision is required');
+          let draft;
+          try { draft = validateDraft(payload.content); }
+          catch { return error(res, 400, 'Draft JSON or structure is invalid'); }
+          const live = await activeConfig();
+          if (fingerprint(live) !== payload.baseFingerprint) {
+            session.review = null;
+            return error(res, 409, 'Live configuration changed; reload it before reviewing this draft.');
+          }
+          const review = reviewChanges(live, draft);
+          session.review = { baseFingerprint: review.liveFingerprint, draftFingerprint: review.draftFingerprint };
+          return json(res, 200, review);
         }
         if (pathname === '/api/apply' && req.method === 'POST') {
           if (!allowApply) return error(res, 403, 'Applying changes is disabled by the server operator');
           if (applying) return error(res, 409, 'Another configuration change is in progress');
           const payload = await body(req);
           if (payload?.confirm !== 'APPLY' || typeof payload?.baseFingerprint !== 'string') return error(res, 400, 'Explicit APPLY confirmation and base revision are required');
-          const newConfig = validateDraft(payload.content);
+          let newConfig;
+          try { newConfig = validateDraft(payload.content); }
+          catch { return error(res, 400, 'Draft JSON or structure is invalid'); }
+          const nextFingerprint = fingerprint(newConfig);
+          if (!session.review || session.review.baseFingerprint !== payload.baseFingerprint || session.review.draftFingerprint !== nextFingerprint) {
+            return error(res, 409, 'Review this exact draft against the current live revision before applying.');
+          }
           applying = true;
           try {
             const original = await activeConfig();
-            if (fingerprint(original) !== payload.baseFingerprint) return error(res, 409, 'The live configuration has changed. Reload the editor before applying.');
+            if (fingerprint(original) !== payload.baseFingerprint) {
+              session.review = null;
+              return error(res, 409, 'The live configuration has changed. Reload the editor before applying.');
+            }
             if (fingerprint(original) === fingerprint(newConfig)) return json(res, 200, { changed: false, fingerprint: fingerprint(original) });
             const backupDir = path.resolve(env.GATEWAY_BACKUP_DIR ?? path.join(projectDir, 'data', 'backups'));
             await mkdir(backupDir, { recursive: true, mode: 0o700 });
@@ -164,6 +191,7 @@ export function createGatewayServer(env = process.env) {
             await writeFile(path.join(backupDir, backupName), JSON.stringify(original, null, 2), { flag: 'wx', mode: 0o600 });
             await caddy('/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig) });
             const after = await activeConfig();
+            session.review = null;
             audit('apply', `Configuration reloaded; prior state snapshotted as ${backupName}`);
             return json(res, 200, { changed: true, verified: true, fingerprint: fingerprint(after), backup: backupName });
           } finally { applying = false; }
