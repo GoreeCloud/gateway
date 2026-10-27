@@ -79,13 +79,24 @@ export function createGatewayServer(env = process.env) {
     try { return new URL(origin).host === host && ['http:', 'https:'].includes(new URL(origin).protocol); }
     catch { return false; }
   };
-  const caddy = async (pathname, options = {}) => {
+  const caddy = async (pathname, { withMetadata = false, ...options } = {}) => {
     const response = await fetch(`${adminOrigin}${pathname}`, { ...options, signal: AbortSignal.timeout(6000), redirect: 'error' });
     const text = await response.text();
-    if (!response.ok) throw Object.assign(new Error(`Caddy rejected request (HTTP ${response.status}); inspect the private Caddy logs`), { status: 502 });
-    return text;
+    if (!response.ok) {
+      const conflict = response.status === 412;
+      throw Object.assign(new Error(conflict
+        ? 'Caddy configuration changed during update; reload and review the current revision.'
+        : `Caddy rejected request (HTTP ${response.status}); inspect the private Caddy logs`), { status: conflict ? 409 : 502 });
+    }
+    return withMetadata ? { text, etag: response.headers.get('etag') } : text;
   };
-  const activeConfig = async () => demo ? structuredClone(demoConfig) : JSON.parse(await caddy('/config/'));
+  const activeRecord = async () => {
+    if (demo) return { config: structuredClone(demoConfig), etag: null };
+    const { text, etag } = await caddy('/config/', { withMetadata: true });
+    return { config: JSON.parse(text), etag };
+  };
+  const activeConfig = async () => (await activeRecord()).config;
+  const usableEtag = value => typeof value === 'string' && /^"\/config\/? [a-f0-9]{8,128}"$/i.test(value);
   const activity = async () => {
     const config = await activeConfig();
     if (demo) {
@@ -198,21 +209,46 @@ export function createGatewayServer(env = process.env) {
           }
           applying = true;
           try {
-            const original = await activeConfig();
+            const { config: original, etag } = await activeRecord();
             if (fingerprint(original) !== payload.baseFingerprint) {
               session.review = null;
               return error(res, 409, 'The live configuration has changed. Reload the editor before applying.');
             }
-            if (fingerprint(original) === fingerprint(newConfig)) return json(res, 200, { changed: false, fingerprint: fingerprint(original) });
+            if (fingerprint(original) === nextFingerprint) {
+              session.review = null;
+              return json(res, 200, { changed: false, fingerprint: fingerprint(original) });
+            }
+            if (!usableEtag(etag)) {
+              session.review = null;
+              return error(res, 409, 'Caddy did not provide a usable root ETag. Gateway refused an unprotected write.');
+            }
             const backupDir = path.resolve(env.GATEWAY_BACKUP_DIR ?? path.join(projectDir, 'data', 'backups'));
             await mkdir(backupDir, { recursive: true, mode: 0o700 });
             await chmod(backupDir, 0o700);
             const backupName = `${new Date().toISOString().replaceAll(':', '-')}-${randomBytes(5).toString('hex')}.json`;
             await writeFile(path.join(backupDir, backupName), JSON.stringify(original, null, 2), { flag: 'wx', mode: 0o600 });
-            await caddy('/load', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(newConfig) });
-            const after = await activeConfig();
             session.review = null;
-            audit('apply', `Configuration reloaded; prior state snapshotted as ${backupName}`);
+            try {
+              await caddy('/config/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'If-Match': etag },
+                body: JSON.stringify(newConfig),
+              });
+            } catch (cause) {
+              if (cause.status !== 409) audit('apply_uncertain', 'Caddy update failed; inspect the live revision before retrying');
+              throw cause;
+            }
+            let after;
+            try { after = await activeConfig(); }
+            catch {
+              audit('apply_uncertain', 'Caddy accepted the update but post-change verification was unavailable');
+              return error(res, 502, 'Caddy accepted the update, but verification failed; inspect the live configuration before retrying.');
+            }
+            if (fingerprint(after) !== nextFingerprint) {
+              audit('apply_uncertain', 'Caddy returned a different configuration after accepting the update');
+              return error(res, 409, 'Caddy configuration differs from the reviewed draft after update; reload and inspect the live state.');
+            }
+            audit('apply', `Configuration conditionally updated; prior state snapshotted as ${backupName}`);
             return json(res, 200, { changed: true, verified: true, fingerprint: fingerprint(after), backup: backupName });
           } finally { applying = false; }
         }

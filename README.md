@@ -2,7 +2,7 @@
 
 I am building **GoreeCloud Gateway** as GoreeCloud's original, privacy-first web control plane for the [Caddy](https://caddyserver.com/) web server. My guiding requirements are useful operational visibility, deliberate changes, clear distinctions between live and demo data, and protection of Caddy's privileged administrative interface. Gateway follows the Canvas / Surface / Lens direction of [GoreeCloud UI](https://github.com/GoreeCloud/gc-ui), without asserting certification or implementation of all GC UI components.
 
-**Status:** `0.2.1` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
+**Status:** `0.3.0` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
 
 ## Features implemented
 
@@ -49,15 +49,15 @@ export GATEWAY_BACKUP_DIR=/path/to/private/backups
 npm start
 ```
 
-Writes are forbidden by default. The editor uses JSON, which is Caddy's native configuration format. Gateway verifies the current config fingerprint immediately before POSTing to Caddy's `/load`. It saves a snapshot of the prior config with mode `0600` to a private directory; protect that directory with OS permissions and backups because snapshots can contain secrets. Caddy `/load` itself performs a transactional config swap, but valid JSON is not proof that proposed routing/TLS settings will behave as intended. Recheck routing and TLS on a nonproduction instance first.
+Writes are forbidden by default. The editor uses JSON, which is Caddy's native configuration format. Gateway verifies the current config fingerprint before conditionally POSTing to Caddy's `/config/`. It saves a snapshot of the prior config with mode `0600` to a private directory; protect that directory with OS permissions and backups because snapshots can contain secrets. Caddy's conditional `POST /config/` applies a single atomic configuration update, but valid JSON is not proof that proposed routing/TLS settings will behave as intended. Recheck routing and TLS on a nonproduction instance first.
 
 ### Preview changes without applying
 
 In the Configuration studio, choose **Preview changes** to ask Gateway to compare the edited JSON against the current Caddy API revision. The server returns structural JSON paths, change counts and impact warnings; neither old nor proposed values are included in the response. The preview is bounded (64 change entries and a node traversal budget), and an array that grows or shrinks is summarized by its length instead of exposing every item. This is **not** semantic Caddy validation, a guarantee of traffic safety, or proof of certificate renewal success.
 
-When live reloads are enabled, **Review & apply** must review the exact draft and revision before accepting the separate typed APPLY confirmation. Editing the JSON after preview requires reviewing again. A concurrent change detected during Gateway's pre-apply read causes a conflict. There remains a small race if an independent client changes Caddy after the pre-apply check but before the /load request; do not operate unsynchronized writers against the same instance. Coordinate a single configuration authority or add a tested Caddy ETag-based transaction strategy before production deployment.
+When live reloads are enabled, **Review & apply** must review the exact draft and revision before accepting the separate typed APPLY confirmation. Editing the JSON after preview requires reviewing again. A concurrent change detected during Gateway's pre-apply read or atomic conditional update causes a conflict. The final conditional write uses Caddy's `ETag` and `If-Match` support: a concurrent change produces a conflict without overwriting it. Gateway refuses writes when Caddy does not return a usable root ETag. This concurrency mechanism has simulated integration coverage, but still requires real-Caddy compatibility testing.
 
-**Important source-of-truth warning:** Caddy can be operated with file/CLI or API-managed configuration. Do not mix conflicting controllers. Gateway's live write mode uses `/load` and may diverge from a Caddyfile managed by other tooling. See Caddy's [API documentation](https://caddyserver.com/docs/api) and [getting-started guide](https://caddyserver.com/docs/getting-started).
+**Important source-of-truth warning:** Caddy can be operated with file/CLI or API-managed configuration. Do not mix conflicting controllers. Gateway's live write mode uses a conditional `POST /config/` and may diverge from a Caddyfile managed by other tooling. See Caddy's [API documentation](https://caddyserver.com/docs/api) and [getting-started guide](https://caddyserver.com/docs/getting-started).
 
 ## Commands
 

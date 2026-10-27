@@ -83,16 +83,22 @@ test('secure cookie login session and logout invalidation', async () => {
 
 test('live read and guarded reload work against an isolated Caddy API simulator', async () => {
   const http = await import('node:http');
-  const { mkdtemp, readdir, stat, rm } = await import('node:fs/promises');
+  const { mkdtemp, readdir, stat, rm, readFile } = await import('node:fs/promises');
   const { tmpdir } = await import('node:os');
   const { join } = await import('node:path');
   let active = { apps: { http: { servers: { demo: { listen: [':443'], routes: [] } } } } };
   let loadCount = 0;
+  let outsideRevisions = 0;
+  let simulateRace = false;
+  let omitEtag = false;
+  const etag = () => `"/config/ ${(loadCount + outsideRevisions).toString(16).padStart(16, '0')}"`;
   const stub = http.createServer(async (req, res) => {
-    if (req.url === '/config/') { res.setHeader('content-type', 'application/json'); return res.end(JSON.stringify(active)); }
+    if (req.url === '/config/' && req.method === 'GET') { res.setHeader('content-type', 'application/json'); if (!omitEtag) res.setHeader('etag', etag()); return res.end(JSON.stringify(active)); }
     if (req.url === '/reverse_proxy/upstreams') return res.end(JSON.stringify({ upstreams: [] }));
     if (req.url === '/metrics') return res.end('caddy_http_requests_total 2\n');
-    if (req.url === '/load' && req.method === 'POST') {
+    if (req.url === '/config/' && req.method === 'POST') {
+      if (simulateRace) { simulateRace = false; outsideRevisions++; active.apps.http.servers.demo.listen = [':8443']; }
+      if (req.headers['if-match'] !== etag()) { res.statusCode = 412; return res.end('revision conflict'); }
       let contents = ''; for await (const chunk of req) contents += chunk;
       active = JSON.parse(contents); loadCount++; return res.end();
     }
@@ -131,9 +137,47 @@ test('live read and guarded reload work against an isolated Caddy API simulator'
       assert.equal(loadCount, 1); assert.equal(active.apps.http.servers.demo.routes.length, 1);
       const [snapshot] = await readdir(backup); assert.match(snapshot, /\.json$/);
       assert.equal((await stat(join(backup, snapshot))).mode & 0o777, 0o600);
+      const savedOriginal = JSON.parse(await readFile(join(backup, snapshot), 'utf8'));
+      assert.equal(savedOriginal.apps.http.servers.demo.routes.length, 0);
       const staleReview = await reviewRequest(JSON.stringify(desired));
       assert.equal(staleReview.status, 409);
       const stale = await call(); assert.equal(stale.status, 409); assert.equal(loadCount, 1);
+      const current = await (await fetch(`${origin}/api/config`, { headers: { Cookie: cookie } })).json();
+      const secondDraft = structuredClone(active);
+      secondDraft.apps.http.servers.demo.listen = [':444'];
+      const reviewedSecond = await reviewRequest(JSON.stringify(secondDraft), current.fingerprint);
+      assert.equal(reviewedSecond.status, 200);
+      simulateRace = true;
+      const racedApply = await fetch(`${origin}/api/apply`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ confirm: 'APPLY', baseFingerprint: current.fingerprint, content: JSON.stringify(secondDraft) }),
+      });
+      assert.equal(racedApply.status, 409);
+      assert.equal(loadCount, 1, 'conditional write did not overwrite the concurrent update');
+      assert.deepEqual(active.apps.http.servers.demo.listen, [':8443']);
+
+      const latest = await (await fetch(`${origin}/api/config`, { headers: { Cookie: cookie } })).json();
+      const thirdDraft = structuredClone(active);
+      thirdDraft.apps.http.servers.demo.listen = [':443'];
+      assert.equal((await reviewRequest(JSON.stringify(thirdDraft), latest.fingerprint)).status, 200);
+      omitEtag = true;
+      const unsupported = await fetch(`${origin}/api/apply`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ confirm: 'APPLY', baseFingerprint: latest.fingerprint, content: JSON.stringify(thirdDraft) }),
+      });
+      assert.equal(unsupported.status, 409, 'missing ETag must refuse writes');
+      assert.equal(loadCount, 1);
+      omitEtag = false;
+      const beforeRestore = await (await fetch(`${origin}/api/config`, { headers: { Cookie: cookie } })).json();
+      assert.equal((await reviewRequest(JSON.stringify(savedOriginal), beforeRestore.fingerprint)).status, 200);
+      const restored = await fetch(`${origin}/api/apply`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ confirm: 'APPLY', baseFingerprint: beforeRestore.fingerprint, content: JSON.stringify(savedOriginal) }),
+      });
+      assert.equal(restored.status, 200);
+      assert.equal((await restored.json()).verified, true);
+      assert.deepEqual(active, savedOriginal);
+      assert.equal(loadCount, 2);
     });
   } finally {
     await new Promise(resolve => stub.close(resolve));
