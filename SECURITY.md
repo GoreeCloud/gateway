@@ -9,7 +9,7 @@ I require GoreeCloud Gateway to keep Caddy's privileged admin API on loopback, r
 - Validate routing policy, origin controls, cookie behavior, shutdown/restart behavior, recoverability and TLS in a staging environment before production.
 - Configuration snapshots may include sensitive module settings. Guard, rotate and securely purge these with a dedicated retention policy.
 - The change-review endpoint shows structural paths and node types, not configuration values. A review is bound to the authenticated session, exact draft fingerprint and live base revision. It cannot replace staging validation.
-- The current pre-apply read and /load are two separate operations; another independent Caddy writer can race between them. Avoid concurrent writers until a tested conditional API update workflow is introduced.
+- Conditional full-configuration writes use a root ETag and If-Match; a missing or invalid ETag fails closed. A concurrent update is rejected rather than overwritten. Live Caddy compatibility and policy validation are still outstanding.
 - An absent or malformed upstream-status response is a telemetry gap, not a healthy upstream. Do not treat missing counters as zeros when making operational decisions.
 - Gateway's activity log is only a process-local convenience, not a compliance audit log.
 

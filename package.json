@@ -1,6 +1,6 @@
 {
   "name": "@goreecloud/gateway",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "GoreeCloud Gateway: a protected, original management front-end for Caddy",
