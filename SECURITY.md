@@ -14,3 +14,5 @@ I require GoreeCloud Gateway to keep Caddy's privileged admin API on loopback, r
 - Gateway's activity log is only a process-local convenience, not a compliance audit log.
 
 Report vulnerabilities privately to GoreeCloud's administrator rather than publishing exploits or credentials in repository issues.
+
+- Snapshot inventory endpoints require an authenticated session. Loading a snapshot into the editor requires CSRF protection, validates the filename, limits file size, and uses a no-follow file open to reject symlinks. Stage-only recovery does not apply to Caddy; treat browser-rendered snapshot contents as confidential.

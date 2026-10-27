@@ -2,7 +2,7 @@
 
 I am building **GoreeCloud Gateway** as GoreeCloud's original, privacy-first web control plane for the [Caddy](https://caddyserver.com/) web server. My guiding requirements are useful operational visibility, deliberate changes, clear distinctions between live and demo data, and protection of Caddy's privileged administrative interface. Gateway follows the Canvas / Surface / Lens direction of [GoreeCloud UI](https://github.com/GoreeCloud/gc-ui), without asserting certification or implementation of all GC UI components.
 
-**Status:** `0.3.0` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
+**Status:** `0.3.1` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
 
 ## Features implemented
 
@@ -100,3 +100,11 @@ This repository is intentionally **public**, as required for GoreeCloud Gateway.
 ## Repository policy
 
 Keep secrets, private Caddy configs, TLS keys, backups, `.env`, `data/`, and generated build artifacts out of Git. Documentation is Markdown. Features are not considered production-stable on the basis of a passing unit test alone.
+
+## Protected snapshot recovery (0.3.1 alpha)
+
+I can inspect the 100 most recent Gateway-created backup files in the **Snapshots** page. Its inventory exposes only filenames, sizes and modification times. Snapshot JSON can contain credentials, so the contents are returned to my authenticated browser only when I explicitly choose **Stage draft**.
+
+Staging a snapshot creates an editable draft; it **does not write to Caddy**. Restoring service configuration still requires a fresh change preview, the latest Caddy revision, a conditional If-Match update and a typed APPLY confirmation. Arbitrary paths, symbolic links and snapshots larger than 1 MiB are refused. The staging capability requires operating-system support for no-follow file opens.
+
+I must protect and rotate the private backup directory. These safeguards have automated and simulated-API test coverage; they do not establish production recoverability or certified security.

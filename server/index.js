@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { demoConfig, demoUpstreams, demoMetrics } from './demo.js';
 import { fingerprint, summarize, validateDraft, validateAdminUrl } from './caddy.js';
 import { reviewChanges } from './review.js';
+import { listSnapshots, readSnapshot } from './backups.js';
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const distDir = path.join(projectDir, 'dist');
@@ -48,6 +49,7 @@ export function createGatewayServer(env = process.env) {
   const publicOrigin = env.GATEWAY_PUBLIC_ORIGIN ? new URL(env.GATEWAY_PUBLIC_ORIGIN) : null;
   if (publicOrigin && (publicOrigin.protocol !== 'https:' || publicOrigin.username || publicOrigin.password || publicOrigin.pathname !== '/' || publicOrigin.search || publicOrigin.hash)) throw new Error('GATEWAY_PUBLIC_ORIGIN must be a bare HTTPS origin');
   const adminOrigin = demo ? null : validateAdminUrl(env.CADDY_ADMIN_URL ?? 'http://127.0.0.1:2019');
+  const backupDir = path.resolve(env.GATEWAY_BACKUP_DIR ?? path.join(projectDir, 'data', 'backups'));
   const secure = Boolean(publicOrigin);
   const sessions = new Map();
   const attempts = new Map();
@@ -173,6 +175,17 @@ export function createGatewayServer(env = process.env) {
           return json(res, 200, { content: JSON.stringify(config, null, 2), fingerprint: fingerprint(config) });
         }
         if (pathname === '/api/events' && req.method === 'GET') return json(res, 200, { events });
+        if (pathname === '/api/backups' && req.method === 'GET') return json(res, 200, { snapshots: demo ? [] : await listSnapshots(backupDir), demo });
+        if (pathname === '/api/restore-draft' && req.method === 'POST') {
+          if (demo) return error(res, 403, 'Restoration is disabled in demo mode');
+          const payload = await body(req);
+          let snapshot;
+          try { snapshot = await readSnapshot(backupDir, payload?.name); }
+          catch (cause) { return error(res, cause.status ?? 400, cause.status ? cause.message : 'Stored snapshot is invalid'); }
+          const current = await activeConfig();
+          session.review = null;
+          return json(res, 200, { ...snapshot, baseFingerprint: fingerprint(current) });
+        }
         if (pathname === '/api/validate' && req.method === 'POST') {
           const payload = await body(req);
           let config;
@@ -222,7 +235,6 @@ export function createGatewayServer(env = process.env) {
               session.review = null;
               return error(res, 409, 'Caddy did not provide a usable root ETag. Gateway refused an unprotected write.');
             }
-            const backupDir = path.resolve(env.GATEWAY_BACKUP_DIR ?? path.join(projectDir, 'data', 'backups'));
             await mkdir(backupDir, { recursive: true, mode: 0o700 });
             await chmod(backupDir, 0o700);
             const backupName = `${new Date().toISOString().replaceAll(':', '-')}-${randomBytes(5).toString('hex')}.json`;
