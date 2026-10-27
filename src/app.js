@@ -5,7 +5,7 @@ const toastElement = document.querySelector('#toast');
 const nav = [
   ['overview', 'Overview', 'grid'], ['routes', 'Routes & sites', 'route'],
   ['upstreams', 'Upstreams', 'network'], ['configuration', 'Configuration', 'code'],
-  ['activity', 'Activity', 'activity'], ['settings', 'Settings', 'settings'],
+  ['activity', 'Activity', 'activity'], ['snapshots', 'Snapshots', 'download'], ['settings', 'Settings', 'settings'],
 ];
 const glyph = {
   grid: '<rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/>',
@@ -35,7 +35,7 @@ const glyph = {
 };
 const icon = (name, size = 18) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${glyph[name] ?? glyph.grid}</svg>`;
 const escape = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const state = { session: null, page: 'overview', overview: null, events: [], config: null, editor: '', base: '', dirty: false, validated: '', review: null, search: '', routeFilter: 'all', modal: null, error: null, theme: localStorage.getItem('gateway-theme') || 'dark', menu: false, busy: false };
+const state = { session: null, page: 'overview', overview: null, events: [], snapshots: [], config: null, editor: '', base: '', dirty: false, validated: '', review: null, search: '', routeFilter: 'all', modal: null, error: null, theme: localStorage.getItem('gateway-theme') || 'dark', menu: false, busy: false };
 document.documentElement.dataset.theme = state.theme;
 
 async function request(url, { method = 'GET', data } = {}) {
@@ -78,13 +78,18 @@ async function ensureConfig({ force = false } = {}) {
   state.validated = '';
   state.review = null;
 }
+async function loadSnapshots() {
+  const result = await request('/api/backups');
+  state.snapshots = result.snapshots;
+}
 function setPage(page) {
   state.page = page; state.menu = false; state.search = '';
   if (page === 'configuration' && !state.config) ensureConfig().then(render).catch(e => toast(e.message, 'error'));
+  if (page === 'snapshots') loadSnapshots().then(render).catch(e => toast(e.message, 'error'));
   render();
   document.querySelector('#main')?.focus();
 }
-const pageLabels = { overview: 'Overview', routes: 'Routes & sites', upstreams: 'Upstreams', configuration: 'Configuration studio', activity: 'Activity log', settings: 'Settings' };
+const pageLabels = { overview: 'Overview', routes: 'Routes & sites', upstreams: 'Upstreams', configuration: 'Configuration studio', activity: 'Activity log', snapshots: 'Snapshots', settings: 'Settings' };
 function shell() {
   const mode = state.overview?.demo ? 'Demo workspace' : state.error ? 'Caddy unreachable' : state.overview?.connected ? (state.overview?.sources && Object.values(state.overview.sources).some(v => v !== 'available') ? 'Caddy connected · partial telemetry' : 'Caddy connected') : 'Checking Caddy';
   return `<div class="layout ${state.menu ? 'menu-open' : ''}">
@@ -114,12 +119,13 @@ function button(label, action, type = 'primary', ico = '') {
   return `<button type="button" class="btn ${type}" data-action="${action}">${ico ? icon(ico, 17) : ''}${escape(label)}</button>`;
 }
 function pageContent() {
-  if (!state.overview && state.page !== 'settings') return `<div class="loading-card">${icon('refresh', 25)}<h2>Connecting to Caddy</h2><p>Waiting for current configuration and upstream information.</p>${button('Retry connection', 'refresh', 'secondary')}</div>`;
+  if (!state.overview && !['settings', 'snapshots'].includes(state.page)) return `<div class="loading-card">${icon('refresh', 25)}<h2>Connecting to Caddy</h2><p>Waiting for current configuration and upstream information.</p>${button('Retry connection', 'refresh', 'secondary')}</div>`;
   switch (state.page) {
     case 'routes': return routesPage();
     case 'upstreams': return upstreamsPage();
     case 'configuration': return configPage();
     case 'activity': return activityPage();
+    case 'snapshots': return snapshotsPage();
     case 'settings': return settingsPage();
     default: return overviewPage();
   }
@@ -175,11 +181,20 @@ function activityPage() {
   return `${header('AUDIT & HISTORY', 'Recent activity', 'Session and reload events recorded by this gateway process. This is not a durable system audit trail.')}
   <section class="panel activity-panel"><div class="panel-title"><div><h2>Gateway events</h2><p>Newest first · in-memory history</p></div><span class="quiet-badge">${state.events.length} ENTRIES</span></div>${state.events.length ? `<div class="timeline">${state.events.map(e => `<div class="timeline-row"><div class="timeline-icon">${icon(e.type === 'apply' ? 'code' : e.type === 'login' ? 'lock' : 'activity', 17)}</div><div><strong>${escape(({ login: 'Administrator signed in', logout: 'Administrator signed out', apply: 'Caddy configuration applied', demo: 'Demo workspace initialized' })[e.type] || e.type)}</strong><p>${escape(e.detail)}</p></div><time datetime="${escape(e.time)}">${escape(formatTime(e.time))}</time></div>`).join('')}</div>` : emptyState('No activity yet', 'Sign-in and configuration actions will appear here.')}</section>`;
 }
+function snapshotsPage() {
+  const entries = state.snapshots;
+  return `${header('RECOVERY', 'Snapshots', 'Review private pre-change backups and stage a selected snapshot as a draft.', button('Refresh list', 'refresh-snapshots', 'secondary', 'refresh'))}
+  <div class="note" role="status">${icon('shield', 17)} Snapshot files may contain credentials. Their contents are only loaded on your explicit request. Staging never changes live Caddy.</div>
+  <section class="panel table-panel"><div class="panel-title pad"><div><h2>Private snapshots</h2><p>Newest first · up to 100 snapshots</p></div><span class="quiet-badge">${entries.length} SHOWN</span></div>
+  <div class="table-wrap"><table><thead><tr><th>SNAPSHOT</th><th>SIZE</th><th>LAST MODIFIED</th><th>ACTION</th></tr></thead><tbody>
+  ${entries.map(b => `<tr><td><code>${escape(b.name)}</code></td><td>${escape(formatNumber(b.bytes))} B</td><td>${escape(formatTime(b.modifiedAt))}</td><td><button type="button" class="mini-button" data-action="stage-snapshot" data-snapshot="${escape(b.name)}">Stage draft ${icon('arrow', 15)}</button></td></tr>`).join('')}
+  </tbody></table></div>${entries.length ? '' : emptyState('No snapshots available', 'Snapshots are created before successful or attempted live configuration updates.')}</section>`;
+}
 function settingsPage() {
   return `${header('WORKSPACE', 'Settings', 'Adjust local appearance and review this instance’s security posture.')}
   <div class="settings-grid"><section class="panel settings-card"><h2>Appearance</h2><p>Choose a comfortable workspace theme. Only this preference is stored locally.</p><div class="theme-choices"><button type="button" data-theme="dark" class="theme-choice ${state.theme === 'dark' ? 'chosen' : ''}">${icon('moon', 19)} Dark canvas ${state.theme === 'dark' ? icon('check', 18) : ''}</button><button type="button" data-theme="light" class="theme-choice ${state.theme === 'light' ? 'chosen' : ''}">${icon('sun', 19)} Light canvas ${state.theme === 'light' ? icon('check', 18) : ''}</button></div></section>
   <section class="panel settings-card"><h2>Security</h2><p>Administrative access is managed by the gateway’s server process.</p><div class="settings-rows">${smallMeta('Session', state.session.authenticated ? 'Authenticated' : 'Signed out')}${smallMeta('Live config writes', state.session.readOnly ? 'Disabled' : 'Explicitly enabled')}${smallMeta('Caddy API exposure', 'Server-side loopback only')}${smallMeta('Config storage in browser', 'No persistent draft storage')}</div></section>
-  <section class="panel settings-card"><h2>About Gateway</h2><p>An original GoreeCloud interface, aligned with the GC UI design language.</p><div class="settings-rows">${smallMeta('Edition', 'Gateway Alpha 0.3.0')}${smallMeta('Source', 'GoreeCloud/gateway')}${smallMeta('Caddy data', state.overview?.demo ? 'Synthetic preview' : 'Live API read')}</div><p><a href="https://caddyserver.com/docs/api" target="_blank" rel="noopener noreferrer">Caddy API documentation ${icon('external', 14)}</a></p></section>
+  <section class="panel settings-card"><h2>About Gateway</h2><p>An original GoreeCloud interface, aligned with the GC UI design language.</p><div class="settings-rows">${smallMeta('Edition', 'Gateway Alpha 0.3.1')}${smallMeta('Source', 'GoreeCloud/gateway')}${smallMeta('Caddy data', state.overview?.demo ? 'Synthetic preview' : 'Live API read')}</div><p><a href="https://caddyserver.com/docs/api" target="_blank" rel="noopener noreferrer">Caddy API documentation ${icon('external', 14)}</a></p></section>
   <section class="panel settings-card"><h2>Session</h2><p>Sign out to invalidate this browser session. Existing other sessions remain valid until they expire or the gateway restarts.</p>${state.session.demo ? '<span class="quiet-badge">DEMO SESSION</span>' : button('Sign out', 'logout', 'secondary', 'logout')}</section></div>`;
 }
 function loginMarkup() {
@@ -251,6 +266,14 @@ async function action(name, el) {
       case 'select-route': state.modal = { type: 'route', route: el.dataset.route }; render(); break;
       case 'go-config': state.modal = null; setPage('configuration'); break;
       case 'reload-config': if (state.dirty && !confirm('Discard your current draft and reload from Caddy?')) return; await ensureConfig({ force: true }); render(); toast('Live configuration fetched again', 'success'); break;
+      case 'refresh-snapshots': await loadSnapshots(); render(); toast('Snapshot inventory refreshed', 'success'); break;
+      case 'stage-snapshot': {
+        if (state.dirty && !confirm('Discard the current unsaved draft and stage this snapshot?')) return;
+        const result = await request('/api/restore-draft', { method: 'POST', data: { name: el.dataset.snapshot } });
+        state.config = JSON.parse(result.content); state.editor = result.content;
+        state.base = result.baseFingerprint; state.dirty = true; state.validated = ''; state.review = null;
+        setPage('configuration'); toast('Private snapshot staged as draft; live Caddy unchanged', 'success'); break;
+      }
       case 'validate': await validate(); break;
       case 'download': download(); break;
       case 'preview-draft': await reviewDraft(); state.modal = { type: 'preview' }; render(); break;
