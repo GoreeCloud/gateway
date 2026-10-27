@@ -1,0 +1,20 @@
+name: Gateway CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Static checks, tests and build
+        run: npm run ci
+      - name: Verify distributable files
+        run: test -s dist/index.html && test -s dist/app.js && test -s dist/styles.css

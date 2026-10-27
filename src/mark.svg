@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="GoreeCloud Gateway">
+<defs><linearGradient id="a" x1="0" x2="1" y2="1"><stop stop-color="#beabff"/><stop offset="1" stop-color="#7865e8"/></linearGradient></defs>
+<rect width="64" height="64" rx="18" fill="#151e36"/>
+<path d="M42 22c-3-3-7-5-12-5-10 0-17 7-17 16s7 16 17 16c7 0 13-4 16-10V31H30v8h7c-2 2-4 3-7 3-6 0-9-4-9-9s3-9 9-9c3 0 6 1 8 3z" fill="url(#a)"/>
+<path d="M48 12v12M42 18h12" stroke="#c6f6ef" stroke-width="3" stroke-linecap="round"/>
+</svg>
