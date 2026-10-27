@@ -88,12 +88,32 @@ export function createGatewayServer(env = process.env) {
   const activeConfig = async () => demo ? structuredClone(demoConfig) : JSON.parse(await caddy('/config/'));
   const activity = async () => {
     const config = await activeConfig();
-    const [up, mt] = demo ? [JSON.stringify(demoUpstreams), demoMetrics] : await Promise.all([
-      caddy('/reverse_proxy/upstreams').catch(() => '{}'),
-      caddy('/metrics').catch(() => ''),
+    if (demo) {
+      return {
+        ...summarize(config, demoUpstreams, demoMetrics),
+        demo, readOnly: true, connected: false,
+        sources: { upstreams: 'synthetic', metrics: 'synthetic' },
+      };
+    }
+    const [upstreamResult, metricResult] = await Promise.allSettled([
+      caddy('/reverse_proxy/upstreams'),
+      caddy('/metrics'),
     ]);
-    const summary = summarize(config, JSON.parse(up), mt);
-    return { ...summary, demo, readOnly: !allowApply, connected: !demo };
+    let upstreamData = {};
+    let upstreamSource = 'unavailable';
+    if (upstreamResult.status === 'fulfilled') {
+      try {
+        const parsed = JSON.parse(upstreamResult.value);
+        if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.upstreams)) upstreamSource = 'invalid';
+        else { upstreamData = parsed; upstreamSource = 'available'; }
+      } catch { upstreamSource = 'invalid'; }
+    }
+    const metricsSource = metricResult.status === 'fulfilled' ? 'available' : 'unavailable';
+    return {
+      ...summarize(config, upstreamData, metricResult.status === 'fulfilled' ? metricResult.value : ''),
+      demo: false, readOnly: !allowApply, connected: true,
+      sources: { upstreams: upstreamSource, metrics: metricsSource },
+    };
   };
   const handler = async (req, res) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');

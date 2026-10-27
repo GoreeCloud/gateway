@@ -2,12 +2,13 @@
 
 I am building **GoreeCloud Gateway** as GoreeCloud's original, privacy-first web control plane for the [Caddy](https://caddyserver.com/) web server. My guiding requirements are useful operational visibility, deliberate changes, clear distinctions between live and demo data, and protection of Caddy's privileged administrative interface. Gateway follows the Canvas / Surface / Lens direction of [GoreeCloud UI](https://github.com/GoreeCloud/gc-ui), without asserting certification or implementation of all GC UI components.
 
-**Status:** `0.2.0` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
+**Status:** `0.2.1` early development / alpha. The web UI and local management service are implemented. This release has not been deployed to GoreeCloud infrastructure and is not certified production ready.
 
 ## Features implemented
 
 - Original adaptive dark/light dashboard, responsive navigation, keyboard route search, user-friendly empty and failure states, and semantic controls.
 - Caddy live HTTP server/host/route discovery from `GET /config/`, available upstream counters from `/reverse_proxy/upstreams`, and optional `/metrics` counters. Metrics are explicitly identified as counters, not synthetic request rates.
+- Source-aware telemetry: upstream status and metrics are reported independently as available, unavailable, invalid or synthetic. Missing endpoints never imply zero failures or healthy upstreams.
 - Route search/filter/detail inspection and a draft-only reverse-proxy route composer for existing Caddy HTTP servers.
 - Protected configuration studio with raw JSON draft editing, validation of **JSON syntax and basic structure only**, explicit draft download, redacted structural change previews, base-revision conflict protection, and guarded live reload.
 - Safe default: **read only**. Write mode requires `GATEWAY_ALLOW_APPLY=1`; each live reload also requires a successful server-side review of the **exact** draft and live base revision, a typed `APPLY` confirmation, a rechecked live revision, and a private pre-change snapshot.
