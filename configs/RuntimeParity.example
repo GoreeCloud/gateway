@@ -9,6 +9,13 @@ http://127.0.0.1:18880 {
     goree_request_id
     goree_security_headers
 
+    # The proxy MUST reject an unapproved direct peer even if XFF is forged.
+    @denied path /denied/*
+    handle @denied {
+        goree_ip_allowlist 203.0.113.0/24
+        reverse_proxy 127.0.0.1:18882
+    }
+
     @internal path /internal/*
     handle @internal {
         # Only the directly connected TCP peer is trusted.
