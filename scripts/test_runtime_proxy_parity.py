@@ -143,7 +143,7 @@ def verify_websocket_upgrade():
         sock.settimeout(5)
         handshake = (
             "GET /ws HTTP/1.1\r\n"
-            "Host: localhost\r\n"
+            f"Host: 127.0.0.1:{PROXY_PORT}\r\n"
             "Connection: Upgrade\r\n"
             "Upgrade: websocket\r\n"
             f"Sec-WebSocket-Key: {key}\r\n"
