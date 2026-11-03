@@ -9,7 +9,9 @@ import (
 	"github.com/caddyserver/caddy/v2/modules/caddyhttp"
 )
 
-type testHandler struct{ fn func(http.ResponseWriter, *http.Request) error }
+type testHandler struct {
+	fn func(http.ResponseWriter, *http.Request) error
+}
 
 func (h testHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) error {
 	return h.fn(w, r)

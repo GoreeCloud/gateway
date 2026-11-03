@@ -19,7 +19,7 @@ type SecurityHeaders struct{}
 
 func (SecurityHeaders) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID: "http.handlers.goree_security_headers",
+		ID:  "http.handlers.goree_security_headers",
 		New: func() caddy.Module { return new(SecurityHeaders) },
 	}
 }

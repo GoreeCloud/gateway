@@ -2,9 +2,9 @@
 package main
 
 import (
+	_ "github.com/GoreeCloud/gateway/modules/gateway"
 	"github.com/caddyserver/caddy/v2/cmd"
 	_ "github.com/caddyserver/caddy/v2/modules/standard"
-	_ "github.com/GoreeCloud/gateway/modules/gateway"
 )
 
 func main() {

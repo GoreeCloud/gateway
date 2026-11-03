@@ -24,7 +24,7 @@ type RequestID struct{}
 
 func (RequestID) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID: "http.handlers.goree_request_id",
+		ID:  "http.handlers.goree_request_id",
 		New: func() caddy.Module { return new(RequestID) },
 	}
 }

@@ -25,7 +25,7 @@ type IPAllowlist struct {
 
 func (IPAllowlist) CaddyModule() caddy.ModuleInfo {
 	return caddy.ModuleInfo{
-		ID: "http.handlers.goree_ip_allowlist",
+		ID:  "http.handlers.goree_ip_allowlist",
 		New: func() caddy.Module { return new(IPAllowlist) },
 	}
 }
