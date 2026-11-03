@@ -23,7 +23,9 @@ jobs:
       - name: Verify dependency checksums
         run: go mod verify
       - name: Format
-        run: test -z "$(gofmt -l cmd modules)"
+        run: |
+          gofmt -d cmd/console/main.go cmd/console/main_test.go
+          test -z "$(gofmt -l cmd modules)"
       - name: Test
         run: go test -race ./...
       - name: Vet
