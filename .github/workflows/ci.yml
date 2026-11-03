@@ -34,6 +34,8 @@ jobs:
         run: test -z "$(gofmt -l cmd modules)"
       - name: Validate read-only ingress diagnostic syntax
         run: bash -n scripts/inspect_legacy_ingress.sh
+      - name: Validate integration smoke syntax
+        run: bash -n scripts/test_connected_console.sh
       - name: Validate web client syntax
         run: node --check cmd/console/web/app.js
       - name: Test confidential-safe Caddyfile counter
@@ -117,6 +119,8 @@ jobs:
           grep -Eiq '^X-Frame-Options: DENY' /tmp/gateway-headers
           grep -Eiq '^X-Content-Type-Options: nosniff' /tmp/gateway-headers
           curl --silent --show-error --fail http://127.0.0.1:8080/internal/test | grep -q 'private route'
+      - name: Verify connected engine-to-console access and rejection behavior
+        run: timeout 90s bash scripts/test_connected_console.sh
       - name: Adapt Porkbun DNS challenge example without contacting DNS
         run: |
           ./gateway adapt --config configs/Porkbunfile.example --adapter caddyfile > /tmp/gateway-porkbun-adapted.json
