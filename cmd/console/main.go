@@ -35,6 +35,7 @@ type overview struct {
 	Servers    *int     `json:"servers,omitempty"`
 	Routes     *int     `json:"routes,omitempty"`
 	Hosts      []string `json:"hosts"`
+	HostCount  *int     `json:"host_count,omitempty"`
 	CheckedAt  string   `json:"checked_at"`
 }
 
@@ -80,13 +81,14 @@ func summarize(r io.Reader) (overview, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	hostCount := len(names)
 	if len(names) > 100 {
 		names = names[:100]
 	}
 	servers := len(cfg.Apps.HTTP.Servers)
 	return overview{
 		APIVersion: "v1", Engine: "Caddy-compatible", State: "connected",
-		Servers: &servers, Routes: &routes, Hosts: names,
+		Servers: &servers, Routes: &routes, Hosts: names, HostCount: &hostCount,
 	}, nil
 }
 
