@@ -83,3 +83,13 @@ jobs:
           emulator-boot-timeout: 600
           disable-animations: true
           script: gradle -p android :app:connectedDebugAndroidTest --no-daemon --stacktrace
+      - name: Preserve native UI test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-android-ui-test-report-${{ github.run_id }}
+          path: |
+            android/app/build/reports/androidTests/connected/
+            android/app/build/outputs/androidTest-results/connected/
+          if-no-files-found: ignore
+          retention-days: 5
