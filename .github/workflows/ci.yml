@@ -78,8 +78,13 @@ jobs:
           grep -Eiq '^X-Frame-Options: DENY' /tmp/gateway-headers
           grep -Eiq '^X-Content-Type-Options: nosniff' /tmp/gateway-headers
           curl --silent --show-error --fail http://127.0.0.1:8080/internal/test | grep -q 'private route'
+      - name: Adapt Porkbun DNS challenge example without contacting DNS
+        run: |
+          ./gateway adapt --config configs/Porkbunfile.example --adapter caddyfile > /tmp/gateway-porkbun-adapted.json
+          python3 -c 'import json; d=json.load(open("/tmp/gateway-porkbun-adapted.json")); assert "porkbun" in json.dumps(d)'
       - name: Check registered modules
         run: |
           ./gateway list-modules | grep -q 'http.handlers.goree_request_id'
           ./gateway list-modules | grep -q 'http.handlers.goree_security_headers'
           ./gateway list-modules | grep -q 'http.handlers.goree_ip_allowlist'
+          ./gateway list-modules | grep -q 'dns.providers.porkbun'

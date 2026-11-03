@@ -31,7 +31,7 @@ go test ./cmd/console
 go build -o gateway-console ./cmd/console
 ```
 
-To run locally, provision a unique random 32+-character access token in a protected host environment variable named `GOREE_GATEWAY_CONSOLE_TOKEN`, then launch `./gateway-console`. The process refuses to start without this variable. It listens on `127.0.0.1:7689` by default and refuses nonloopback addresses. The Caddy admin API must remain on local loopback (unless a separately reviewed safe integration is implemented).
+To run locally, provision a unique random 32+-character access token in a protected host environment variable named `GOREE_GATEWAY_CONSOLE_TOKEN`, then launch `./gateway-console`. The process refuses to start without this variable. It listens on `127.0.0.1:7689` by default and refuses nonloopback addresses. A containerized engine has its own loopback network namespace. The management sidecar must run in that same trusted namespace (for example, a reviewed `network_mode: service:<gateway-engine>` arrangement) to reach `127.0.0.1:2019`. Do not publish the admin port to the host or Internet to work around this restriction. The Caddy admin API must remain on local loopback (unless a separately reviewed safe integration is implemented).
 
 Open `http://127.0.0.1:7689` **only on the machine running the console**, enter the provisioned token, and observe the local engine. A browser on a remote device requires a separately secured HTTPS ingress endpoint or a trusted, authenticated private tunnel. Do not expose the management listener or Caddy's admin API directly on public interfaces.
 
