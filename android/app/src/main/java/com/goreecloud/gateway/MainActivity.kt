@@ -66,13 +66,16 @@ private fun GatewayApp() {
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var tab by remember { mutableIntStateOf(0) }
+    var sessionEpoch by remember { mutableIntStateOf(0) }
     fun connect(address: String, key: String, first: Boolean) {
         if (busy) return
+        val requestedEpoch = sessionEpoch
         scope.launch {
             busy = true
             error = null
             try {
                 val result = client.overview(address, key)
+                if (requestedEpoch != sessionEpoch) return@launch
                 snapshot = result
                 if (first) {
                     activeUrl = validateConsoleUrl(address)
@@ -81,16 +84,19 @@ private fun GatewayApp() {
                     tab = 0
                 }
             } catch (exception: Exception) {
+                if (requestedEpoch != sessionEpoch) return@launch
                 error = when (exception) {
                     is IllegalStateException, is IllegalArgumentException -> exception.message
                     else -> "Cannot reach the private console. Check HTTPS and network access."
                 }
             } finally {
-                busy = false
+                if (requestedEpoch == sessionEpoch) busy = false
             }
         }
     }
     fun lock() {
+        sessionEpoch += 1
+        busy = false
         liveToken = ""
         inputToken = ""
         snapshot = null
