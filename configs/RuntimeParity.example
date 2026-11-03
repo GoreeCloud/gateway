@@ -1,0 +1,21 @@
+# Synthetic, loopback-only HTTP reverse-proxy integration test.
+# No real hostnames, certificates, DNS challenges, or privileged ports.
+{
+    admin off
+    auto_https off
+}
+http://127.0.0.1:18880 {
+    bind 127.0.0.1
+    goree_request_id
+    goree_security_headers
+
+    @internal path /internal/*
+    handle @internal {
+        # Only the directly connected TCP peer is trusted.
+        goree_ip_allowlist 127.0.0.0/8
+        reverse_proxy 127.0.0.1:18882
+    }
+    handle {
+        reverse_proxy 127.0.0.1:18881
+    }
+}
