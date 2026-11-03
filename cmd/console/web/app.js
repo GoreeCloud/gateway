@@ -70,7 +70,7 @@ function render() {
  el("heroDescription").textContent = connected ? "Live summary of the local Caddy-compatible configuration." : "The console is available, but its local engine is not reachable. Metrics are intentionally unknown.";
  el("serverCount").textContent = connected ? String(data.servers) : "—";
  el("routeCount").textContent = connected ? String(data.routes) : "—";
- el("hostCount").textContent = connected ? String(data.hosts.length) : "—";
+ el("hostCount").textContent = connected ? String(data.host_count ?? data.hosts.length) : "—";
  el("lastChecked").textContent = data.checked_at ? "Observed " + new Date(data.checked_at).toLocaleString() : "No observation yet";
  setBadge(connected ? "Engine online" : "Engine offline", connected ? "online" : "offline");
  renderHosts();
