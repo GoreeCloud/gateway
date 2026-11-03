@@ -11,6 +11,7 @@ GoreeCloud Gateway is a GoreeCloud-branded, privacy-first ingress and reverse-pr
 - `goree_security_headers`: opt-in secure defaults for content sniffing, referrer handling and framing.
 - `goree_ip_allowlist`: opt-in source-address CIDR restrictions for private administrative routes; deliberately ignores spoofable forwarded-IP headers.
 - Automated Go build/test/vet workflows and an explicit non-destructive migration playbook.
+- **Porkbun DNS-01 provider** compiled in as an opt-in upstream Caddy module, supporting existing Porkbun-based ACME configuration syntax without storing secrets in source.
 - **GoreeCloud Gateway Web:** responsive local-first management interface with session unlock, overview, hostname discovery, security guidance, settings and light/dark appearance; currently read-only.
 - **GoreeCloud Gateway for Android:** native Kotlin/Jetpack Compose app with an HTTPS-only connection flow, read-only status and hostname display, and in-memory-only access token.
 - **Management API:** a separate loopback-only Go sidecar, guarded by a long random access token, which minimizes Caddy admin configuration into a versioned, read-only API.
@@ -31,6 +32,10 @@ go build -trimpath -o gateway ./cmd/gateway
 ```
 
 The binary intentionally preserves the Caddy CLI commands and its configuration semantics for migration compatibility. `goree_*` directives work only in this custom build.
+
+## DNS challenge compatibility
+
+The binary registers `dns.providers.porkbun` using the pinned MIT-licensed upstream provider. See [Porkbun integration and migration requirements](docs/PORKBUN.md). Module registration and offline Caddyfile adaptation are not live certificate issuance or renewal verification.
 
 ## Web and Android management apps
 

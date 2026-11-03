@@ -1,0 +1,11 @@
+# Offline adapter test ONLY; do not run or issue ACME certificates.
+# Inject real DNS credentials at runtime only; never commit them.
+https://example.test {
+    tls {
+        dns porkbun {
+            api_key {env.PORKBUN_API_KEY}
+            api_secret_key {env.PORKBUN_API_SECRET_KEY}
+        }
+    }
+    respond "Example configuration only" 200
+}
