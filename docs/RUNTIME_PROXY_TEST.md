@@ -6,7 +6,7 @@ The test `scripts/test_runtime_proxy_parity.py` launches the pinned GoreeCloud G
 
 The test verifies:
 
-- Distinct `/internal/*` and fallback routes select the expected local upstreams, including a directly connected loopback allowlist that ignores a forged `X-Forwarded-For` header.
+- Distinct `/internal/*` and fallback routes select the expected local upstreams, including a directly connected loopback allowlist that ignores a forged `X-Forwarded-For` header. An explicitly restricted `/denied/*` route must return HTTP 403 even if the client forges an allowed forwarded address.
 - Each request receives a new cryptographically random 32-character hexadecimal `X-Request-ID`. A client-supplied forged request ID is replaced, and the header forwarded upstream equals the response header.
 - Opt-in `X-Frame-Options` and `X-Content-Type-Options` are present.
 - A synthetic HTTP 307 redirect preserves its target path.
