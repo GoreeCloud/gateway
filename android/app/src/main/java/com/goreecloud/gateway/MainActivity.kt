@@ -70,16 +70,24 @@ private fun GatewayApp() {
     var sessionEpoch by remember { mutableIntStateOf(0) }
     fun connect(address: String, key: String, first: Boolean) {
         if (busy) return
+        // Reject untrusted URLs on the UI thread before starting any network work.
+        // GatewayClient independently revalidates this address as defense-in-depth.
+        val checkedAddress = try {
+            validateConsoleUrl(address)
+        } catch (invalid: IllegalArgumentException) {
+            error = invalid.message ?: "Enter a trusted HTTPS console address."
+            return
+        }
         val requestedEpoch = sessionEpoch
         scope.launch {
             busy = true
             error = null
             try {
-                val result = client.overview(address, key)
+                val result = client.overview(checkedAddress, key)
                 if (requestedEpoch != sessionEpoch) return@launch
                 snapshot = result
                 if (first) {
-                    activeUrl = validateConsoleUrl(address)
+                    activeUrl = checkedAddress
                     liveToken = key
                     inputToken = ""
                     tab = 0
