@@ -42,6 +42,8 @@ jobs:
         run: bash -n scripts/test_connected_console.sh
       - name: Validate local HTTPS test syntax
         run: python3 -m py_compile scripts/test_private_console_tls.py
+      - name: Validate synthetic proxy runtime test syntax
+        run: python3 -m py_compile scripts/test_runtime_proxy_parity.py
       - name: Validate web client syntax
         run: node --check cmd/console/web/app.js
       - name: Test confidential-safe Caddyfile counter
@@ -129,6 +131,8 @@ jobs:
         run: timeout 90s bash scripts/test_connected_console.sh
       - name: Verify trusted loopback HTTPS console and connected engine
         run: timeout 100s python3 scripts/test_private_console_tls.py
+      - name: Verify real synthetic proxy routes and HTTP upgrade behavior
+        run: timeout 90s python3 scripts/test_runtime_proxy_parity.py
       - name: Adapt Porkbun DNS challenge example without contacting DNS
         run: |
           ./gateway adapt --config configs/Porkbunfile.example --adapter caddyfile > /tmp/gateway-porkbun-adapted.json

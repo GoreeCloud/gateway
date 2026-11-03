@@ -65,6 +65,10 @@ The read-only [migration inventory tool](docs/MIGRATION_PREFLIGHT.md) summarizes
 
 The [synthetic HTTPS staging test](docs/PRIVATE_HTTPS_TEST.md) verifies the web console and authenticated API through a locally bound Caddy TLS proxy using an ephemeral OpenSSL-generated CA and real certificate verification. It disables automatic certificate issuance and never modifies system trust stores or contacts production DNS/ACME. This is **not** remote HTTPS deployment, Android-to-service acceptance, or evidence of production route parity.
 
+## Runtime reverse-proxy staging parity
+
+A separate [synthetic two-upstream proxy test](docs/RUNTIME_PROXY_TEST.md) verifies local route selection, cryptographically random request IDs propagated upstream, security headers, redirect behavior, chunked response handling, and a WebSocket Upgrade handshake. The test binds only loopback ports and does not contact live DNS/ACME, replace Caddy, or prove full production route parity.
+
 ## End-to-end local management integration
 
 The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) runs a real loopback-bound Caddy-based Gateway alongside its read-only web/API companion and verifies authenticated connection status, throttling, rejected write/cross-site requests and web security headers. It uses synthetic HTTP-only configuration and never exercises public ingress, live credentials, ACME issuance or the stopped production Caddy container.
