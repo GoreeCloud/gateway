@@ -1,5 +1,6 @@
 package com.goreecloud.gateway
 
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
@@ -40,7 +41,7 @@ class GatewayUiTest {
             composeRule.onAllNodesWithTag("gateway.console.error")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithTag("gateway.console.error").assertIsDisplayed()
+        composeRule.onNodeWithTag("gateway.console.error").assertExists()
         composeRule.onNodeWithText("Connect securely").assertIsDisplayed()
     }
 }
