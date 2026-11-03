@@ -52,25 +52,23 @@ class LocalBackend(BaseHTTPRequestHandler):
             self.send_header("X-Backend-Request-ID", seen_id)
             self.end_headers()
             self.wfile.flush()
-            # Read exactly one client-masked, short text frame. This is a
-            # synthetic WebSocket exchange, not an external service.
-            header = self.rfile.read(2)
-            if len(header) != 2 or header[0] != 0x81:
-                self.close_connection = True
-                return
-            payload_length = header[1] & 0x7f
-            if not (header[1] & 0x80) or payload_length > 125:
-                self.close_connection = True
-                return
-            mask = self.rfile.read(4)
-            payload = self.rfile.read(payload_length)
-            if len(mask) != 4 or len(payload) != payload_length:
-                self.close_connection = True
-                return
-            unmasked = bytes(value ^ mask[index % 4]
-                             for index, value in enumerate(payload))
-            self.wfile.write(bytes((0x81, len(unmasked))) + unmasked)
-            self.wfile.flush()
+            # Receive and echo two actual masked client text frames. Without
+            # this check, a 101 response alone cannot establish working relay.
+            self.connection.settimeout(5)
+            for _ in range(2):
+                frame = self.rfile.read(2)
+                if len(frame) != 2 or frame[0] != 0x81 or frame[1] & 0x80 == 0:
+                    raise AssertionError("Expected one masked websocket text frame")
+                size = frame[1] & 0x7F
+                if size > 125:
+                    raise AssertionError("Unexpected extended websocket frame size")
+                mask = self.rfile.read(4)
+                masked = self.rfile.read(size)
+                if len(mask) != 4 or len(masked) != size:
+                    raise AssertionError("Incomplete websocket client frame")
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(masked))
+                self.wfile.write(bytes((0x81, size)) + payload)
+                self.wfile.flush()
             self.close_connection = True
             return
 
@@ -132,61 +130,64 @@ def verify_correlated_request(path, identity, *, headers=None):
     return req_id
 
 
+def recv_exact(sock, count):
+    data = bytearray()
+    while len(data) < count:
+        block = sock.recv(count - len(data))
+        if not block:
+            raise AssertionError("Websocket connection closed before frame completed")
+        data.extend(block)
+    return bytes(data)
+
+
 def verify_websocket_upgrade():
     key = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
     expect = base64.b64encode(
         hashlib.sha1((key + WEBSOCKET_GUID).encode("ascii")).digest()
     ).decode("ascii")
-    # Use a raw socket so the connection remains usable after HTTP 101.
-    # HTTPConnection.getresponse() may dispose of upgrade sockets.
-    with socket.create_connection(("127.0.0.1", PROXY_PORT), timeout=5) as sock:
-        sock.settimeout(5)
+    with socket.create_connection(("127.0.0.1", PROXY_PORT), timeout=5) as connection:
+        connection.settimeout(5)
         handshake = (
             "GET /ws HTTP/1.1\r\n"
-            f"Host: 127.0.0.1:{PROXY_PORT}\r\n"
+            "Host: 127.0.0.1:18880\r\n"
             "Connection: Upgrade\r\n"
             "Upgrade: websocket\r\n"
             f"Sec-WebSocket-Key: {key}\r\n"
-            "Sec-WebSocket-Version: 13\r\n\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "\r\n"
         )
-        sock.sendall(handshake.encode("ascii"))
-        reader = sock.makefile("rb")
-        try:
-            status_line = reader.readline(4096)
-            assert b" 101 " in status_line, "WebSocket upgrade was rejected"
-            headers = {}
-            for _ in range(64):
-                line = reader.readline(4096)
-                assert line, "Unexpected end of WebSocket upgrade headers"
-                if line == b"\r\n":
-                    break
-                name, separator, value = line.partition(b":")
-                assert separator, "Malformed WebSocket response header"
-                headers[name.strip().lower()] = value.strip()
-            else:
-                raise AssertionError("Oversized WebSocket upgrade headers")
+        connection.sendall(handshake.encode("ascii"))
+        response = bytearray()
+        while b"\r\n\r\n" not in response:
+            response.extend(connection.recv(1024))
+            if len(response) > 8192:
+                raise AssertionError("Oversized websocket handshake response")
+        raw_headers, remaining = bytes(response).split(b"\r\n\r\n", 1)
+        assert not remaining, "Unexpected websocket payload before client frames"
+        head = raw_headers.decode("ascii").split("\r\n")
+        assert head[0].startswith("HTTP/1.1 101 "), "Websocket upgrade not proxied"
+        headers = {}
+        for line in head[1:]:
+            name, _, value = line.partition(":")
+            headers[name.lower()] = value.strip()
+        assert headers.get("upgrade", "").lower() == "websocket"
+        assert headers.get("sec-websocket-accept") == expect
+        req_id = headers.get("x-request-id", "")
+        assert re.fullmatch(r"[0-9a-f]{32}", req_id)
+        assert headers.get("x-backend-request-id") == req_id
 
-            assert headers.get(b"upgrade", b"").lower() == b"websocket"
-            assert headers.get(b"sec-websocket-accept") == expect.encode("ascii")
-            req_id = headers.get(b"x-request-id", b"").decode("ascii")
-            assert re.fullmatch(r"[0-9a-f]{32}", req_id)
-            assert headers.get(b"x-backend-request-id") == req_id.encode("ascii")
-
-            payload = b"goreecloud-websocket-frame-test"
+        for payload in (b"gateway-frame-one", b"gateway-frame-two"):
             mask = secrets.token_bytes(4)
-            masked = bytes(ch ^ mask[i % 4] for i, ch in enumerate(payload))
-            sock.sendall(bytes((0x81, 0x80 | len(payload))) + mask + masked)
-
-            frame = reader.read(2)
-            assert len(frame) == 2, "WebSocket frame did not return"
-            assert frame[0] == 0x81, "Unexpected WebSocket frame type"
-            assert not (frame[1] & 0x80), "Server frame must not be masked"
-            length = frame[1] & 0x7f
-            assert length == len(payload), "Unexpected echoed frame length"
-            echo = reader.read(length)
-            assert echo == payload, "WebSocket text frame corrupted in transit"
-        finally:
-            reader.close()
+            encoded = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            # Client frames must have the MASK bit set under RFC 6455.
+            connection.sendall(bytes((0x81, 0x80 | len(payload))) + mask + encoded)
+            frame = recv_exact(connection, 2)
+            assert frame == bytes((0x81, len(payload))), (
+                "Expected one unmasked echo text frame"
+            )
+            assert recv_exact(connection, len(payload)) == payload, (
+                "Websocket frame was not relayed bidirectionally"
+            )
 
 
 def check_ports():
@@ -250,15 +251,13 @@ def main():
             )
             assert first_id != second_id, "Distinct requests must get distinct random IDs"
 
-            # Forged forwarding headers never turn a loopback peer into a
-            # permitted 203.0.113.0/24 direct peer.
+            # A spoofed X-Forwarded-For cannot turn localhost into an
+            # explicitly required 203.0.113.0/24 directly connected peer.
             denied_status, denied_body, _ = get(
-                "/denied/health",
-                {"X-Forwarded-For": "203.0.113.42"},
+                "/denied/health", {"X-Forwarded-For": "203.0.113.42"}
             )
             assert denied_status == 403, "Unapproved direct peer was permitted"
             assert b"internal:/denied" not in denied_body
-
 
             status, body, headers = get("/redirect")
             assert status == 307 and body == b""
@@ -270,7 +269,7 @@ def main():
             assert re.fullmatch(r"[0-9a-f]{32}", headers.get("X-Request-ID", ""))
 
             verify_websocket_upgrade()
-            print("PASS: 2 proxied routes, spoof-resistant deny, request-ID integrity, HTTP stream and WebSocket frame echo")
+            print("PASS: 2 proxied routes, denied spoofed peer, cryptographic IDs, headers, redirect, stream and two full WebSocket frame echoes")
         finally:
             for child in reversed(processes):
                 try:

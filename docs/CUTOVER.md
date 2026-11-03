@@ -23,7 +23,7 @@ This is a **procedure**, not evidence of completion or a license to switch activ
 - Run `go test -race ./...`, `go vet ./...`, `gateway list-modules`, `gateway adapt`, `gateway validate`, and feature integration tests. Check GC UI acceptance before adding any administrative UI.
 - Validate the translated **sanitized** config in an isolated staging container/netns, using a nonconflicting loopback test listener. Do not accidentally request production ACME certs from staging.
 - Match service identity, groups, file capabilities, sandboxing, environment and filesystem paths before sharing existing certificate stores.
-- Verify requests to upstreams, forwarded headers, redirects, streaming, WebSockets, request IDs, allowlists, rate limiting controls if enabled, and the ACME lifecycle.
+- Verify requests to upstreams, forwarded headers, redirects, streaming, WebSockets, request IDs, allowlists, rate limiting controls if enabled, and the ACME lifecycle. The [synthetic runtime proxy test](RUNTIME_PROXY_TEST.md) now covers local masked WebSocket text-frame round trips but does not replace application-specific long-running WebSocket, HTTP/3, or production route acceptance.
 
 ## 3. Canary and production replacement
 

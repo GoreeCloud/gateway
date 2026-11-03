@@ -11,7 +11,7 @@ The test verifies:
 - Opt-in `X-Frame-Options` and `X-Content-Type-Options` are present.
 - A synthetic HTTP 307 redirect preserves its target path.
 - A small chunked streaming response passes through correctly.
-- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header and relays one client-masked short text frame through to the test backend and its unmasked echoed frame back to the client.
+- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header and relays two consecutive client-masked text frames through to the test backend and their unmasked echoed frames back to the client. This verifies short bidirectional data flow, not long-running WebSocket reliability.
 
 Run only with a reviewed development binary:
 
