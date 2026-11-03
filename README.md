@@ -67,7 +67,7 @@ The [synthetic HTTPS staging test](docs/PRIVATE_HTTPS_TEST.md) verifies the web 
 
 ## Runtime reverse-proxy staging parity
 
-A separate [synthetic two-upstream proxy test](docs/RUNTIME_PROXY_TEST.md) verifies local route selection, cryptographically random request IDs propagated upstream, security headers, redirect behavior, chunked response handling, and a WebSocket Upgrade handshake. The test binds only loopback ports and does not contact live DNS/ACME, replace Caddy, or prove full production route parity.
+A separate [synthetic two-upstream proxy test](docs/RUNTIME_PROXY_TEST.md) verifies local route selection, cryptographically random request IDs propagated upstream, security headers, redirect behavior, chunked response handling, and a WebSocket Upgrade handshake and two full bidirectional masked-text-frame echoes. The test binds only loopback ports and does not contact live DNS/ACME, replace Caddy, or prove full production route parity.
 
 ## End-to-end local management integration
 
