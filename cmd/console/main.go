@@ -29,13 +29,13 @@ var assets embed.FS
 const maxConfig = 2 << 20
 
 type overview struct {
-	APIVersion string `json:"api_version"`
-	Engine     string `json:"engine"`
-	State      string `json:"state"`
-	Servers    *int   `json:"servers,omitempty"`
-	Routes     *int   `json:"routes,omitempty"`
+	APIVersion string   `json:"api_version"`
+	Engine     string   `json:"engine"`
+	State      string   `json:"state"`
+	Servers    *int     `json:"servers,omitempty"`
+	Routes     *int     `json:"routes,omitempty"`
 	Hosts      []string `json:"hosts"`
-	CheckedAt  string `json:"checked_at"`
+	CheckedAt  string   `json:"checked_at"`
 }
 
 type adminConfig struct {
