@@ -106,7 +106,7 @@ def build_report(metadata, sockets=None, peer_count=None, stat_fn=os.stat):
         "network": {
             "configured": isinstance(mode, str) and bool(mode),
             "endpoint_currently_assigned": bool(endpoint),
-            "other_endpoint_count": peer_count if isinstance(peer_count, int) and peer_count >= 0 else None,
+            "network_endpoint_count": peer_count if isinstance(peer_count, int) and peer_count >= 0 else None,
         },
         "web_listeners": listener_counts(sockets) if isinstance(sockets, str) else None,
         "certificate_contents": "not_inspected",
