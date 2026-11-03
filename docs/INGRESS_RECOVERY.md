@@ -9,7 +9,9 @@
 
 ## Inspect without modifying services
 
-Run `bash scripts/inspect_legacy_ingress.sh [container-name]` on the authorized host. The script only queries container metadata and listening sockets. It does not read raw configs, container environments, mounted source paths, TLS secrets, credential values, or private hostnames. It never starts/stops containers, recreates networks, or changes ports. A nonzero exit code means the container is not confirmed running, is missing, or inspection could not complete; this does **not** diagnose a root cause or imply a safe restart.
+Run `bash scripts/inspect_legacy_ingress.sh [container-name]` on the authorized host. For an additional machine-readable summary, run `python3 scripts/legacy_recovery_audit.py [container-name]`. Its JSON report contains only fixed-category Docker status, error class, TCP/UDP web-listener counts, network endpoint count and whether the three expected mount roots can be stated to exist. It never prints mount sources, network names, hostnames, Docker environment values, certificate data, private keys, or raw daemon logs. Both tools are read-only; neither proves backup restoration or readiness to restart.
+
+Run `bash scripts/inspect_legacy_ingress.sh [container-name]` only in an approved administrative environment if more human-readable output is useful. The script only queries container metadata and listening sockets. It does not read raw configs, container environments, mounted source paths, TLS secrets, credential values, or private hostnames. It never starts/stops containers, recreates networks, or changes ports. A nonzero exit code means the container is not confirmed running, is missing, or inspection could not complete; this does **not** diagnose a root cause or imply a safe restart.
 
 Independently check Docker daemon health, network state, TLS endpoint behavior, backup restoration readiness, and the actual production ingress owner. Keep detailed diagnostics in restricted operations records rather than in this public repository.
 
