@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,16 +70,24 @@ private fun GatewayApp() {
     var sessionEpoch by remember { mutableIntStateOf(0) }
     fun connect(address: String, key: String, first: Boolean) {
         if (busy) return
+        // Reject untrusted URLs on the UI thread before starting any network work.
+        // GatewayClient independently revalidates this address as defense-in-depth.
+        val checkedAddress = try {
+            validateConsoleUrl(address)
+        } catch (invalid: IllegalArgumentException) {
+            error = invalid.message ?: "Enter a trusted HTTPS console address."
+            return
+        }
         val requestedEpoch = sessionEpoch
         scope.launch {
             busy = true
             error = null
             try {
-                val result = client.overview(address, key)
+                val result = client.overview(checkedAddress, key)
                 if (requestedEpoch != sessionEpoch) return@launch
                 snapshot = result
                 if (first) {
-                    activeUrl = validateConsoleUrl(address)
+                    activeUrl = checkedAddress
                     liveToken = key
                     inputToken = ""
                     tab = 0
@@ -239,10 +248,10 @@ private fun ConnectPanel(
                 BrandMark()
                 Text("Connect securely", fontWeight = FontWeight.Bold, fontSize = 25.sp)
                 Text("Enter your HTTPS console address and access token. The token stays only in memory.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                OutlinedTextField(value = url, onValueChange = onUrl, label = { Text("HTTPS console URL") }, placeholder = { Text("https://gateway.example.org") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = token, onValueChange = onToken, label = { Text("Access token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth())
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                Button(onClick = onConnect, enabled = !busy && url.isNotBlank() && token.length >= 32, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp)) {
+                OutlinedTextField(value = url, onValueChange = onUrl, label = { Text("HTTPS console URL") }, placeholder = { Text("https://gateway.example.org") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("gateway.console.address"))
+                OutlinedTextField(value = token, onValueChange = onToken, label = { Text("Access token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth().testTag("gateway.console.token"))
+                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.testTag("gateway.console.error"))
+                Button(onClick = onConnect, enabled = !busy && url.isNotBlank() && token.length >= 32, modifier = Modifier.fillMaxWidth().height(54.dp).testTag("gateway.console.connect"), shape = RoundedCornerShape(16.dp)) {
                     Text(if (busy) "Connecting…" else "Open Gateway  ↗", fontWeight = FontWeight.Bold)
                 }
             }
