@@ -73,7 +73,7 @@ The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) run
 
 GitHub's Android CI now verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory.
 
-For legacy Dockerized Caddy, the [read-only diagnostic guide](docs/INGRESS_RECOVERY.md) and [inspection script](scripts/inspect_legacy_ingress.sh) report limited health metadata without modifying live infrastructure. Diagnostic output does not establish that restarting or replacing a stopped container is safe.
+For legacy Dockerized Caddy, the [read-only diagnostic guide](docs/INGRESS_RECOVERY.md), [inspection script](scripts/inspect_legacy_ingress.sh), and [redacted JSON recovery audit](scripts/legacy_recovery_audit.py) report limited health metadata without modifying live infrastructure. Unknown or protected certificate/backup state is explicitly **not verified**, never silently treated as passed. Diagnostic output does not establish that restarting or replacing a stopped container is safe.
 
 ## Production safety
 
