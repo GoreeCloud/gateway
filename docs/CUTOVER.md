@@ -11,7 +11,7 @@ This is a **procedure**, not evidence of completion or a license to switch activ
 
 ## 1. Discover and freeze baseline
 
-- Verify the precise VPS hosting public ingress through SSH, service units, process list, TLS endpoint checks, listener ownership on TCP 80/443 and UDP 443, and DNS. For existing containerized Caddy, follow [read-only recovery diagnostics](INGRESS_RECOVERY.md). Empty current listeners alone do not prove a previous Docker port/network conflict is resolved.
+- Verify the precise VPS hosting public ingress through SSH, service units, process list, TLS endpoint checks, listener ownership on TCP 80/443 and UDP 443, and DNS. For existing containerized Caddy, follow [read-only recovery diagnostics](INGRESS_RECOVERY.md) including the fixed-field JSON evidence collector; outputs never replace privileged backup/restore verification. Empty current listeners alone do not prove a previous Docker port/network conflict is resolved.
 - Inventory every currently served hostname, internal upstream address, application dependency, WebSocket/HTTP3 behavior, redirects, middleware, certificate issuer and renewal state. The [read-only Caddyfile counter](MIGRATION_PREFLIGHT.md) can help identify a bounded, secret-redacted directive inventory, but is not a route parser or an acceptance result. Keep secrets out of public repositories and logs.
 - Confirm backup health and independent access (console/SSH) in case proxy-related remote access disappears.
 - Establish an outage window and explicit production cutover approval. Preserve current Caddy executable, unit, environment, complete config, its data directory, access permissions, TLS storage, and hashes; secure backup with root-only access and verify restoration.
