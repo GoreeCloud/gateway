@@ -53,6 +53,10 @@ The console listens only on `127.0.0.1:7689`; Android requires a reviewed privat
 
 See [configs/Gatewayfile.example](configs/Gatewayfile.example). Never use example addresses, upstream ports, or access lists as real production configuration. Caddy's admin API must remain loopback-only unless secured behind separate authentication and network restrictions.
 
+## Linux staging executables
+
+CI builds portable **Linux AMD64, CGO-disabled development binaries** for the gateway engine and read-only web console. A seven-day GitHub Actions artifact includes both executables, a SHA-256 checksum manifest, and Go module provenance. See [staging binaries and release boundaries](docs/STAGING_BINARIES.md). These artifacts have not been deployed, signed as a production release or tested against the VPS certificate store.
+
 ## Confidential-safe Caddyfile migration inventory
 
 The read-only [migration inventory tool](docs/MIGRATION_PREFLIGHT.md) summarizes route, TLS/DNS-provider, authentication and header *directive counts* without printing production hostnames, credentials or reverse-proxy destinations. It is a text-based diagnostic and is **not** a Caddyfile parser or evidence of successful route parity. CI also adapts a synthetic legacy-shaped Caddyfile using the pinned engine and Porkbun provider without making DNS or ACME requests.
