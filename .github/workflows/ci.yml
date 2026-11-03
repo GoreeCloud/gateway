@@ -24,6 +24,15 @@ jobs:
           cache: false
       - name: Resolve pinned modules
         run: go mod tidy
+      - name: Export Go module resolution for lockfile review
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-go-module-lock-draft-${{ github.sha }}
+          path: |
+            go.mod
+            go.sum
+          if-no-files-found: error
+          retention-days: 1
       - name: Verify dependency checksums
         run: go mod verify
       - name: Format
