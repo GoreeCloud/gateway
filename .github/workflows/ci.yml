@@ -24,6 +24,8 @@ jobs:
         run: go mod verify
       - name: Format
         run: test -z "$(gofmt -l cmd modules)"
+      - name: Validate read-only ingress diagnostic syntax
+        run: bash -n scripts/inspect_legacy_ingress.sh
       - name: Validate web client syntax
         run: node --check cmd/console/web/app.js
       - name: Test
