@@ -34,5 +34,37 @@ jobs:
         run: gradle -p android :app:testDebugUnitTest --no-daemon --stacktrace
       - name: Compile Android debug APK
         run: gradle -p android :app:assembleDebug --no-daemon --stacktrace
-      # APK publication intentionally omitted. GoreeCloud requires standalone APK
-      # delivery to its authorized Google Drive Artifacts directory after review.
+      - name: Verify APK identity, permissions, and provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$apk"
+          aapt="$ANDROID_HOME/build-tools/36.0.0/aapt"
+          test -x "$aapt"
+          "$aapt" dump badging "$apk" > "$RUNNER_TEMP/gateway-apk-badging.txt"
+          grep -q "package: name='com.goreecloud.gateway' versionCode='1' versionName='0.1.0'" "$RUNNER_TEMP/gateway-apk-badging.txt"
+          grep -q "sdkVersion:'26'" "$RUNNER_TEMP/gateway-apk-badging.txt"
+          grep -q "targetSdkVersion:'35'" "$RUNNER_TEMP/gateway-apk-badging.txt"
+          python3 - <<'PY'
+          from xml.etree import ElementTree
+          root = ElementTree.parse("android/app/src/main/AndroidManifest.xml").getroot()
+          ns = "{http://schemas.android.com/apk/res/android}"
+          app = root.find("application")
+          assert app is not None and app.get(ns + "allowBackup") == "false"
+          assert app.get(ns + "usesCleartextTraffic") == "false"
+          permissions = [p.get(ns + "name") for p in root.findall("uses-permission")]
+          assert permissions == ["android.permission.INTERNET"], permissions
+          PY
+          printf "Verified Android debug APK identity and permissions\n"
+          sha256sum "$apk"
+      # Internal, ephemeral CI transfer container only. Not a user-deliverable APK.
+      # GoreeCloud requires the extracted, standalone APK in Drive GoreeCloud/Artifacts.
+      - name: Retain temporary test APK for controlled Drive delivery
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-gateway-android-debug-candidate
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
