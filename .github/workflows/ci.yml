@@ -36,6 +36,8 @@ jobs:
         run: bash -n scripts/inspect_legacy_ingress.sh
       - name: Validate integration smoke syntax
         run: bash -n scripts/test_connected_console.sh
+      - name: Validate local HTTPS test syntax
+        run: python3 -m py_compile scripts/test_private_console_tls.py
       - name: Validate web client syntax
         run: node --check cmd/console/web/app.js
       - name: Test confidential-safe Caddyfile counter
@@ -121,6 +123,8 @@ jobs:
           curl --silent --show-error --fail http://127.0.0.1:8080/internal/test | grep -q 'private route'
       - name: Verify connected engine-to-console access and rejection behavior
         run: timeout 90s bash scripts/test_connected_console.sh
+      - name: Verify trusted loopback HTTPS console and connected engine
+        run: timeout 100s python3 scripts/test_private_console_tls.py
       - name: Adapt Porkbun DNS challenge example without contacting DNS
         run: |
           ./gateway adapt --config configs/Porkbunfile.example --adapter caddyfile > /tmp/gateway-porkbun-adapted.json
