@@ -251,6 +251,14 @@ def main():
             )
             assert first_id != second_id, "Distinct requests must get distinct random IDs"
 
+            # A spoofed X-Forwarded-For cannot turn localhost into an
+            # explicitly required 203.0.113.0/24 directly connected peer.
+            denied_status, denied_body, _ = get(
+                "/denied/health", {"X-Forwarded-For": "203.0.113.42"}
+            )
+            assert denied_status == 403, "Unapproved direct peer was permitted"
+            assert b"internal:/denied" not in denied_body
+
             status, body, headers = get("/redirect")
             assert status == 307 and body == b""
             assert headers.get("Location") == "/target"
@@ -261,7 +269,7 @@ def main():
             assert re.fullmatch(r"[0-9a-f]{32}", headers.get("X-Request-ID", ""))
 
             verify_websocket_upgrade()
-            print("PASS: 2 proxied routes, cryptographic IDs, headers, redirect, stream and two full WebSocket frame echoes")
+            print("PASS: 2 proxied routes, denied spoofed peer, cryptographic IDs, headers, redirect, stream and two full WebSocket frame echoes")
         finally:
             for child in reversed(processes):
                 try:
