@@ -52,7 +52,23 @@ class LocalBackend(BaseHTTPRequestHandler):
             self.send_header("X-Backend-Request-ID", seen_id)
             self.end_headers()
             self.wfile.flush()
-            time.sleep(0.2)
+            # Receive and echo two actual masked client text frames. Without
+            # this check, a 101 response alone cannot establish working relay.
+            self.connection.settimeout(5)
+            for _ in range(2):
+                frame = self.rfile.read(2)
+                if len(frame) != 2 or frame[0] != 0x81 or frame[1] & 0x80 == 0:
+                    raise AssertionError("Expected one masked websocket text frame")
+                size = frame[1] & 0x7F
+                if size > 125:
+                    raise AssertionError("Unexpected extended websocket frame size")
+                mask = self.rfile.read(4)
+                masked = self.rfile.read(size)
+                if len(mask) != 4 or len(masked) != size:
+                    raise AssertionError("Incomplete websocket client frame")
+                payload = bytes(b ^ mask[i % 4] for i, b in enumerate(masked))
+                self.wfile.write(bytes((0x81, size)) + payload)
+                self.wfile.flush()
             self.close_connection = True
             return
 
@@ -114,28 +130,64 @@ def verify_correlated_request(path, identity, *, headers=None):
     return req_id
 
 
+def recv_exact(sock, count):
+    data = bytearray()
+    while len(data) < count:
+        block = sock.recv(count - len(data))
+        if not block:
+            raise AssertionError("Websocket connection closed before frame completed")
+        data.extend(block)
+    return bytes(data)
+
+
 def verify_websocket_upgrade():
     key = base64.b64encode(secrets.token_bytes(16)).decode("ascii")
     expect = base64.b64encode(
         hashlib.sha1((key + WEBSOCKET_GUID).encode("ascii")).digest()
     ).decode("ascii")
-    connection = http.client.HTTPConnection("127.0.0.1", PROXY_PORT, timeout=5)
-    try:
-        connection.request("GET", "/ws", headers={
-            "Connection": "Upgrade",
-            "Upgrade": "websocket",
-            "Sec-WebSocket-Key": key,
-            "Sec-WebSocket-Version": "13",
-        })
-        response = connection.getresponse()
-        assert response.status == 101, "WebSocket upgrade not proxied"
-        assert response.headers.get("Upgrade", "").lower() == "websocket"
-        assert response.headers.get("Sec-WebSocket-Accept") == expect
-        req_id = response.headers.get("X-Request-ID", "")
+    with socket.create_connection(("127.0.0.1", PROXY_PORT), timeout=5) as connection:
+        connection.settimeout(5)
+        handshake = (
+            "GET /ws HTTP/1.1\r\n"
+            "Host: localhost\r\n"
+            "Connection: Upgrade\r\n"
+            "Upgrade: websocket\r\n"
+            f"Sec-WebSocket-Key: {key}\r\n"
+            "Sec-WebSocket-Version: 13\r\n"
+            "\r\n"
+        )
+        connection.sendall(handshake.encode("ascii"))
+        response = bytearray()
+        while b"\r\n\r\n" not in response:
+            response.extend(connection.recv(1024))
+            if len(response) > 8192:
+                raise AssertionError("Oversized websocket handshake response")
+        raw_headers, remaining = bytes(response).split(b"\r\n\r\n", 1)
+        assert not remaining, "Unexpected websocket payload before client frames"
+        head = raw_headers.decode("ascii").split("\r\n")
+        assert head[0].startswith("HTTP/1.1 101 "), "Websocket upgrade not proxied"
+        headers = {}
+        for line in head[1:]:
+            name, _, value = line.partition(":")
+            headers[name.lower()] = value.strip()
+        assert headers.get("upgrade", "").lower() == "websocket"
+        assert headers.get("sec-websocket-accept") == expect
+        req_id = headers.get("x-request-id", "")
         assert re.fullmatch(r"[0-9a-f]{32}", req_id)
-        assert response.headers.get("X-Backend-Request-ID") == req_id
-    finally:
-        connection.close()
+        assert headers.get("x-backend-request-id") == req_id
+
+        for payload in (b"gateway-frame-one", b"gateway-frame-two"):
+            mask = secrets.token_bytes(4)
+            encoded = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
+            # Client frames must have the MASK bit set under RFC 6455.
+            connection.sendall(bytes((0x81, 0x80 | len(payload))) + mask + encoded)
+            frame = recv_exact(connection, 2)
+            assert frame == bytes((0x81, len(payload))), (
+                "Expected one unmasked echo text frame"
+            )
+            assert recv_exact(connection, len(payload)) == payload, (
+                "Websocket frame was not relayed bidirectionally"
+            )
 
 
 def check_ports():
@@ -209,7 +261,7 @@ def main():
             assert re.fullmatch(r"[0-9a-f]{32}", headers.get("X-Request-ID", ""))
 
             verify_websocket_upgrade()
-            print("PASS: 2 proxied routes, request-ID integrity, headers, redirect, stream and WebSocket upgrade")
+            print("PASS: 2 proxied routes, cryptographic IDs, headers, redirect, stream and two full WebSocket frame echoes")
         finally:
             for child in reversed(processes):
                 try:
