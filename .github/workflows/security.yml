@@ -1,0 +1,51 @@
+name: Gateway Go Vulnerability Audit
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '17 10 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  govulncheck:
+    name: Audit invoked Go dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GOTOOLCHAIN: local
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Verify Go dependency checksums
+        run: |
+          go mod verify
+          git diff --exit-code -- go.mod go.sum
+      - name: Install reviewed version of Go vulnerability scanner
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.8.0
+          "$(go env GOPATH)/bin/govulncheck" -version
+      - name: Scan reachable Go vulnerabilities
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 900s "$(go env GOPATH)/bin/govulncheck" ./... 2>&1 | tee "$RUNNER_TEMP/gateway-govulncheck.txt"
+      - name: Preserve bounded security audit output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-govulncheck-${{ github.run_id }}
+          path: ${{ runner.temp }}/gateway-govulncheck.txt
+          if-no-files-found: warn
+          retention-days: 7
