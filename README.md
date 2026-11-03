@@ -61,6 +61,10 @@ CI builds portable **Linux AMD64, CGO-disabled development binaries** for the ga
 
 The read-only [migration inventory tool](docs/MIGRATION_PREFLIGHT.md) summarizes route, TLS/DNS-provider, authentication and header *directive counts* without printing production hostnames, credentials or reverse-proxy destinations. It is a text-based diagnostic and is **not** a Caddyfile parser or evidence of successful route parity. CI also adapts a synthetic legacy-shaped Caddyfile using the pinned engine and Porkbun provider without making DNS or ACME requests.
 
+## Disposable private HTTPS console verification
+
+The [synthetic HTTPS staging test](docs/PRIVATE_HTTPS_TEST.md) verifies the web console and authenticated API through a locally bound Caddy TLS proxy using an ephemeral OpenSSL-generated CA and real certificate verification. It disables automatic certificate issuance and never modifies system trust stores or contacts production DNS/ACME. This is **not** remote HTTPS deployment, Android-to-service acceptance, or evidence of production route parity.
+
 ## End-to-end local management integration
 
 The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) runs a real loopback-bound Caddy-based Gateway alongside its read-only web/API companion and verifies authenticated connection status, throttling, rejected write/cross-site requests and web security headers. It uses synthetic HTTP-only configuration and never exercises public ingress, live credentials, ACME issuance or the stopped production Caddy container.
