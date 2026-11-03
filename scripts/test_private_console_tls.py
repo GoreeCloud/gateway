@@ -140,12 +140,12 @@ def execute() -> None:
             assert overview.get("state") == "connected"
             assert overview.get("servers", 0) >= 1
             assert overview.get("routes", 0) >= 1
-            assert "Content-Security-Policy:" in response_headers
+            assert "content-security-policy:" in response_headers.lower()
 
             code, body, response_headers = curl(HTTPS + "/", *tls_flags)
             assert code == 200 and "GoreeCloud Gateway" in body
-            assert "X-Frame-Options: DENY" in response_headers
-            assert "Cache-Control: no-store" in response_headers
+            assert "x-frame-options: deny" in response_headers.lower()
+            assert "cache-control: no-store" in response_headers.lower()
             print("PASS: authenticated Gateway API and web console through isolated verified local HTTPS")
         finally:
             for proc in reversed(children):
