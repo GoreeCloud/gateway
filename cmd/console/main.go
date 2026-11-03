@@ -93,6 +93,10 @@ func summarize(r io.Reader) (overview, error) {
 }
 
 func newHandler(token, adminURL string) (http.Handler, error) {
+	return newHandlerWithOIDC(token, adminURL, nil)
+}
+
+func newHandlerWithOIDC(token, adminURL string, oidcAuth gatewayOIDCAuth) (http.Handler, error) {
 	if len(token) < 32 || strings.TrimSpace(token) != token {
 		return nil, errors.New("console token must have 32 or more characters without surrounding whitespace")
 	}
@@ -123,9 +127,14 @@ func newHandler(token, adminURL string) (http.Handler, error) {
 		}
 		auth := r.Header.Get("Authorization")
 		attempt := sha256.Sum256([]byte(strings.TrimPrefix(auth, "Bearer ")))
-		if len(r.Header.Values("Authorization")) != 1 ||
-			!strings.HasPrefix(auth, "Bearer ") ||
-			subtle.ConstantTimeCompare(attempt[:], approved[:]) != 1 {
+		singleBearer := len(r.Header.Values("Authorization")) == 1 &&
+			strings.HasPrefix(auth, "Bearer ") && len(auth) <= maxGatewayJWTLength+7
+		staticOK := singleBearer && subtle.ConstantTimeCompare(attempt[:], approved[:]) == 1
+		oidcOK := false
+		if singleBearer && !staticOK && oidcAuth != nil {
+			oidcOK = oidcAuth.authorize(r.Context(), strings.TrimPrefix(auth, "Bearer "))
+		}
+		if !staticOK && !oidcOK {
 			if !failures.allowFailure(r.RemoteAddr) {
 				w.Header().Set("Retry-After", "60")
 				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
@@ -189,7 +198,11 @@ func main() {
 	if err := validateListen(*listen); err != nil {
 		log.Fatal(err)
 	}
-	handler, err := newHandler(os.Getenv("GOREE_GATEWAY_CONSOLE_TOKEN"), "http://127.0.0.1:2019")
+	oidcAuth, err := optInGatewayOIDC()
+	if err != nil {
+		log.Fatal(err)
+	}
+	handler, err := newHandlerWithOIDC(os.Getenv("GOREE_GATEWAY_CONSOLE_TOKEN"), "http://127.0.0.1:2019", oidcAuth)
 	if err != nil {
 		log.Fatal(err)
 	}
