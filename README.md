@@ -11,8 +11,11 @@ GoreeCloud Gateway is a GoreeCloud-branded, privacy-first ingress and reverse-pr
 - `goree_security_headers`: opt-in secure defaults for content sniffing, referrer handling and framing.
 - `goree_ip_allowlist`: opt-in source-address CIDR restrictions for private administrative routes; deliberately ignores spoofable forwarded-IP headers.
 - Automated Go build/test/vet workflows and an explicit non-destructive migration playbook.
+- **GoreeCloud Gateway Web:** responsive local-first management interface with session unlock, overview, hostname discovery, security guidance, settings and light/dark appearance; currently read-only.
+- **GoreeCloud Gateway for Android:** native Kotlin/Jetpack Compose app with an HTTPS-only connection flow, read-only status and hostname display, and in-memory-only access token.
+- **Management API:** a separate loopback-only Go sidecar, guarded by a long random access token, which minimizes Caddy admin configuration into a versioned, read-only API.
 
-**Not yet implemented or verified:** browser management dashboard, visual GC UI compliance, external SSO, WAF, rate limiting, production telemetry, high availability, CI acceptance, VPS deployment, or production parity. A configuration directive alone is not proof a feature operates on a server.
+**Not yet implemented or verified:** production-grade dashboard acceptance, end-to-end Android installation, multi-user identity, write administration, external SSO, WAF, rate limiting, production telemetry, high availability, production deployment, or full parity with existing VPS ingress. Source/CI results and release acceptance must be reported separately. A configuration directive alone is not proof a feature operates on a server.
 
 ## Build
 
@@ -28,6 +31,18 @@ go build -trimpath -o gateway ./cmd/gateway
 ```
 
 The binary intentionally preserves the Caddy CLI commands and its configuration semantics for migration compatibility. `goree_*` directives work only in this custom build.
+
+## Web and Android management apps
+
+The browser UI and a **read-only**, token-protected management API are in `cmd/console/`; the native Android application is in `android/`. These are independently built frontends of the same self-hosted engine, not public access to the privileged Caddy admin API.
+
+```sh
+go build -o gateway-console ./cmd/console
+# Configure GOREE_GATEWAY_CONSOLE_TOKEN securely in the host environment before starting.
+./gateway-console
+```
+
+The console listens only on `127.0.0.1:7689`; Android requires a reviewed private HTTPS gateway to reach it. **Do not publish the Caddy admin endpoint or console listener.** See [web and Android documentation](docs/CONSOLE.md) for authentication, build, and release details. No Android APK is yet delivered.
 
 ## Example
 

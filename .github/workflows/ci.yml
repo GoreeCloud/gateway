@@ -24,12 +24,16 @@ jobs:
         run: go mod verify
       - name: Format
         run: test -z "$(gofmt -l cmd modules)"
+      - name: Validate web client syntax
+        run: node --check cmd/console/web/app.js
       - name: Test
         run: go test -race ./...
       - name: Vet
         run: go vet ./...
       - name: Build
         run: go build -trimpath -o gateway ./cmd/gateway
+      - name: Build console
+        run: go build -trimpath -o gateway-console ./cmd/console
       - name: Validate sample config
         run: ./gateway validate --config configs/Gatewayfile.example --adapter caddyfile
       - name: Loopback smoke test
