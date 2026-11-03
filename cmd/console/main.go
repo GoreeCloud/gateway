@@ -35,6 +35,7 @@ type overview struct {
 	Servers    *int     `json:"servers,omitempty"`
 	Routes     *int     `json:"routes,omitempty"`
 	Hosts      []string `json:"hosts"`
+	HostCount  *int     `json:"host_count,omitempty"`
 	CheckedAt  string   `json:"checked_at"`
 }
 
@@ -80,13 +81,14 @@ func summarize(r io.Reader) (overview, error) {
 		names = append(names, name)
 	}
 	sort.Strings(names)
+	hostCount := len(names)
 	if len(names) > 100 {
 		names = names[:100]
 	}
 	servers := len(cfg.Apps.HTTP.Servers)
 	return overview{
 		APIVersion: "v1", Engine: "Caddy-compatible", State: "connected",
-		Servers: &servers, Routes: &routes, Hosts: names,
+		Servers: &servers, Routes: &routes, Hosts: names, HostCount: &hostCount,
 	}, nil
 }
 
@@ -95,6 +97,7 @@ func newHandler(token, adminURL string) (http.Handler, error) {
 		return nil, errors.New("console token must have 32 or more characters without surrounding whitespace")
 	}
 	approved := sha256.Sum256([]byte(token))
+	failures := newFailedAuthLimiter(time.Now)
 	static, err := fs.Sub(assets, "web")
 	if err != nil {
 		return nil, err
@@ -119,12 +122,15 @@ func newHandler(token, adminURL string) (http.Handler, error) {
 			return
 		}
 		auth := r.Header.Get("Authorization")
-		if !strings.HasPrefix(auth, "Bearer ") {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
 		attempt := sha256.Sum256([]byte(strings.TrimPrefix(auth, "Bearer ")))
-		if subtle.ConstantTimeCompare(attempt[:], approved[:]) != 1 {
+		if len(r.Header.Values("Authorization")) != 1 ||
+			!strings.HasPrefix(auth, "Bearer ") ||
+			subtle.ConstantTimeCompare(attempt[:], approved[:]) != 1 {
+			if !failures.allowFailure(r.RemoteAddr) {
+				w.Header().Set("Retry-After", "60")
+				http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+				return
+			}
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}

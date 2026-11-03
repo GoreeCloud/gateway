@@ -34,6 +34,29 @@ jobs:
         run: go build -trimpath -o gateway ./cmd/gateway
       - name: Build console
         run: go build -trimpath -o gateway-console ./cmd/console
+      - name: Smoke test protected console API
+        run: |
+          token="$(openssl rand -hex 32)"
+          GOREE_GATEWAY_CONSOLE_TOKEN="$token" ./gateway-console > /tmp/gateway-console-smoke.log 2>&1 &
+          console_pid=$!
+          trap 'kill "$console_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:7689/healthz >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then
+            cat /tmp/gateway-console-smoke.log
+            exit 1
+          fi
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:7689/api/v1/overview)"
+          test "$code" = 401
+          curl --silent --show-error --fail --header "Authorization: Bearer $token" http://127.0.0.1:7689/api/v1/overview |
+            python3 -c 'import json,sys; x=json.load(sys.stdin); assert x["api_version"]=="v1" and x["state"]=="unreachable" and "routes" not in x'
+          curl --silent --show-error --fail http://127.0.0.1:7689/ | grep -q 'GoreeCloud Gateway'
       - name: Validate sample config
         run: ./gateway validate --config configs/Gatewayfile.example --adapter caddyfile
       - name: Loopback smoke test
