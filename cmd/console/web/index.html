@@ -15,16 +15,16 @@
 <aside class="sidebar">
 <div class="brand"><div class="brand-mark" aria-hidden="true">◇</div><div><strong>GoreeCloud</strong><span>GATEWAY / CONTROL</span></div></div>
 <p class="rail-heading">WORKSPACE</p>
-<nav aria-label="Main navigation">
+<nav id="desktopNav" aria-label="Main navigation" hidden>
 <button data-tab="overview" class="nav-item active" aria-current="page"><span aria-hidden="true">◈</span>Overview</button>
 <button data-tab="sites" class="nav-item"><span aria-hidden="true">◎</span>Sites & routes</button>
 <button data-tab="security" class="nav-item"><span aria-hidden="true">⬡</span>Security</button>
 <button data-tab="settings" class="nav-item"><span aria-hidden="true">⚙</span>Settings</button>
 </nav>
-<div class="rail-bottom"><div class="rail-note"><span>✧</span><strong>Private by design</strong><p>Your active configuration and credentials never leave this gateway.</p></div><button class="nav-item" id="railLock">⏻ Lock console</button></div>
+<div class="rail-bottom"><div class="rail-note"><span>✧</span><strong>Private by design</strong><p>Your active configuration and credentials never leave this gateway.</p></div><button class="nav-item" id="railLock" hidden>⏻ Lock console</button></div>
 </aside>
 <div class="workspace">
-<header class="topbar"><div class="breadcrumb">Infrastructure <span>/</span> <strong id="breadcrumbTitle">Overview</strong></div><div class="toolbar"><span id="connectionBadge" class="status-badge">● Not connected</span><button id="themeButton" type="button" class="icon-button" title="Switch appearance" aria-label="Switch appearance">◐</button><button id="refreshButton" type="button" class="icon-button" title="Refresh live status" aria-label="Refresh live status">↻</button></div></header>
+<header class="topbar"><div class="breadcrumb">Infrastructure <span>/</span> <strong id="breadcrumbTitle">Overview</strong></div><div class="toolbar"><span id="connectionBadge" class="status-badge">● Not connected</span><button id="themeButton" type="button" class="icon-button" title="Switch appearance" aria-label="Switch appearance">◐</button><button id="refreshButton" type="button" hidden class="icon-button" title="Refresh live status" aria-label="Refresh live status">↻</button></div></header>
 <main>
 <section id="loginPanel" class="welcome" aria-labelledby="welcomeTitle">
 <div class="welcome-copy"><span class="eyebrow"><i></i> PRIVATE INFRASTRUCTURE</span><h1 id="welcomeTitle">One gateway.<br><em>Complete clarity.</em></h1><p>Discover the state of your private edge, observe active routes, and keep security first—without giving up control of your infrastructure.</p><div class="chips"><span>◉ Local-first</span><span>◇ Read-only</span><span>✓ Self-hosted</span></div><div class="orbit" aria-hidden="true"><span class="orbit-ring one"></span><span class="orbit-ring two"></span><span class="orbit-core">◇</span><span class="orbit-node a"></span><span class="orbit-node b"></span></div></div>
@@ -45,6 +45,6 @@
 <footer>GoreeCloud Gateway <span>·</span> Powered by Caddy <span>·</span> Development</footer>
 </div>
 </div>
-<nav class="bottom-nav" aria-label="Mobile sections"><button data-tab="overview" class="mobile-item active">◈<small>Overview</small></button><button data-tab="sites" class="mobile-item">◎<small>Sites</small></button><button data-tab="security" class="mobile-item">⬡<small>Security</small></button><button data-tab="settings" class="mobile-item">⚙<small>Settings</small></button></nav>
+<nav class="bottom-nav" id="mobileNav" aria-label="Mobile sections" hidden><button data-tab="overview" class="mobile-item active">◈<small>Overview</small></button><button data-tab="sites" class="mobile-item">◎<small>Sites</small></button><button data-tab="security" class="mobile-item">⬡<small>Security</small></button><button data-tab="settings" class="mobile-item">⚙<small>Settings</small></button></nav>
 </body>
 </html>

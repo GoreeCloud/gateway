@@ -70,7 +70,7 @@ function render() {
  el("heroDescription").textContent = connected ? "Live summary of the local Caddy-compatible configuration." : "The console is available, but its local engine is not reachable. Metrics are intentionally unknown.";
  el("serverCount").textContent = connected ? String(data.servers) : "—";
  el("routeCount").textContent = connected ? String(data.routes) : "—";
- el("hostCount").textContent = connected ? String(data.hosts.length) : "—";
+ el("hostCount").textContent = connected ? String(data.host_count ?? data.hosts.length) : "—";
  el("lastChecked").textContent = data.checked_at ? "Observed " + new Date(data.checked_at).toLocaleString() : "No observation yet";
  setBadge(connected ? "Engine online" : "Engine offline", connected ? "online" : "offline");
  renderHosts();
@@ -119,10 +119,16 @@ function showError(message) {
  el("loginError").textContent = message;
  el("loginError").hidden = false;
 }
+function setUnlockedNavigation(unlocked) {
+ for (const id of ["desktopNav", "mobileNav", "railLock", "refreshButton"]) {
+  el(id).hidden = !unlocked;
+ }
+}
 function lock() {
  epoch += 1;
  token = "";
  data = null;
+ setUnlockedNavigation(false);
  el("tokenInput").value = "";
  el("loginPanel").hidden = false;
  el("dashboardPanel").hidden = true;
@@ -144,6 +150,7 @@ el("loginForm").addEventListener("submit", async (event) => {
   el("tokenInput").value = "";
   el("loginPanel").hidden = true;
   el("dashboardPanel").hidden = false;
+  setUnlockedNavigation(true);
   render();
   navigate("overview");
  } catch (error) {

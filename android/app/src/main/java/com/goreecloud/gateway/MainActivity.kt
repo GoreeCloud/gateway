@@ -144,7 +144,7 @@ private fun GatewayApp() {
                                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     MetricCard("Servers", data.servers?.toString() ?: "—", Modifier.weight(1f))
                                     MetricCard("Routes", data.routes?.toString() ?: "—", Modifier.weight(1f))
-                                    MetricCard("Hosts", if (data.state == "connected") data.hosts.size.toString() else "—", Modifier.weight(1f))
+                                    MetricCard("Hosts", if (data.state == "connected") (data.hostCount ?: data.hosts.size).toString() else "—", Modifier.weight(1f))
                                 }
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text("Active hostnames", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
@@ -162,7 +162,12 @@ private fun GatewayApp() {
                                 PageTitle("Sites & routes", "Hostnames in the active HTTP configuration.")
                                 if (data.state != "connected") HintCard("Engine offline; routing data is unavailable.")
                                 else if (data.hosts.isEmpty()) HintCard("No host matchers found in top-level routes.")
-                                else data.hosts.forEach { HostCard(it) }
+                                else {
+                                    if ((data.hostCount ?: data.hosts.size) > data.hosts.size) {
+                                        HintCard("Showing the first " + data.hosts.size + " of " + data.hostCount + " configured hostnames.")
+                                    }
+                                    data.hosts.forEach { HostCard(it) }
+                                }
                             }
                             2 -> {
                                 PageTitle("Security", "Controls protecting this console.")

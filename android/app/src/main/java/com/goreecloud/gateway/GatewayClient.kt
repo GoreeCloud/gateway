@@ -8,6 +8,7 @@ data class GatewaySnapshot(
     val servers: Int?,
     val routes: Int?,
     val hosts: List<String>,
+    val hostCount: Int?,
     val checkedAt: String
 )
 
@@ -77,6 +78,7 @@ class GatewayClient {
                     servers = if (payload.isNull("servers")) null else payload.optInt("servers"),
                     routes = if (payload.isNull("routes")) null else payload.optInt("routes"),
                     hosts = hosts,
+                    hostCount = if (payload.isNull("host_count")) null else payload.optInt("host_count"),
                     checkedAt = payload.optString("checked_at")
                 )
             } finally {
