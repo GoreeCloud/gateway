@@ -58,6 +58,45 @@ def wait_ready(url: str, process: subprocess.Popen[bytes],
     raise RuntimeError("Isolated Gateway test service did not become ready")
 
 
+def create_disposable_ca(work: Path) -> tuple[Path, Path, Path]:
+    """Create a synthetic one-day CA + localhost certificate without global trust."""
+    def openssl(*args: str) -> None:
+        subprocess.run(
+            ["openssl", *args], check=True, timeout=20,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+
+    root_cert, root_key = work / "ca.crt", work / "ca.key"
+    leaf_cert, leaf_key = work / "leaf.crt", work / "leaf.key"
+    openssl(
+        "req", "-x509", "-newkey", "ec",
+        "-pkeyopt", "ec_paramgen_curve:prime256v1",
+        "-nodes", "-days", "1", "-keyout", str(root_key),
+        "-out", str(root_cert), "-subj", "/CN=GoreeCloud disposable test CA",
+        "-addext", "basicConstraints=critical,CA:TRUE",
+        "-addext", "keyUsage=critical,keyCertSign,cRLSign",
+    )
+    openssl(
+        "req", "-new", "-newkey", "ec",
+        "-pkeyopt", "ec_paramgen_curve:prime256v1",
+        "-nodes", "-keyout", str(leaf_key),
+        "-out", str(work / "leaf.csr"), "-subj", "/CN=localhost",
+    )
+    (work / "leaf.ext").write_text(
+        "subjectAltName=DNS:localhost\n"
+        "extendedKeyUsage=serverAuth\n"
+        "keyUsage=digitalSignature\n"
+        "basicConstraints=CA:FALSE\n", encoding="utf-8",
+    )
+    openssl(
+        "x509", "-req", "-in", str(work / "leaf.csr"),
+        "-CA", str(root_cert), "-CAkey", str(root_key),
+        "-CAcreateserial", "-out", str(leaf_cert),
+        "-days", "1", "-extfile", str(work / "leaf.ext"),
+    )
+    return root_cert, leaf_cert, leaf_key
+
+
 def execute() -> None:
     for filename in ("gateway", "gateway-console"):
         path = ROOT / filename
@@ -103,13 +142,16 @@ def execute() -> None:
             )
             wait_ready(CONSOLE_HEALTH, console)
 
+            root_cert, leaf_cert, leaf_key = create_disposable_ca(work)
+            proxy_env = isolated_env("proxy")
+            proxy_env["GC_TEST_TLS_CERT"] = str(leaf_cert)
+            proxy_env["GC_TEST_TLS_KEY"] = str(leaf_key)
             proxy = start([
                 str(ROOT / "gateway"), "run",
                 "--config", "configs/PrivateConsoleTLS.example",
                 "--adapter", "caddyfile",
-            ], "proxy.log", isolated_env("proxy"))
+            ], "proxy.log", proxy_env)
 
-            root_cert = work / "proxy" / "data" / "caddy" / "pki" / "authorities" / "local" / "root.crt"
             for _ in range(100):
                 if proxy.poll() is not None:
                     raise RuntimeError("The isolated TLS proxy stopped unexpectedly")
@@ -146,6 +188,7 @@ def execute() -> None:
             assert code == 200 and "GoreeCloud Gateway" in body
             assert "x-frame-options: deny" in response_headers.lower()
             assert "cache-control: no-store" in response_headers.lower()
+            assert not (work / "proxy" / "data" / "caddy" / "pki").exists(), "Unexpected implicit Caddy PKI state"
             print("PASS: authenticated Gateway API and web console through isolated verified local HTTPS")
         finally:
             for proc in reversed(children):
