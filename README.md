@@ -73,6 +73,10 @@ A separate [synthetic two-upstream proxy test](docs/RUNTIME_PROXY_TEST.md) verif
 
 The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) runs a real loopback-bound Caddy-based Gateway alongside its read-only web/API companion and verifies authenticated connection status, throttling, rejected write/cross-site requests and web security headers. It uses synthetic HTTP-only configuration and never exercises public ingress, live credentials, ACME issuance or the stopped production Caddy container.
 
+## Ongoing Go vulnerability assessment
+
+The [Go vulnerability security workflow](docs/SECURITY_SCANNING.md) uses a pinned official Go vulnerability scanner to check reachable known vulnerabilities in Gateway's source and dependencies on pull requests, `main` and weekly intervals. Failures require triage; a clean scan is not a production security certification, container-image audit, Android dependency audit or backup verification.
+
 ## Test-device builds and legacy ingress diagnostics
 
 GitHub's Android CI now verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory.
