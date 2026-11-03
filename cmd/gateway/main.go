@@ -8,5 +8,5 @@ import (
 )
 
 func main() {
-	cmd.Main()
+	caddycmd.Main()
 }
