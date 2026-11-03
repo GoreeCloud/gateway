@@ -33,7 +33,11 @@ jobs:
       - name: Format
         run: test -z "$(gofmt -l cmd modules)"
       - name: Validate read-only ingress diagnostic syntax
-        run: bash -n scripts/inspect_legacy_ingress.sh
+        run: |
+          bash -n scripts/inspect_legacy_ingress.sh
+          python3 -m py_compile scripts/legacy_recovery_audit.py
+      - name: Verify redacted recovery audit and failure isolation
+        run: python3 -m unittest discover -s scripts -p 'test_legacy_recovery_audit.py' -v
       - name: Validate integration smoke syntax
         run: bash -n scripts/test_connected_console.sh
       - name: Validate local HTTPS test syntax
