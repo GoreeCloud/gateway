@@ -22,6 +22,10 @@ The initial milestone is deliberately read-only. I can see the current engine co
 - **Android application:** actual Kotlin/Jetpack Compose Android source under `android/`. It uses a typed HTTPS client to query the same read-only API. Its access token remains only in process memory, with no persistence, backups or WebView; the native app rejects cleartext HTTP.
 - **Other services:** Caddy, DNS, NetBird, TLS termination and any Zero Trust access proxy are independent integrations. The Android application does not imply that a VPN tunnel, DNS record or a public console endpoint already exists.
 
+## Optional GoreeCloud Identity bearer-token verification (development only)
+
+The Go management sidecar now has an **opt-in, disabled-by-default** OIDC JWT-verification adapter for the existing read-only overview API. It requires an exact trusted HTTPS Keycloak realm, OAuth resource audience, client ID, custom tenant claim, `gateway:read` scope and `gateway-reader` role; the original static console token remains accepted without change. See the [Identity OIDC integration contract](IDENTITY_OIDC.md) for required settings, trust boundaries and deployment restrictions. **The browser and Android clients do not yet implement an OIDC interactive login flow; this is not production SSO.**
+
 ## Development build
 
 Requirements: Go version from root `go.mod`, plus Android SDK 36, JDK 17 and Gradle 8.13 for Android.

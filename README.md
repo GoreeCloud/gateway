@@ -15,6 +15,7 @@ GoreeCloud Gateway is a GoreeCloud-branded, privacy-first ingress and reverse-pr
 - **GoreeCloud Gateway Web:** responsive local-first management interface with session unlock, overview, hostname discovery, security guidance, settings and light/dark appearance; currently read-only.
 - **GoreeCloud Gateway for Android:** native Kotlin/Jetpack Compose app with an HTTPS-only connection flow, read-only status and hostname display, and in-memory-only access token.
 - **Management API:** a separate loopback-only Go sidecar, guarded by a long random access token, which minimizes Caddy admin configuration into a versioned, read-only API.
+- **Optional Identity API token verification (development):** a disabled-by-default, issuer-pinned, RS256-verified OIDC bearer access-token path for the read-only console, requiring exact audience, OAuth client, tenant, scope and role. The static token continues to work. **Not browser SSO, not deployed.**
 
 **Not yet implemented or verified:** production-grade dashboard acceptance, end-to-end Android installation, multi-user identity, write administration, external SSO, WAF, rate limiting, production telemetry, high availability, production deployment, or full parity with existing VPS ingress. Source/CI results and release acceptance must be reported separately. A configuration directive alone is not proof a feature operates on a server.
 
@@ -46,6 +47,8 @@ go build -o gateway-console ./cmd/console
 # Configure GOREE_GATEWAY_CONSOLE_TOKEN securely in the host environment before starting.
 ./gateway-console
 ```
+
+An [optional GoreeCloud Identity OIDC API authorization adapter](docs/IDENTITY_OIDC.md) is also present in source. It is disabled unless every exact environment setting is explicitly configured; it is **not** a browser login, a public HTTPS ingress, or an approved production cutover.
 
 The console listens only on `127.0.0.1:7689`; Android requires a reviewed private HTTPS gateway to reach it. **Do not publish the Caddy admin endpoint or console listener.** See [web and Android documentation](docs/CONSOLE.md) for authentication, build, and release details. No Android APK is yet delivered.
 
