@@ -1,0 +1,18 @@
+# Development smoke test only. Explicit HTTP and loopback binding
+# prevent public exposure and unintended ACME issuance.
+# Production domains, routes and upstream ports belong in restricted configuration.
+http://127.0.0.1:8080 {
+	goree_request_id
+	goree_security_headers
+
+	@internal path /internal/*
+	handle @internal {
+		# Direct peer source address; deliberately ignores forwarded headers.
+		goree_ip_allowlist 127.0.0.0/8 ::1/128
+		respond "private route" 200
+	}
+
+	handle {
+		respond "GoreeCloud Gateway development endpoint" 200
+	}
+}

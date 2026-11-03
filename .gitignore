@@ -1,0 +1,19 @@
+# build output
+/gateway
+/dist/
+/build/
+/coverage.out
+*.test
+# local state and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+/caddy-data/
+/caddy-config/
+.idea/
+.vscode/
