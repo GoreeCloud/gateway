@@ -34,5 +34,20 @@ jobs:
         run: gradle -p android :app:testDebugUnitTest --no-daemon --stacktrace
       - name: Compile Android debug APK
         run: gradle -p android :app:assembleDebug --no-daemon --stacktrace
-      # APK publication intentionally omitted. GoreeCloud requires standalone APK
-      # delivery to its authorized Google Drive Artifacts directory after review.
+      - name: Verify development APK and create SHA-256 manifest
+        run: |
+          apk=android/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$apk"
+          unzip -t "$apk" >/dev/null
+          (cd "$(dirname "$apk")" && sha256sum app-debug.apk > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
+      - name: Preserve debug APK for local device testing
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-gateway-debug-test-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/debug/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+      # GitHub test artifacts are NOT production release deliverables.
+      # The authorized standalone APK destination is GoreeCloud/Artifacts on Drive.

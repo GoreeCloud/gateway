@@ -53,6 +53,12 @@ The console listens only on `127.0.0.1:7689`; Android requires a reviewed privat
 
 See [configs/Gatewayfile.example](configs/Gatewayfile.example). Never use example addresses, upstream ports, or access lists as real production configuration. Caddy's admin API must remain loopback-only unless secured behind separate authentication and network restrictions.
 
+## Test-device builds and legacy ingress diagnostics
+
+GitHub's Android CI now verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory.
+
+For legacy Dockerized Caddy, the [read-only diagnostic guide](docs/INGRESS_RECOVERY.md) and [inspection script](scripts/inspect_legacy_ingress.sh) report limited health metadata without modifying live infrastructure. Diagnostic output does not establish that restarting or replacing a stopped container is safe.
+
 ## Production safety
 
 Do not change the running `caddy` service, port 80/443 ownership, systemd units, firewall, DNS, or certificate data until the [cutover checklist](docs/CUTOVER.md) is satisfied, the existing ingress owner's identity is verified, and a tested rollback is ready. Any actual production deployment requires its own acceptance and authorization.

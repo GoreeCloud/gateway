@@ -43,7 +43,7 @@ gradle :app:testDebugUnitTest
 gradle :app:assembleDebug
 ```
 
-Open the project in Android Studio for device/emulator validation. Provide a trusted HTTPS URL for the management sidecar through an approved private ingress path. The Android application cannot connect to the VPS through its own device's `127.0.0.1`. No APK is considered delivered until a verified standalone APK is placed in `GoreeCloud/Artifacts` in the approved Google Drive account.
+Open the project in Android Studio for device/emulator validation. Provide a trusted HTTPS URL for the management sidecar through an approved private ingress path. The Android application cannot connect to the VPS through its own device's `127.0.0.1`. CI may retain a 7-day development/debug APK workflow artifact with a SHA-256 manifest for controlled device testing. Debug signing is not production release signing. No APK is considered delivered until a separately validated standalone APK is placed directly in `GoreeCloud/Artifacts` in the approved Google Drive account and its stored bytes are verified.
 
 ## API contract (v1)
 
