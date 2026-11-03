@@ -23,6 +23,7 @@ I am building GoreeCloud Gateway as an original distribution that embeds a versi
 - Do not expose the Caddy admin API publicly. Default is local-only; if a reverse proxy/load balancer fronts Gateway, its trust configuration must be reviewed.
 - Preserve existing HTTPS keys/certificate state with restrictive Unix ownership. Never put cert keys or live config with credentials into the public GitHub repo.
 - Per-app hardening, body limits, WAF, authentication, rate limits, metrics, and audits must be verified separately before any claims of coverage.
+- The custom Caddyfile directives register their handler order before `handle`, so guards can execute before terminating subroutes. For complex chains, use Caddy `route` to make order explicit; validate both the adapted config and actual requests. Do not assume textual directive order is honored within `handle`.
 - Admin UI is not implemented. Prefer no dashboard over an unauthenticated production control plane.
 - Test the composed configuration with `gateway adapt`, `gateway validate`, live HTTP/TLS probes, and application integration tests.
 

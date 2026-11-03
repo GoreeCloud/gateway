@@ -11,6 +11,7 @@ import (
 func init() {
 	caddy.RegisterModule(SecurityHeaders{})
 	httpcaddyfile.RegisterHandlerDirective("goree_security_headers", parseSecurityHeaders)
+	httpcaddyfile.RegisterDirectiveOrder("goree_security_headers", httpcaddyfile.Before, "handle")
 }
 
 // SecurityHeaders adds conservative opt-in headers to routed responses.

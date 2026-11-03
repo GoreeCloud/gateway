@@ -16,6 +16,7 @@ const requestIDHeader = "X-Request-ID"
 func init() {
 	caddy.RegisterModule(RequestID{})
 	httpcaddyfile.RegisterHandlerDirective("goree_request_id", parseRequestID)
+	httpcaddyfile.RegisterDirectiveOrder("goree_request_id", httpcaddyfile.Before, "handle")
 }
 
 // RequestID assigns a new cryptographically random ID to every request.

@@ -20,6 +20,8 @@ jobs:
           cache: false
       - name: Resolve pinned modules
         run: go mod tidy
+      - name: Verify dependency checksums
+        run: go mod verify
       - name: Format
         run: test -z "$(gofmt -l cmd modules)"
       - name: Test
@@ -30,6 +32,25 @@ jobs:
         run: go build -trimpath -o gateway ./cmd/gateway
       - name: Validate sample config
         run: ./gateway validate --config configs/Gatewayfile.example --adapter caddyfile
+      - name: Loopback smoke test
+        run: |
+          ./gateway run --config configs/Gatewayfile.example --adapter caddyfile > gateway.log 2>&1 &
+          gateway_pid=$!
+          trap 'kill "$gateway_pid" 2>/dev/null || true' EXIT
+          ready=0
+          for i in $(seq 1 30); do
+            if curl --silent --fail --max-time 2 http://127.0.0.1:8080/ >/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          if [ "$ready" -ne 1 ]; then cat gateway.log; exit 1; fi
+          curl --silent --show-error --fail --dump-header /tmp/gateway-headers -o /dev/null http://127.0.0.1:8080/
+          grep -Eiq '^X-Request-Id: [0-9a-f]{32}' /tmp/gateway-headers
+          grep -Eiq '^X-Frame-Options: DENY' /tmp/gateway-headers
+          grep -Eiq '^X-Content-Type-Options: nosniff' /tmp/gateway-headers
+          curl --silent --show-error --fail http://127.0.0.1:8080/internal/test | grep -q 'private route'
       - name: Check registered modules
         run: |
           ./gateway list-modules | grep -q 'http.handlers.goree_request_id'

@@ -14,6 +14,7 @@ import (
 func init() {
 	caddy.RegisterModule(IPAllowlist{})
 	httpcaddyfile.RegisterHandlerDirective("goree_ip_allowlist", parseIPAllowlist)
+	httpcaddyfile.RegisterDirectiveOrder("goree_ip_allowlist", httpcaddyfile.Before, "handle")
 }
 
 // IPAllowlist guards an explicitly selected route by the directly connected
