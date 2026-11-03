@@ -1,0 +1,37 @@
+name: Gateway CI
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Resolve pinned modules
+        run: go mod tidy
+      - name: Format
+        run: test -z "$(gofmt -l cmd modules)"
+      - name: Test
+        run: go test -race ./...
+      - name: Vet
+        run: go vet ./...
+      - name: Build
+        run: go build -trimpath -o gateway ./cmd/gateway
+      - name: Validate sample config
+        run: ./gateway validate --config configs/Gatewayfile.example --adapter caddyfile
+      - name: Check registered modules
+        run: |
+          ./gateway list-modules | grep -q 'http.handlers.goree_request_id'
+          ./gateway list-modules | grep -q 'http.handlers.goree_security_headers'
+          ./gateway list-modules | grep -q 'http.handlers.goree_ip_allowlist'

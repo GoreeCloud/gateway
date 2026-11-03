@@ -1,0 +1,25 @@
+# Demonstration only. Use real hosts and upstreams after private inventory review.
+# No live hostname or sensitive infrastructure endpoint is embedded here.
+{
+	# Custom Caddyfile handler order; adjust placement per application.
+	order goree_ip_allowlist before reverse_proxy
+	order goree_request_id before reverse_proxy
+	order goree_security_headers before reverse_proxy
+}
+
+:8080 {
+	# Only for a non-production local smoke test.
+	goree_request_id
+	goree_security_headers
+
+	@internal path /internal/*
+	handle @internal {
+		# Direct peer address only. If a load balancer sits in front,
+		# use verified network ACLs and Caddy trusted-proxy configuration.
+		goree_ip_allowlist 127.0.0.0/8 ::1/128
+		respond "private route" 200
+	}
+	handle {
+		respond "GoreeCloud Gateway development endpoint" 200
+	}
+}
