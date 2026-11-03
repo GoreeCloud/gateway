@@ -51,11 +51,16 @@ A dedicated Android CI emulator job runs native Compose instrumentation tests on
 
 `GET /healthz` returns a minimal sidecar-process health result on the loopback listener without exposing operational details. No route-modifying endpoints are registered.
 
+## Synthetic private HTTPS test (development)
+
+The [isolated HTTPS verification script](PRIVATE_HTTPS_TEST.md) starts a separate loopback-only TLS proxy with its admin listener disabled, synthetic one-day OpenSSL certificates, and strict certificate-chain verification via an explicit temporary CA. It exercises the web application and protected read-only API without changing global trust stores or touching DNS/ACME. This is not evidence of a real remote HTTPS service, Android device-to-API connectivity, or production identity policy acceptance.
+
 ## Security restrictions and future acceptance
 
 1. Keep the management sidecar loopback-only; remotely access it only through a reviewed HTTPS / VPN / Zero Trust boundary with trustworthy TLS and authorization. The console token is not a substitute for service authentication, privilege separation or external rate limiting.
 2. Never copy a real bearer token, TLS certificate, Caddy configuration, account credential, network secret or private hostname inventory into this public repository, GitHub Actions logs, issues, or application source.
-3. The sidecar throttles invalid tokens after eight failed attempts per direct TCP peer within one minute (429 with Retry-After). It ignores spoofable forwarded-client headers, keeps bounded in-memory counters, and never rejects a valid token due to an attacker\x27s failed attempts. When the console sits behind a reverse proxy, many remote users may share its immediate peer address; this is **not** a substitute for trusted-edge per-client rate limits or a privileged identity service. Multiple Authorization headers are rejected.\n4. The sidecar fetches the fixed local admin endpoint; response size is limited and data is minimized. The web app applies a restrictive Content Security Policy and `Cache-Control: no-store`. This is not proof of a complete security audit.
+3. The sidecar throttles invalid tokens after eight failed attempts per direct TCP peer within one minute (429 with Retry-After). It ignores spoofable forwarded-client headers, keeps bounded in-memory counters, and never rejects a valid token due to an attacker's failed attempts. When the console sits behind a reverse proxy, many remote users may share its immediate peer address; this is **not** a substitute for trusted-edge per-client rate limits or a privileged identity service. Multiple Authorization headers are rejected.
+4. The sidecar fetches the fixed local admin endpoint; response size is limited and data is minimized. The web app applies a restrictive Content Security Policy and `Cache-Control: no-store`. This is not proof of a complete security audit.
 5. Browser and Android implementations require actual responsive/visual acceptance, Android installation and signing evidence, usability verification, integration and recovery tests before Stable.
 6. The Caddy replacement still requires inventory of live routes and certificates, backup/restore verification, staged parity tests, a rollback rehearsal, explicit production acceptance, and verified VPS connectivity. Existing Caddy must not be removed based solely on these apps passing CI.
 
