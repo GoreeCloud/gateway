@@ -28,3 +28,9 @@
 *.aab
 *.jks
 *.keystore
+
+# transient Go/Python smoke-test outputs
+/gateway-console
+/gateway.log
+__pycache__/
+*.py[cod]
