@@ -1,6 +1,7 @@
 (() => {
 "use strict";
 let token = "";
+let epoch = 0;
 let data = null;
 const el = (id) => document.getElementById(id);
 const pages = {
@@ -90,12 +91,17 @@ async function requestOverview(key) {
 }
 async function refresh() {
  if (!token) return;
+ const requestedEpoch = epoch;
+ const requestedToken = token;
  el("refreshButton").disabled = true;
  el("pageRefresh").disabled = true;
  try {
-  data = await requestOverview(token);
+  const result = await requestOverview(requestedToken);
+  if (requestedEpoch !== epoch) return;
+  data = result;
   render();
  } catch (error) {
+  if (requestedEpoch !== epoch) return;
   if (error.message === "unauthorized") {
    lock();
    showError("Your session is no longer authorized.");
@@ -114,6 +120,7 @@ function showError(message) {
  el("loginError").hidden = false;
 }
 function lock() {
+ epoch += 1;
  token = "";
  data = null;
  el("tokenInput").value = "";
@@ -125,11 +132,13 @@ function lock() {
 el("loginForm").addEventListener("submit", async (event) => {
  event.preventDefault();
  const candidate = el("tokenInput").value;
+ const requestedEpoch = epoch;
  el("loginError").hidden = true;
  if (candidate.length < 32) { showError("Enter the complete 32+ character console token."); return; }
  el("connectButton").disabled = true;
  try {
   const result = await requestOverview(candidate);
+  if (requestedEpoch !== epoch) return;
   token = candidate;
   data = result;
   el("tokenInput").value = "";
@@ -138,6 +147,7 @@ el("loginForm").addEventListener("submit", async (event) => {
   render();
   navigate("overview");
  } catch (error) {
+  if (requestedEpoch !== epoch) return;
   showError(error.message === "unauthorized" ? "Access denied. Check your token." : "Unable to reach a compatible console.");
  } finally { el("connectButton").disabled = false; }
 });
