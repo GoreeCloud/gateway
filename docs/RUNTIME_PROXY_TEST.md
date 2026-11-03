@@ -6,12 +6,12 @@ The test `scripts/test_runtime_proxy_parity.py` launches the pinned GoreeCloud G
 
 The test verifies:
 
-- Distinct `/internal/*` and fallback routes select the expected local upstreams, including a directly connected loopback allowlist that ignores a forged `X-Forwarded-For` header.
+- Distinct `/internal/*` and fallback routes select the expected local upstreams. A permitted direct-loopback allowlist ignores a forged `X-Forwarded-For` header, while a separate denied route rejects the actual loopback peer with HTTP 403 even when `X-Forwarded-For` claims an approved address.
 - Each request receives a new cryptographically random 32-character hexadecimal `X-Request-ID`. A client-supplied forged request ID is replaced, and the header forwarded upstream equals the response header.
 - Opt-in `X-Frame-Options` and `X-Content-Type-Options` are present.
 - A synthetic HTTP 307 redirect preserves its target path.
 - A small chunked streaming response passes through correctly.
-- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header.
+- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header and relays one client-masked short text frame through to the test backend and its unmasked echoed frame back to the client.
 
 Run only with a reviewed development binary:
 
@@ -20,7 +20,7 @@ CGO_ENABLED=0 go build -trimpath -o gateway ./cmd/gateway
 python3 scripts/test_runtime_proxy_parity.py
 ```
 
-This test does **not** prove ongoing bidirectional WebSocket frame delivery, long-running streams, HTTP/2, HTTP/3, full production hostname/rule parity, trust-boundary equivalence, certificate issuance or renewal, protected storage restoration, IPv6, external-network exposure, or service-level availability. These require separate acceptance evidence.
+This test does **not** prove long-running or multiple/binary WebSocket frames, ping/pong or reconnect semantics, long-running streams, HTTP/2, HTTP/3, full production hostname/rule parity, trust-boundary equivalence, certificate issuance or renewal, protected storage restoration, IPv6, external-network exposure, or service-level availability. These require separate acceptance evidence.
 
 The script checks for pre-existing test port listeners, starts only temporary local processes, creates no certificates, injects no production credentials, and terminates its children. Never use it as a production Caddyfile or copy production domains/secrets into the test.
 
