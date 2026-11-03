@@ -1,0 +1,34 @@
+# Synthetic, never deploy: migration-shape exercise for Gateway Caddyfile adaptation.
+# .test is reserved and the upstreams are local documentation ports.
+# DNS credentials and Basic Auth hash are placeholders, not live secrets.
+https://migration.example.test {
+    tls {
+        dns porkbun {
+            api_key {env.PORKBUN_API_KEY}
+            api_secret_key {env.PORKBUN_API_SECRET_KEY}
+        }
+    }
+
+    encode zstd gzip
+    header {
+        X-Frame-Options DENY
+        Referrer-Policy no-referrer
+    }
+
+    @health path /healthz
+    handle @health {
+        respond "Synthetic gateway health" 200
+    }
+
+    @admin path /admin/*
+    handle @admin {
+        basic_auth {
+            test {$GC_TEST_BCRYPT}
+        }
+        reverse_proxy 127.0.0.1:18101
+    }
+
+    handle {
+        reverse_proxy 127.0.0.1:18102
+    }
+}
