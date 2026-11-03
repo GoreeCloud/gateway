@@ -242,7 +242,7 @@ private fun ConnectPanel(
                 Text("Enter your HTTPS console address and access token. The token stays only in memory.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 OutlinedTextField(value = url, onValueChange = onUrl, label = { Text("HTTPS console URL") }, placeholder = { Text("https://gateway.example.org") }, singleLine = true, modifier = Modifier.fillMaxWidth().testTag("gateway.console.address"))
                 OutlinedTextField(value = token, onValueChange = onToken, label = { Text("Access token") }, visualTransformation = PasswordVisualTransformation(), singleLine = true, modifier = Modifier.fillMaxWidth().testTag("gateway.console.token"))
-                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                if (error != null) Text(error, color = MaterialTheme.colorScheme.error, fontSize = 13.sp, modifier = Modifier.testTag("gateway.console.error"))
                 Button(onClick = onConnect, enabled = !busy && url.isNotBlank() && token.length >= 32, modifier = Modifier.fillMaxWidth().height(54.dp).testTag("gateway.console.connect"), shape = RoundedCornerShape(16.dp)) {
                     Text(if (busy) "Connecting…" else "Open Gateway  ↗", fontWeight = FontWeight.Bold)
                 }
