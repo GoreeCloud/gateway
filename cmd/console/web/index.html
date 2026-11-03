@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#0d1426">
+<meta name="description" content="Private GoreeCloud Gateway infrastructure console">
+<title>GoreeCloud Gateway · Console</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="glow glow-left" aria-hidden="true"></div><div class="glow glow-right" aria-hidden="true"></div>
+<div class="shell">
+<aside class="sidebar">
+<div class="brand"><div class="brand-mark" aria-hidden="true">◇</div><div><strong>GoreeCloud</strong><span>GATEWAY / CONTROL</span></div></div>
+<p class="rail-heading">WORKSPACE</p>
+<nav aria-label="Main navigation">
+<button data-tab="overview" class="nav-item active" aria-current="page"><span aria-hidden="true">◈</span>Overview</button>
+<button data-tab="sites" class="nav-item"><span aria-hidden="true">◎</span>Sites & routes</button>
+<button data-tab="security" class="nav-item"><span aria-hidden="true">⬡</span>Security</button>
+<button data-tab="settings" class="nav-item"><span aria-hidden="true">⚙</span>Settings</button>
+</nav>
+<div class="rail-bottom"><div class="rail-note"><span>✧</span><strong>Private by design</strong><p>Your active configuration and credentials never leave this gateway.</p></div><button class="nav-item" id="railLock">⏻ Lock console</button></div>
+</aside>
+<div class="workspace">
+<header class="topbar"><div class="breadcrumb">Infrastructure <span>/</span> <strong id="breadcrumbTitle">Overview</strong></div><div class="toolbar"><span id="connectionBadge" class="status-badge">● Not connected</span><button id="themeButton" type="button" class="icon-button" title="Switch appearance" aria-label="Switch appearance">◐</button><button id="refreshButton" type="button" class="icon-button" title="Refresh live status" aria-label="Refresh live status">↻</button></div></header>
+<main>
+<section id="loginPanel" class="welcome" aria-labelledby="welcomeTitle">
+<div class="welcome-copy"><span class="eyebrow"><i></i> PRIVATE INFRASTRUCTURE</span><h1 id="welcomeTitle">One gateway.<br><em>Complete clarity.</em></h1><p>Discover the state of your private edge, observe active routes, and keep security first—without giving up control of your infrastructure.</p><div class="chips"><span>◉ Local-first</span><span>◇ Read-only</span><span>✓ Self-hosted</span></div><div class="orbit" aria-hidden="true"><span class="orbit-ring one"></span><span class="orbit-ring two"></span><span class="orbit-core">◇</span><span class="orbit-node a"></span><span class="orbit-node b"></span></div></div>
+<div class="login-card"><div class="card-mark">⌘</div><span class="eyebrow subtle">SECURE SESSION</span><h2>Unlock the console</h2><p>Enter the access token configured on your self-hosted console. We keep it only in this browser tab's memory.</p><form id="loginForm"><label for="tokenInput">Console access token</label><input id="tokenInput" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" minlength="32" placeholder="Paste your console token" required><button type="submit" class="primary-button" id="connectButton">Connect securely <span>↗</span></button></form><p id="loginError" class="form-error" role="alert" hidden></p><div class="card-footer">Use loopback, private-network HTTPS or a trusted Zero Trust access path. Never expose Caddy's admin API directly.</div></div>
+</section>
+<section id="dashboardPanel" hidden>
+<div class="page-heading"><div><span class="eyebrow">GATEWAY / CONTROL CENTER</span><h1 id="pageTitle">Overview</h1><p id="pageSubtitle">A clear view of your private edge.</p></div><button id="pageRefresh" class="secondary-button" type="button">↻ Refresh</button></div>
+<div id="overviewView" class="view">
+<div class="hero"><div class="hero-copy"><span class="eyebrow">CURRENT CONNECTION</span><h2 id="heroTitle">Checking the engine…</h2><p id="heroDescription">Observing the local Caddy-compatible configuration.</p><small id="lastChecked">No observation yet</small></div><div class="hero-orbit" aria-hidden="true"><span></span>◇</div></div>
+<div class="metrics"><article class="metric"><div class="metric-caption">HTTP servers <span>◎</span></div><div id="serverCount" class="metric-number">—</div><p>Configured server instances</p></article><article class="metric"><div class="metric-caption">Routing rules <span>⌁</span></div><div id="routeCount" class="metric-number">—</div><p>Top-level routes observed</p></article><article class="metric"><div class="metric-caption">Host matchers <span>◈</span></div><div id="hostCount" class="metric-number">—</div><p>Unique hostnames configured</p></article></div>
+<div class="section-title"><h2>Active hostnames</h2><button id="openSites" class="text-button" type="button">See all ↗</button></div><div id="overviewHosts" class="host-grid"></div>
+</div>
+<div id="sitesView" class="view" hidden><div class="surface"><div class="surface-header"><div><h2>Sites & routes</h2><p>Discovered hostname matchers—not a DNS or availability guarantee.</p></div><span class="tag">READ ONLY</span></div><label for="hostSearch">Filter hostnames</label><input id="hostSearch" type="search" placeholder="Search configured hostnames"><div id="siteHosts" class="site-list"></div></div></div>
+<div id="securityView" class="view" hidden><div class="surface"><div class="surface-header"><div><h2>Security posture</h2><p>Console safeguards, not a full infrastructure audit.</p></div><span class="tag">FOUNDATION</span></div><div class="security-row"><span class="security-mark">◇</span><div><strong>Bearer-token API</strong><p>Only authenticated requests can read operational summaries.</p></div><span class="positive">ENABLED</span></div><div class="security-row"><span class="security-mark">◎</span><div><strong>Loopback binding</strong><p>The console refuses public listener addresses; remote access requires a trusted TLS gateway.</p></div><span class="positive">ENFORCED</span></div><div class="security-row"><span class="security-mark">⌘</span><div><strong>Configuration privacy</strong><p>Raw Caddy configuration, upstream credentials and keys are not returned.</p></div><span class="positive">REDACTED</span></div><div class="security-row"><span class="security-mark">⌁</span><div><strong>Write operations</strong><p>Changes, restarts and deployments are deliberately disabled in this release.</p></div><span class="neutral">UNAVAILABLE</span></div></div></div>
+<div id="settingsView" class="view" hidden><div class="surface"><div class="surface-header"><div><h2>Session & preferences</h2><p>You decide when to connect and disconnect.</p></div></div><div class="setting"><div><strong>Session</strong><p>The token is cleared on lock and browser reload.</p></div><button id="settingLock" class="secondary-button" type="button">Lock now</button></div><div class="setting"><div><strong>Appearance</strong><p>Choose your workspace theme.</p></div><button id="settingTheme" class="secondary-button" type="button">Switch theme</button></div><div class="setting"><div><strong>API version</strong><p>Read-only <code>GET /api/v1/overview</code></p></div><span class="tag">v1</span></div></div></div>
+</section>
+</main>
+<footer>GoreeCloud Gateway <span>·</span> Powered by Caddy <span>·</span> Development</footer>
+</div>
+</div>
+<nav class="bottom-nav" aria-label="Mobile sections"><button data-tab="overview" class="mobile-item active">◈<small>Overview</small></button><button data-tab="sites" class="mobile-item">◎<small>Sites</small></button><button data-tab="security" class="mobile-item">⬡<small>Security</small></button><button data-tab="settings" class="mobile-item">⚙<small>Settings</small></button></nav>
+</body>
+</html>
