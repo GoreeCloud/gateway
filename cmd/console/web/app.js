@@ -119,10 +119,16 @@ function showError(message) {
  el("loginError").textContent = message;
  el("loginError").hidden = false;
 }
+function setUnlockedNavigation(unlocked) {
+ for (const id of ["desktopNav", "mobileNav", "railLock", "refreshButton"]) {
+  el(id).hidden = !unlocked;
+ }
+}
 function lock() {
  epoch += 1;
  token = "";
  data = null;
+ setUnlockedNavigation(false);
  el("tokenInput").value = "";
  el("loginPanel").hidden = false;
  el("dashboardPanel").hidden = true;
@@ -144,6 +150,7 @@ el("loginForm").addEventListener("submit", async (event) => {
   el("tokenInput").value = "";
   el("loginPanel").hidden = true;
   el("dashboardPanel").hidden = false;
+  setUnlockedNavigation(true);
   render();
   navigate("overview");
  } catch (error) {
