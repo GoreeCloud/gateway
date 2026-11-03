@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -37,10 +41,10 @@ jobs:
         run: go test -race ./...
       - name: Vet
         run: go vet ./...
-      - name: Build
-        run: go build -trimpath -o gateway ./cmd/gateway
-      - name: Build console
-        run: go build -trimpath -o gateway-console ./cmd/console
+      - name: Build Linux static Gateway
+        run: CGO_ENABLED=0 go build -trimpath -o gateway ./cmd/gateway
+      - name: Build Linux static console
+        run: CGO_ENABLED=0 go build -trimpath -o gateway-console ./cmd/console
       - name: Adapt synthetic legacy Caddyfile without DNS requests
         run: |
           GC_TEST_BCRYPT="$(./gateway hash-password --plaintext 'synthetic-fixture-only')"
@@ -119,3 +123,27 @@ jobs:
           ./gateway list-modules | grep -q 'http.handlers.goree_security_headers'
           ./gateway list-modules | grep -q 'http.handlers.goree_ip_allowlist'
           ./gateway list-modules | grep -q 'dns.providers.porkbun'
+      - name: Assemble checksum-verified Linux staging executables
+        run: |
+          mkdir -p dist/linux-amd64
+          install -m 0755 gateway gateway-console dist/linux-amd64/
+          go version -m gateway > dist/linux-amd64/GATEWAY-MODULES.txt
+          go version -m gateway-console > dist/linux-amd64/CONSOLE-MODULES.txt
+          grep -q 'github.com/caddy-dns/porkbun' dist/linux-amd64/GATEWAY-MODULES.txt
+          test "$(uname -m)" = x86_64
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ("gateway", "gateway-console"):
+              data = (Path("dist/linux-amd64") / name).read_bytes()[:20]
+              assert data[:4] == b"\x7fELF", name
+              assert data[4] == 2 and data[5] == 1, name
+              assert data[18:20] == b"\x3e\x00", name
+          PY
+          (cd dist/linux-amd64 && sha256sum gateway gateway-console > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
+      - name: Preserve Linux staging artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: goreecloud-gateway-linux-amd64-staging-${{ github.sha }}
+          path: dist/linux-amd64/
+          if-no-files-found: error
+          retention-days: 7
