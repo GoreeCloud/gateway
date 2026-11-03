@@ -5,6 +5,7 @@ go 1.26.0
 require (
 	github.com/caddy-dns/porkbun v0.3.1
 	github.com/caddyserver/caddy/v2 v2.11.7
+	github.com/coreos/go-oidc/v3 v3.21.0
 )
 
 require (
@@ -36,7 +37,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chzyer/readline v1.5.1 // indirect
 	github.com/cloudflare/circl v1.6.5 // indirect
-	github.com/coreos/go-oidc/v3 v3.21.0 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.7 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/badger/v2 v2.2007.4 // indirect
