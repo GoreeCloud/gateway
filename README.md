@@ -53,6 +53,10 @@ The console listens only on `127.0.0.1:7689`; Android requires a reviewed privat
 
 See [configs/Gatewayfile.example](configs/Gatewayfile.example). Never use example addresses, upstream ports, or access lists as real production configuration. Caddy's admin API must remain loopback-only unless secured behind separate authentication and network restrictions.
 
+## Confidential-safe Caddyfile migration inventory
+
+The read-only [migration inventory tool](docs/MIGRATION_PREFLIGHT.md) summarizes route, TLS/DNS-provider, authentication and header *directive counts* without printing production hostnames, credentials or reverse-proxy destinations. It is a text-based diagnostic and is **not** a Caddyfile parser or evidence of successful route parity. CI also adapts a synthetic legacy-shaped Caddyfile using the pinned engine and Porkbun provider without making DNS or ACME requests.
+
 ## Test-device builds and legacy ingress diagnostics
 
 GitHub's Android CI now verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory.
