@@ -24,6 +24,10 @@ jobs:
           cache: false
       - name: Resolve pinned modules
         run: go mod tidy
+      - name: Enforce reviewed Go module lockfiles
+        run: |
+          test -s go.sum
+          git diff --exit-code -- go.mod go.sum
       - name: Verify dependency checksums
         run: go mod verify
       - name: Format
