@@ -3,7 +3,7 @@ package com.goreecloud.gateway
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -37,10 +37,10 @@ class GatewayUiTest {
             .performClick()
 
         composeRule.waitUntil(timeoutMillis = 10000) {
-            composeRule.onAllNodesWithText(
-                "Use a trusted HTTPS console address without a path, query or embedded credentials."
-            ).fetchSemanticsNodes().isNotEmpty()
+            composeRule.onAllNodesWithTag("gateway.console.error")
+                .fetchSemanticsNodes().isNotEmpty()
         }
+        composeRule.onNodeWithTag("gateway.console.error").assertIsDisplayed()
         composeRule.onNodeWithText("Connect securely").assertIsDisplayed()
     }
 }
