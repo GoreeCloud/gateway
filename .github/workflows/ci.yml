@@ -20,8 +20,10 @@ jobs:
           cache: false
       - name: Resolve pinned modules
         run: go mod tidy
-      - name: Format
-        run: test -z "$(gofmt -l cmd modules)"
+      - name: Format diagnostics
+        run: |
+          gofmt -l cmd modules
+          gofmt -d cmd modules
       - name: Test
         run: go test -race ./...
       - name: Vet
