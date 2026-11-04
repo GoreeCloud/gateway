@@ -40,11 +40,17 @@ func readPrivateFixture(t *testing.T, name string) []byte {
 }
 
 func TestRealKeycloakGatewayHTTPSAccessToken(t *testing.T) {
-	if os.Getenv("GITHUB_ACTIONS") != "true" ||
-		os.Getenv("GITHUB_REPOSITORY") != "GoreeCloud/identity" ||
-		os.Getenv("CI") != "true" ||
-		os.Getenv("GOREE_TEST_KEYCLOAK_HTTPS_GATEWAY") != "1" {
-		t.Skip("integration test requires isolated authorized GoreeCloud Identity CI")
+	switch os.Getenv("GOREE_TEST_KEYCLOAK_HTTPS_GATEWAY") {
+	case "":
+		t.Skip("HTTPS Keycloak integration is disabled")
+	case "1":
+		if os.Getenv("GITHUB_ACTIONS") != "true" ||
+			os.Getenv("GITHUB_REPOSITORY") != "GoreeCloud/identity" ||
+			os.Getenv("CI") != "true" {
+			t.Fatal("enabled integration requires isolated GoreeCloud Identity CI")
+		}
+	default:
+		t.Fatal("invalid explicit HTTPS Keycloak integration test flag")
 	}
 
 	roots := x509.NewCertPool()
