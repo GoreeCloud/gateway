@@ -53,6 +53,8 @@ jobs:
           python3 -c 'import json; x=json.load(open("/tmp/legacy-inventory.json")); assert x["porkbun_dns_directives"] == 1 and x["directives"]["reverse_proxy"] == 2 and x["directives"]["basic_auth"] == 1'
       - name: Test
         run: go test -race ./...
+      - name: Compile isolated HTTPS Keycloak acceptance without enabling it
+        run: go test -tags=keycloak_integration ./cmd/console -run "^TestRealKeycloakGatewayHTTPSAccessToken$" -count=1
       - name: Vet
         run: go vet ./...
       - name: Build Linux static Gateway
