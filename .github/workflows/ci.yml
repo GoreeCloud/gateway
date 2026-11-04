@@ -51,6 +51,10 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_caddyfile_inventory.py' -v
           python3 scripts/caddyfile_inventory.py configs/LegacyMigration.example > /tmp/legacy-inventory.json
           python3 -c 'import json; x=json.load(open("/tmp/legacy-inventory.json")); assert x["porkbun_dns_directives"] == 1 and x["directives"]["reverse_proxy"] == 2 and x["directives"]["basic_auth"] == 1'
+      - name: Test redacted private-site declaration preflight
+        run: |
+          python3 -m py_compile scripts/private_site_preflight.py
+          python3 -m unittest discover -s scripts -p 'test_private_site_preflight.py' -v
       - name: Test
         run: go test -race ./...
       - name: Vet
