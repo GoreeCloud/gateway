@@ -57,6 +57,8 @@ jobs:
           python3 -m unittest discover -s scripts -p 'test_private_site_preflight.py' -v
       - name: Test
         run: go test -race ./...
+      - name: Compile isolated HTTPS Keycloak acceptance without enabling it
+        run: go test -tags=keycloak_integration ./cmd/console -run "^TestRealKeycloakGatewayHTTPSAccessToken$" -count=1
       - name: Vet
         run: go vet ./...
       - name: Build Linux static Gateway
