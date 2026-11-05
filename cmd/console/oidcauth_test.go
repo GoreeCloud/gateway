@@ -172,6 +172,29 @@ func TestGatewayOIDCConfigurationFailClosed(t *testing.T) {
 	}
 }
 
+func TestGatewayOIDCIssuerPortBounds(t *testing.T) {
+	settings := gatewayOIDCSettings{
+		Audience: "goreecloud-gateway-console",
+		ClientID: "synthetic-client", Tenant: "family",
+	}
+	for _, port := range []string{"", "0", "00000", "65536", "99999", "99999999999999999999"} {
+		t.Run("reject_"+port, func(t *testing.T) {
+			settings.Issuer = "https://issuer.example:" + port + "/realms/goreecloud"
+			if err := settings.validate(); err == nil {
+				t.Fatal("issuer with invalid explicit HTTPS port accepted")
+			}
+		})
+	}
+	for _, port := range []string{"443", "8443", "65535"} {
+		t.Run("accept_"+port, func(t *testing.T) {
+			settings.Issuer = "https://issuer.example:" + port + "/realms/goreecloud"
+			if err := settings.validate(); err != nil {
+				t.Fatalf("valid private HTTPS issuer port rejected: %v", err)
+			}
+		})
+	}
+}
+
 func TestGatewayOIDCOptInDefaultOff(t *testing.T) {
 	t.Setenv("GOREE_GATEWAY_OIDC_ENABLED", "")
 	a, err := optInGatewayOIDC()
