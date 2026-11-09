@@ -44,8 +44,9 @@ def verify_archive(path: Path, expected_sha256: str) -> str:
             return "unsafe_file_properties"
         with os.fdopen(descriptor, "rb") as archive:
             before = os.fstat(archive.fileno())
-            if (not stat.S_ISREG(before.st_mode) or before.st_nlink != 1
-                    or before.st_mode & 0o077 or before.st_size <= 0
+            if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
+                    or before.st_nlink != 1 or before.st_mode & 0o077
+                    or before.st_size <= 0
                     or before.st_size > MAX_BYTES):
                 return "unsafe_file_properties"
             digest = hashlib.sha256()
@@ -59,7 +60,8 @@ def verify_archive(path: Path, expected_sha256: str) -> str:
             if (total != before.st_size or before.st_size != after.st_size
                     or before.st_mtime_ns != after.st_mtime_ns
                     or before.st_ctime_ns != after.st_ctime_ns
-                    or before.st_ino != after.st_ino):
+                    or before.st_ino != after.st_ino
+                    or before.st_dev != after.st_dev):
                 return "file_changed_during_check"
             return "matched" if hmac.compare_digest(
                 digest.hexdigest(), expected_sha256
