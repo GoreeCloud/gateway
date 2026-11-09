@@ -32,7 +32,7 @@ Restoring the legacy Caddy service is separate from deploying GoreeCloud Gateway
 
 ## Offline backup digest preflight — November 8, 2026
 
-The repository includes `scripts/ingress_backup_integrity.py` to check **two already-created, authorized offline backup archives** (configuration and ACME/certificate data) against operator-recorded SHA-256 hashes. The script reads only local regular files that are not symlinks or hard links, require owner-only permissions, and are at most 8 GiB each. It streams SHA-256 without decompressing or logging file content and returns a fixed redacted JSON classification without printing supplied filenames, host paths, credentials, certificate contents or exception text.
+The repository includes `scripts/ingress_backup_integrity.py` to check **two already-created, authorized offline backup archives** (configuration and ACME/certificate data) against operator-recorded SHA-256 hashes. The script reads only local regular files that are not symlinks or hard links, are owned by the verifying process's effective user ID, require owner-only permissions, and are at most 8 GiB each. Readability by an administrator is not sufficient evidence that the input is the expected owner's archive. It streams SHA-256 without decompressing or logging file content and returns a fixed redacted JSON classification without printing supplied filenames, host paths, credentials, certificate contents or exception text.
 
 For a trusted *offline* backup copy, record expected SHA-256 values in a protected channel and run:
 
