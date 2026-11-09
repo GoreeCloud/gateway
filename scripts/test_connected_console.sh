@@ -108,6 +108,23 @@ assert set(result).issubset({
 }), result
 PY
 
+# A successful console-only /healthz is not engine readiness.
+# The authenticated probe must only return a fixed, non-disclosing category.
+ready_api="http://127.0.0.1:7689/api/v1/readiness"
+test "$(http_code "$ready_api")" = 401
+test "$(http_code -X POST "$ready_api")" = 405
+curl --silent --show-error --fail --max-time 3 \
+    -H "Authorization: Bearer $token" "$ready_api" > "$scratch/readiness.json"
+python3 - "$scratch/readiness.json" <<'PYREADY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as src:
+    result = json.load(src)
+assert result == {"admin_config": "queryable", "ingress_routes_verified": False}, result
+PYREADY
+test "$(http_code -H "Authorization: Bearer $token" \
+    -H 'Sec-Fetch-Site: cross-site' "$ready_api")" = 403
+
 test "$(http_code -H "Authorization: Bearer $token" \
     -H 'Sec-Fetch-Site: cross-site' "$api")" = 403
 
