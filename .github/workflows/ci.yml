@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v6
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # official v4 commit
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # official v6 commit
         with:
           go-version-file: go.mod
           cache: false
@@ -172,7 +172,7 @@ jobs:
           PY
           (cd dist/linux-amd64 && sha256sum gateway gateway-console > SHA256SUMS.txt && sha256sum -c SHA256SUMS.txt)
       - name: Preserve Linux staging artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # official v4 commit
         with:
           name: goreecloud-gateway-linux-amd64-staging-${{ github.sha }}
           path: dist/linux-amd64/
