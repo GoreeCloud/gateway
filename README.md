@@ -50,7 +50,7 @@ go build -o gateway-console ./cmd/console
 
 An [optional GoreeCloud Identity OIDC API authorization adapter](docs/IDENTITY_OIDC.md) is also present in source. It is disabled unless every exact environment setting is explicitly configured; it is **not** a browser login, a public HTTPS ingress, or an approved production cutover.
 
-The console listens only on `127.0.0.1:7689`; Android requires a reviewed private HTTPS gateway to reach it. **Do not publish the Caddy admin endpoint or console listener.** See [web and Android documentation](docs/CONSOLE.md) for authentication, build, and release details. No Android APK is yet delivered.
+The console listens only on `127.0.0.1:7689`; Android requires a reviewed private HTTPS gateway to reach it. **Do not publish the Caddy admin endpoint or console listener.** See [web and Android documentation](docs/CONSOLE.md) for authentication, build, and release details. A standalone **debug-signed Android QA APK** was verified in the private authorized GoreeCloud Drive `Artifacts` folder from an earlier CI build. This is neither a current-main Android release build nor a signed Stable release.
 
 ## Example
 
@@ -74,7 +74,7 @@ A separate [synthetic two-upstream proxy test](docs/RUNTIME_PROXY_TEST.md) verif
 
 ## End-to-end local management integration
 
-The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) runs a real loopback-bound Caddy-based Gateway alongside its read-only web/API companion and verifies authenticated connection status, throttling, rejected write/cross-site requests and web security headers. It uses synthetic HTTP-only configuration and never exercises public ingress, live credentials, ACME issuance or the stopped production Caddy container.
+The [isolated engine-and-console integration test](docs/INTEGRATION_TEST.md) runs a real loopback-bound Caddy-based Gateway alongside its read-only web/API companion and verifies authenticated connection status, throttling, rejected write/cross-site requests and web security headers. It uses synthetic HTTP-only configuration and never exercises public ingress, live credentials, ACME issuance or the existing production Caddy container.
 
 ## Ongoing Go vulnerability assessment
 
@@ -82,7 +82,7 @@ The [Go vulnerability security workflow](docs/SECURITY_SCANNING.md) uses a pinne
 
 ## Test-device builds and legacy ingress diagnostics
 
-GitHub's Android CI now verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory.
+GitHub's Android CI verifies APK structure and SHA-256 and retains a **debug-only test APK** for seven days. The workflow artifact alone is an intermediate development test input, not a production-signed release or delivery to the authoritative `GoreeCloud/Artifacts` Google Drive directory. A **separately verified standalone QA APK** is privately retained there from an earlier development commit; do not conflate it with a current-main or production-signed build.
 
 For legacy Dockerized Caddy, the [read-only diagnostic guide](docs/INGRESS_RECOVERY.md), [inspection script](scripts/inspect_legacy_ingress.sh), and [redacted JSON recovery audit](scripts/legacy_recovery_audit.py) report limited health metadata without modifying live infrastructure. Unknown or protected certificate/backup state is explicitly **not verified**, never silently treated as passed. Diagnostic output does not establish that restarting or replacing a stopped container is safe.
 
