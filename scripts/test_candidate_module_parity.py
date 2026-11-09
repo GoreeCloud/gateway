@@ -10,7 +10,7 @@ from unittest.mock import patch
 
 from candidate_module_parity import (
     CandidateError, EXPECTED_MODULES, inspect_candidate, main,
-    parse_modules, pinned_version, synthetic_environment,
+    parse_modules, pinned_version, run_candidate, synthetic_environment,
 )
 
 
@@ -106,6 +106,14 @@ class CandidateModuleParityTests(unittest.TestCase):
             env = synthetic_environment()
         self.assertEqual(env["PORKBUN_API_KEY"], "test-only-noncredential")
         self.assertNotIn("REAL_PORKBUN_CREDENTIAL", json.dumps(env))
+
+    def test_relative_candidate_path_uses_absolute_executable(self):
+        with patch("candidate_module_parity.subprocess.run") as subprocess_mock:
+            subprocess_mock.return_value.returncode = 0
+            subprocess_mock.return_value.stdout = "v2.11.8 synthetic"
+            result = run_candidate(Path("./gateway"), ["version"], env={})
+        self.assertEqual(result, "v2.11.8 synthetic")
+        self.assertEqual(subprocess_mock.call_args.args[0][0], os.path.abspath("gateway"))
 
     def test_missing_executable_cli_failure_is_redacted(self):
         stdout = io.StringIO()

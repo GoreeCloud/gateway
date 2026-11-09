@@ -60,7 +60,7 @@ def synthetic_environment() -> dict[str, str]:
 
 def run_candidate(binary: Path, args: list[str], *, env: dict[str, str]) -> str:
     try:
-        result = subprocess.run([str(binary), *args], capture_output=True,
+        result = subprocess.run([os.path.abspath(binary), *args], capture_output=True,
                                 text=True, check=False, timeout=15, env=env)
     except (OSError, subprocess.TimeoutExpired):
         raise CandidateError("candidate execution unavailable") from None
