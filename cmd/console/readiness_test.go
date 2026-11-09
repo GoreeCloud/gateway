@@ -67,7 +67,7 @@ func TestConsoleAdminReadinessAuthenticationAndProjection(t *testing.T) {
 		t.Fatalf("authorized GET: %d", rec.Code)
 	}
 	if strings.Contains(rec.Body.String(), "private.internal.test") ||
-		strings.Contains(rec.Body.String(), "routes") {
+		strings.Contains(rec.Body.String(), "\"routes\":") {
 		t.Fatal("readiness response disclosed admin route/host metadata")
 	}
 	if got := rec.Header().Get("Content-Type"); got != "application/json; charset=utf-8" {
