@@ -13,7 +13,7 @@ Run it only after reviewing and compiling the exact source:
 bash scripts/test_connected_console.sh
 ```
 
-The smoke test confirms that the actual connected Caddy admin API produces a reduced, authenticated `/api/v1/overview` response, without exposing raw admin configuration. It checks rejected anonymous/write/cross-site requests, throttling invalid credentials despite forged forwarded addresses, continued access using the correct token, and embedded web response-security headers.
+The smoke test confirms that the actual connected Caddy admin API produces a reduced, authenticated `/api/v1/overview` response and a fixed-shape authenticated `/api/v1/readiness` response, without exposing raw admin configuration. It checks rejected anonymous/write/cross-site requests, throttling invalid credentials despite forged forwarded addresses, continued access using the correct token, and embedded web response-security headers.
 
 The script aborts if its loopback test ports appear occupied. It terminates only child processes it started, removes temporary logs and uses no public domains, privileged web ports, ACME certificates, real upstreams, DNS-provider secrets or production configuration.
 
