@@ -120,7 +120,7 @@ func newHandlerWithOIDC(token, adminURL string, oidcAuth gatewayOIDCAuth) (http.
 		}
 		writeJSON(w, map[string]bool{"ok": true})
 	})
-	mux.HandleFunc("/api/v1/overview", func(w http.ResponseWriter, r *http.Request) {
+	readOnlyStatus := func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 			return
@@ -157,8 +157,26 @@ func newHandlerWithOIDC(token, adminURL string, oidcAuth gatewayOIDCAuth) (http.
 			}
 		}
 		state.CheckedAt = time.Now().UTC().Format(time.RFC3339)
+		if r.URL.Path == "/api/v1/readiness" {
+			// This authenticated probe checks only whether the local Caddy admin
+			// JSON can be fetched and parsed. It does not prove active routes,
+			// upstream readiness, certificates, DNS-01, or public HTTPS reachability.
+			result := "unavailable"
+			if state.State == "connected" {
+				result = "queryable"
+			} else {
+				w.Header().Set("Content-Type", "application/json; charset=utf-8")
+				w.WriteHeader(http.StatusServiceUnavailable)
+			}
+			writeJSON(w, map[string]any{
+				"admin_config": result, "ingress_routes_verified": false,
+			})
+			return
+		}
 		writeJSON(w, state)
-	})
+	}
+	mux.HandleFunc("/api/v1/overview", readOnlyStatus)
+	mux.HandleFunc("/api/v1/readiness", readOnlyStatus)
 	mux.Handle("/", http.FileServer(http.FS(static)))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		headers := w.Header()
