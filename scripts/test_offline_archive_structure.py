@@ -80,6 +80,38 @@ class OfflineTarHeadersTests(unittest.TestCase):
         self.make_archive([("TEST", "file", "x"), ("test", "file", "y")])
         self.assertEqual(self.capture()[0], 1)
 
+    def test_regular_file_never_becomes_directory_parent_in_either_order(self):
+        conflict_sets = [
+            [("root", "file", "secret"), ("root/child", "file", "more")],
+            [("root/child", "file", "more"), ("root", "file", "secret")],
+            [("root", "file", "secret"), ("root/child", "dir", "")],
+            [("root/child", "dir", ""), ("root", "file", "secret")],
+            # Case-folded path collisions are also ambiguous on some targets.
+            [("Root", "file", "secret"), ("root/child", "file", "more")],
+            [("root/child", "file", "more"), ("ROOT", "file", "secret")],
+        ]
+        for entries in conflict_sets:
+            with self.subTest(entries=entries):
+                self.make_archive(entries)
+                status, report = self.capture()
+                self.assertEqual(status, 1)
+                self.assertFalse(report["structural_gate_passed"])
+                self.assertFalse(report["production_cutover_authorized"])
+
+    def test_missing_parent_directory_entries_are_permitted(self):
+        # Tar does not require explicitly listed parent directories; an
+        # out-of-order later directory remains safe when it is a directory.
+        self.make_archive([
+            ("safe/nested/first.txt", "file", "a"),
+            ("safe", "dir", ""),
+            ("safe/nested", "dir", ""),
+            ("safe/nested/second.txt", "file", "b"),
+        ])
+        status, report = self.capture()
+        self.assertEqual(status, 0)
+        self.assertEqual(report["regular_member_count"], 2)
+        self.assertEqual(report["directory_member_count"], 2)
+
     def test_archive_members_symlink_hardlink_fifo_fail_closed(self):
         for kind in ("symlink", "hardlink", "fifo"):
             with self.subTest(kind=kind):
