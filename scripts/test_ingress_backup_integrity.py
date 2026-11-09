@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import redirect_stdout
 
 from ingress_backup_integrity import build_report, main, verify_archive
@@ -90,6 +91,22 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
                 self.config.chmod(mode)
                 self.assertEqual(verify_archive(self.config, self.checksum(self.config)), "unsafe_file_properties")
         self.config.chmod(0o600)
+
+    def test_non_owner_archive_is_rejected_before_hashing(self):
+        # Simulate a privileged process that can read someone else's 0600
+        # archive: filesystem readability alone is not ownership evidence.
+        with mock.patch("ingress_backup_integrity.os.geteuid",
+                        return_value=os.geteuid() + 1):
+            self.assertEqual(
+                verify_archive(self.config, self.checksum(self.config)),
+                "unsafe_file_properties",
+            )
+            code, report = self.capture(self.args())
+            self.assertEqual(code, 1)
+            self.assertEqual(report["config_archive_integrity"], "unsafe_file_properties")
+            self.assertEqual(report["acme_archive_integrity"], "unsafe_file_properties")
+            self.assertFalse(report["both_hashes_match"])
+            self.assertEqual(report["cutover_readiness"], "not_established")
 
     def test_empty_file_rejected_and_report_fail_closed(self):
         self.config.write_bytes(b"")
