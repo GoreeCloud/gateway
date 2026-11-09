@@ -111,7 +111,9 @@ PY
 # A successful console-only /healthz is not engine readiness.
 # The authenticated probe must only return a fixed, non-disclosing category.
 ready_api="http://127.0.0.1:7689/api/v1/readiness"
-test "$(http_code "$ready_api")" = 401
+# After the prior invalid-token storm the same local peer is throttled
+# across both protected endpoints, not allowed to bypass the limiter.
+test "$(http_code "$ready_api")" = 429
 test "$(http_code -X POST "$ready_api")" = 405
 curl --silent --show-error --fail --max-time 3 \
     -H "Authorization: Bearer $token" "$ready_api" > "$scratch/readiness.json"
