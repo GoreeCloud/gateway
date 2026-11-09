@@ -28,3 +28,18 @@ Before an authorized live recovery, verify the exact Caddy container and image d
 Prepare health/rollback checks covering HTTP-to-HTTPS, TLS issuer and expiry, authenticated sites, streaming and WebSocket behavior, VPN control-plane dependencies, and certificate renewal. Record operator authorization and a narrow rollback window in restricted task records.
 
 Restoring the legacy Caddy service is separate from deploying GoreeCloud Gateway. The new distribution still requires [staged route parity and rollback testing](CUTOVER.md), including [Porkbun DNS-01 integration](PORKBUN.md). Passing CI, downloading an APK, or creating this runbook is not production acceptance.
+
+
+## Offline backup digest preflight — November 8, 2026
+
+The repository includes `scripts/ingress_backup_integrity.py` to check **two already-created, authorized offline backup archives** (configuration and ACME/certificate data) against operator-recorded SHA-256 hashes. The script reads only local regular files that are not symlinks or hard links, require owner-only permissions, and are at most 8 GiB each. It streams SHA-256 without decompressing or logging file content and returns a fixed redacted JSON classification without printing supplied filenames, host paths, credentials, certificate contents or exception text.
+
+For a trusted *offline* backup copy, record expected SHA-256 values in a protected channel and run:
+
+```bash
+python3 scripts/ingress_backup_integrity.py \
+  --config-archive /path/to/offline/config.tar --config-sha256 EXPECTED_CONFIG_SHA256 \
+  --acme-archive /path/to/offline/acme.tar --acme-sha256 EXPECTED_ACME_SHA256
+```
+
+This is an **integrity-only check**, not a backup creation or restore tool. Two matching hashes **do not** establish an isolated restore, certificate issuance/renewal, Porkbun DNS-01 parity, secure backup key handling, host route behavior, private NetBird reachability, rollback, or production cutover readiness. The script cannot authorize any change to the running legacy Caddy; a protected off-host backup and independently tested restore remain mandatory before an upgrade.
