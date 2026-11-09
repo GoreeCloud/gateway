@@ -5,7 +5,6 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
-import textwrap
 import unittest
 
 SCRIPT = Path(__file__).with_name("inspect_legacy_ingress.sh")
