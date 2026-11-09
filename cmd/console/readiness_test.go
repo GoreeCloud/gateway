@@ -86,7 +86,10 @@ func TestConsoleAdminReadinessAuthenticationAndProjection(t *testing.T) {
 }
 
 func TestConsoleAdminReadinessFailsClosed(t *testing.T) {
-	tests := []struct{ name, body string; status int }{
+	tests := []struct {
+		name, body string
+		status     int
+	}{
 		{"upstream_503", `{"message":"private-debug"}`, http.StatusServiceUnavailable},
 		{"malformed_json", "{not-valid-json", http.StatusOK},
 		{"oversized", strings.Repeat("x", maxConfig+1), http.StatusOK},
@@ -120,8 +123,8 @@ func TestConsoleAdminReadinessFailsClosed(t *testing.T) {
 			if state.AdminConfig != "unavailable" || state.IngressRoutesVerified {
 				t.Fatalf("failed readiness must deny ingress claim: %+v", state)
 			}
-			if strings.TrimSpace(rec.Body.String()) != `{"admin_config":"unavailable","ingress_routes_verified":false}` &&
-				!(state.AdminConfig == "unavailable" && !state.IngressRoutesVerified) {
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(rec.Body.Bytes(), &fields); err != nil || len(fields) != 2 {
 				t.Fatal("failed readiness shape is not constrained")
 			}
 		})
