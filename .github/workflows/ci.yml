@@ -61,6 +61,11 @@ jobs:
         run: go vet ./...
       - name: Build Linux static Gateway
         run: CGO_ENABLED=0 go build -trimpath -o gateway ./cmd/gateway
+      - name: Validate isolated candidate Caddy/Porkbun module and synthetic route parity
+        run: |
+          chmod go-w ./gateway
+          python3 -m unittest discover -s scripts -p 'test_candidate_module_parity.py' -v
+          python3 scripts/candidate_module_parity.py --binary ./gateway
       - name: Build Linux static console
         run: CGO_ENABLED=0 go build -trimpath -o gateway-console ./cmd/console
       - name: Adapt synthetic legacy Caddyfile without DNS requests
