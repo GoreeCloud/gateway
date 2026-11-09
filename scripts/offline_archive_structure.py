@@ -62,7 +62,8 @@ def inspect_archive(path: Path) -> dict:
                     or first.st_nlink != 1 or first.st_mode & 0o077
                     or first.st_size <= 0 or first.st_size > MAX_INPUT_BYTES):
                 raise ArchiveGateError("unsafe_archive_properties")
-            regular, directories, logical_bytes, seen = 0, 0, 0, set()
+            regular, directories, logical_bytes = 0, 0, 0
+            seen, regular_paths, parent_paths = set(), set(), set()
             with tarfile.open(fileobj=archive, mode="r|*") as container:
                 for member in container:
                     if regular + directories >= MAX_ENTRIES:
@@ -71,6 +72,14 @@ def inspect_archive(path: Path) -> dict:
                     canonical = name.casefold()
                     if canonical in seen:
                         raise ArchiveGateError("duplicate_member_path")
+                    # File entries must never be used as parents. Check both
+                    # archive orderings without O(member_count**2) scanning.
+                    parts = canonical.split("/")
+                    parents = {"/".join(parts[:i]) for i in range(1, len(parts))}
+                    if any(parent in regular_paths for parent in parents):
+                        raise ArchiveGateError("unsafe_member_hierarchy")
+                    if member.isfile() and canonical in parent_paths:
+                        raise ArchiveGateError("unsafe_member_hierarchy")
                     seen.add(canonical)
                     if (not member.pax_headers.keys() <= PERMITTED_PAX
                             or member.sparse is not None):
@@ -89,6 +98,9 @@ def inspect_archive(path: Path) -> dict:
                     else:
                         # No hard/symbolic links, devices, FIFOs or exotic types.
                         raise ArchiveGateError("unsupported_archive_member")
+                    if member.isfile():
+                        regular_paths.add(canonical)
+                    parent_paths.update(parents)
             last = os.fstat(archive.fileno())
             if (first.st_ino != last.st_ino or first.st_dev != last.st_dev
                     or first.st_size != last.st_size
