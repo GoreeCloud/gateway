@@ -43,3 +43,16 @@ python3 scripts/ingress_backup_integrity.py \
 ```
 
 This is an **integrity-only check**, not a backup creation or restore tool. Two matching hashes **do not** establish an isolated restore, certificate issuance/renewal, Porkbun DNS-01 parity, secure backup key handling, host route behavior, private NetBird reachability, rollback, or production cutover readiness. The script cannot authorize any change to the running legacy Caddy; a protected off-host backup and independently tested restore remain mandatory before an upgrade.
+
+
+## November 9, 2026 — offline tar header safety gate (nonextracting)
+
+The optional `scripts/offline_archive_structure.py` checks the **headers of an existing private offline tar/tar.gz archive** for basic unsafe structure before attempting a separately authorized and isolated restore. It never extracts, mutates, loads a production volume, reads Caddy runtime configuration, opens a socket, requests a certificate, or logs member names/contents. An operator may run this only against a previously copied, trusted, owner-owned, owner-only archive:
+
+```bash
+python3 scripts/offline_archive_structure.py /path/to/owner-protected/offline-copy.tar
+```
+
+It refuses symlinks/hardlinks/FIFOs/devices, unsafe absolute or parent-traversal member paths, duplicate/case-folding names, unsupported sparse/PAX metadata, malformed or empty archives, archives with more than 20,000 entries, members over 4 GiB or aggregate declared regular-member sizes over 8 GiB. The archive itself must be a regular owner-controlled non-hardlinked file with owner-only permissions and size at most 8 GiB; a bounded fixed-shape JSON report omits member paths and content. No extraction occurs. This is a conservative *structural* check; perfectly valid archives may be rejected when they contain links or specialized metadata.
+
+**Separate evidence gates are mandatory:** independent SHA-256/strong integrity check of an authenticated existing backup, trusted provenance, encrypted off-host storage, safe secret lifecycle, **full disposable isolated extraction and Caddy/ACME data restore**, DNS-01 renewal acceptance, live route/TLS/private NetBird parity and tested rollback. A successful tar scan does not prove all bytes are restorable, that archived files are semantically valid, that they match production, or that cutover can proceed. The tool deliberately reports `production_cutover_authorized: false` even on success. It is a test helper, **not** a replacement for the legacy Caddy backup/recovery process.
