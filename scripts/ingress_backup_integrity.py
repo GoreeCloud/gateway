@@ -27,15 +27,30 @@ def verify_archive(path: Path, expected_sha256: str, *, identity_out=None) -> st
     """Return a fixed classification with no error strings or file paths."""
     if not isinstance(expected_sha256, str) or not SHA256.fullmatch(expected_sha256):
         return "invalid_expected_digest"
-    if not hasattr(os, "O_NOFOLLOW"):
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
         return "safe_file_open_unavailable"
+    parent_fd = None
     try:
-        descriptor = os.open(
-            path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+        parent_fd = os.open(
+            path.parent, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY
             | getattr(os, "O_CLOEXEC", 0)
         )
-    except OSError:
+        parent_info = os.fstat(parent_fd)
+        if (not stat.S_ISDIR(parent_info.st_mode)
+                or parent_info.st_uid != os.geteuid()
+                or parent_info.st_mode & 0o077):
+            return "unsafe_parent_directory"
+        # A checked parent descriptor pins the directory used to open the
+        # archive. Do not separately resolve a potentially swapped path.
+        descriptor = os.open(
+            path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK
+            | getattr(os, "O_CLOEXEC", 0), dir_fd=parent_fd
+        )
+    except (OSError, TypeError, ValueError, AttributeError):
         return "unavailable_or_unsafe"
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
     try:
         # A directory can make fdopen fail before entering the context manager.
         # Reject it explicitly and close the descriptor on this early path.
