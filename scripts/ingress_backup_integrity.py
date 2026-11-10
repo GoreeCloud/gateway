@@ -23,7 +23,7 @@ MAX_BYTES = 8 * 1024**3
 CHUNK_BYTES = 1024 * 1024
 
 
-def verify_archive(path: Path, expected_sha256: str) -> str:
+def verify_archive(path: Path, expected_sha256: str, *, identity_out=None) -> str:
     """Return a fixed classification with no error strings or file paths."""
     if not isinstance(expected_sha256, str) or not SHA256.fullmatch(expected_sha256):
         return "invalid_expected_digest"
@@ -63,21 +63,32 @@ def verify_archive(path: Path, expected_sha256: str) -> str:
                     or before.st_ino != after.st_ino
                     or before.st_dev != after.st_dev):
                 return "file_changed_during_check"
-            return "matched" if hmac.compare_digest(
-                digest.hexdigest(), expected_sha256
-            ) else "digest_mismatch"
+            if not hmac.compare_digest(digest.hexdigest(), expected_sha256):
+                return "digest_mismatch"
+            # Capture the identity of the *opened and hashed* inode, rather
+            # than trusting path text which can alias the same archive.
+            # No file names, paths, hashes or metadata enter the report.
+            if identity_out is not None:
+                identity_out.append((before.st_dev, before.st_ino))
+            return "matched"
     except OSError:
         return "read_failed"
 
 
-def build_report(config_status: str, acme_status: str) -> dict:
-    matched = config_status == acme_status == "matched"
+def build_report(
+    config_status: str, acme_status: str, *, sources_distinct: bool = False
+) -> dict:
+    # Two passing hashes do not constitute two separate archives if callers
+    # accidentally reuse the same underlying inode for both roles.
+    distinct = sources_distinct is True
+    matched = config_status == acme_status == "matched" and distinct
     return {
         "schema": SCHEMA,
         "inspection": "read_only_offline_files",
         "config_archive_integrity": config_status,
         "acme_archive_integrity": acme_status,
         "both_hashes_match": matched,
+        "distinct_archive_sources_verified": distinct,
         "archive_restoration": "not_verified",
         "porkbun_dns01_renewal": "not_verified",
         "route_and_private_network_parity": "not_verified",
@@ -97,9 +108,20 @@ def main(argv=None) -> int:
     parser.add_argument("--acme-archive", required=True, type=Path)
     parser.add_argument("--acme-sha256", required=True)
     args = parser.parse_args(argv)
-    config_status = verify_archive(args.config_archive, args.config_sha256)
-    acme_status = verify_archive(args.acme_archive, args.acme_sha256)
-    report = build_report(config_status, acme_status)
+    config_identity, acme_identity = [], []
+    config_status = verify_archive(
+        args.config_archive, args.config_sha256, identity_out=config_identity
+    )
+    acme_status = verify_archive(
+        args.acme_archive, args.acme_sha256, identity_out=acme_identity
+    )
+    distinct = bool(
+        config_identity and acme_identity
+        and config_identity[0] != acme_identity[0]
+    )
+    report = build_report(
+        config_status, acme_status, sources_distinct=distinct
+    )
     print(json.dumps(report, sort_keys=True))
     return 0 if report["both_hashes_match"] else 1
 

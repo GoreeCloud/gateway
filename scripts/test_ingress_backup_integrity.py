@@ -52,11 +52,51 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
         code, result = self.capture(self.args())
         self.assertEqual(code, 0)
         self.assertTrue(result["both_hashes_match"])
+        self.assertTrue(result["distinct_archive_sources_verified"])
         self.assertEqual(result["archive_restoration"], "not_verified")
         self.assertEqual(result["porkbun_dns01_renewal"], "not_verified")
         self.assertEqual(result["rollback_test"], "not_verified")
         self.assertFalse(result["production_changed"])
         self.assertEqual(result["cutover_readiness"], "not_established")
+
+    def test_reused_same_inode_cannot_claim_two_independent_backups(self):
+        digest = self.checksum(self.config)
+        same_file = [
+            "--config-archive", str(self.config),
+            "--config-sha256", digest,
+            "--acme-archive", str(self.config),
+            "--acme-sha256", digest,
+        ]
+        status, report = self.capture(same_file)
+        self.assertEqual(status, 1)
+        self.assertEqual(report["config_archive_integrity"], "matched")
+        self.assertEqual(report["acme_archive_integrity"], "matched")
+        self.assertFalse(report["distinct_archive_sources_verified"])
+        self.assertFalse(report["both_hashes_match"])
+        self.assertEqual(report["cutover_readiness"], "not_established")
+        # A syntactically different path resolving to the same inode fails too.
+        child = self.root / "alias-dir"
+        child.mkdir()
+        same_file[5] = str(child / ".." / self.config.name)
+        status, report = self.capture(same_file)
+        self.assertEqual(status, 1)
+        self.assertFalse(report["distinct_archive_sources_verified"])
+
+    def test_distinct_inodes_remain_distinct_even_with_identical_bytes(self):
+        self.acme.write_bytes(self.config.read_bytes())
+        self.acme.chmod(0o600)
+        status, report = self.capture(self.args())
+        self.assertEqual(status, 0)
+        self.assertTrue(report["distinct_archive_sources_verified"])
+        self.assertTrue(report["both_hashes_match"])
+        # This does not establish that either file has the correct backup role.
+        self.assertEqual(report["archive_restoration"], "not_verified")
+
+    def test_report_helper_defaults_to_unverified_pair_independence(self):
+        report = build_report("matched", "matched")
+        self.assertFalse(report["both_hashes_match"])
+        self.assertFalse(report["distinct_archive_sources_verified"])
+        self.assertEqual(report["cutover_readiness"], "not_established")
 
     def test_altered_backups_fail_closed(self):
         original = self.args()

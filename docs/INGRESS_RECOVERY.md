@@ -42,6 +42,8 @@ python3 scripts/ingress_backup_integrity.py \
   --acme-archive /path/to/offline/acme.tar --acme-sha256 EXPECTED_ACME_SHA256
 ```
 
+**November 10, 2026 evidence hardening:** The verifier now also requires the two *opened and hashed* archive file identities to be distinct. Supplying the same regular file twice—even through two path spellings, with two matching expected digests—fails closed with `distinct_archive_sources_verified:false` and `both_hashes_match:false`. Direct helper calls without a checked pair also default to *unverified* source independence. This rejects accidental double-counting of a single archive. Two distinct files with matching hashes are still not proof that either contains the correct Caddy configuration or ACME data; backup origin, content validity and isolated restoration remain independently required.
+
 This is an **integrity-only check**, not a backup creation or restore tool. Two matching hashes **do not** establish an isolated restore, certificate issuance/renewal, Porkbun DNS-01 parity, secure backup key handling, host route behavior, private NetBird reachability, rollback, or production cutover readiness. The script cannot authorize any change to the running legacy Caddy; a protected off-host backup and independently tested restore remain mandatory before an upgrade.
 
 
