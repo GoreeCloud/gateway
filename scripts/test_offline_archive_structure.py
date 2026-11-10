@@ -6,6 +6,7 @@ from pathlib import Path
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import redirect_stdout
 
 from offline_archive_structure import (
@@ -118,6 +119,33 @@ class OfflineTarHeadersTests(unittest.TestCase):
                 self.make_archive([("valid.txt", "file", "hello"),
                                    ("unsafe", kind, "")])
                 self.assertEqual(self.capture()[0], 1)
+
+    def test_fdopen_failure_closes_raw_archive_descriptor(self):
+        self.make_archive([("config/Caddyfile", "file", "private-data")])
+        captured = []
+
+        def failed_wrapper(fd, *_args, **_kwargs):
+            captured.append(fd)
+            raise OSError("synthetic wrapper failure with private path")
+
+        with mock.patch("offline_archive_structure.os.fdopen",
+                        side_effect=failed_wrapper):
+            with self.assertRaisesRegex(ArchiveGateError, "unreadable_archive"):
+                inspect_archive(self.archive)
+        self.assertEqual(len(captured), 1)
+        with self.assertRaises(OSError):
+            os.fstat(captured[0])
+        self.assertTrue(inspect_archive(self.archive)["structural_gate_passed"])
+
+    def test_failed_archive_wrapper_does_not_expose_sensitive_filename(self):
+        self.make_archive([("private-key.pem", "file", "synthetic-secret")])
+        with mock.patch("offline_archive_structure.os.fdopen",
+                        side_effect=OSError("sensitive secret and path")):
+            status, body = self.capture()
+        self.assertEqual(status, 1)
+        self.assertEqual(body["error"], "offline_archive_rejected")
+        self.assertFalse(body["production_cutover_authorized"])
+        self.assertTrue(inspect_archive(self.archive)["structural_gate_passed"])
 
     def test_owner_unsafe_perms_aliases_and_missing_fail_closed(self):
         self.make_archive([("synthetic", "file", "data")])
