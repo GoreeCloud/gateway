@@ -132,6 +132,42 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
                 self.assertEqual(verify_archive(self.config, self.checksum(self.config)), "unsafe_file_properties")
         self.config.chmod(0o600)
 
+    def test_parent_directory_must_be_private_and_owner_controlled(self):
+        unsafe = self.root / "public-parent"
+        unsafe.mkdir(mode=0o755)
+        candidate = unsafe / "config.tar"
+        candidate.write_bytes(self.config.read_bytes())
+        candidate.chmod(0o600)
+        self.assertEqual(
+            verify_archive(candidate, self.checksum(candidate)),
+            "unsafe_parent_directory",
+        )
+        # A public parent is refused even with matching expected hash.
+        args = self.args()
+        args[1] = str(candidate)
+        args[3] = self.checksum(candidate)
+        code, result = self.capture(args)
+        self.assertEqual(code, 1)
+        self.assertEqual(result["config_archive_integrity"],
+                         "unsafe_parent_directory")
+        self.assertEqual(result["cutover_readiness"], "not_established")
+        unsafe.chmod(0o700)
+        self.assertEqual(
+            verify_archive(candidate, self.checksum(candidate)), "matched"
+        )
+
+    def test_parent_symlink_is_rejected_even_if_archive_is_private(self):
+        linked_parent = self.root / "symlink-parent"
+        linked_parent.symlink_to(self.root, target_is_directory=True)
+        candidate = linked_parent / self.config.name
+        self.assertEqual(
+            verify_archive(candidate, self.checksum(self.config)),
+            "unavailable_or_unsafe",
+        )
+        self.assertEqual(
+            verify_archive(self.config, self.checksum(self.config)), "matched"
+        )
+
     def test_non_owner_archive_is_rejected_before_hashing(self):
         # Simulate a privileged process that can read someone else's 0600
         # archive: filesystem readability alone is not ownership evidence.
