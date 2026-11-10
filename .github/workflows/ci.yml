@@ -18,6 +18,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # official v4 commit
+        with:
+          persist-credentials: false
+      - name: Verify immutable Gateway actions and nonpersistent checkout tokens
+        run: python3 scripts/check_ci_action_pins.py
       - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # official v6 commit
         with:
           go-version-file: go.mod
@@ -36,6 +40,8 @@ jobs:
         run: |
           bash -n scripts/inspect_legacy_ingress.sh
           python3 -m py_compile scripts/legacy_recovery_audit.py
+      - name: Verify read-only ingress container health evidence
+        run: python3 -m unittest discover -s scripts -p 'test_inspect_legacy_ingress.py' -v
       - name: Verify redacted recovery audit and failure isolation
         run: python3 -m unittest discover -s scripts -p 'test_legacy_recovery_audit.py' -v
       - name: Verify owner-protected offline tar structure and rejection behavior
