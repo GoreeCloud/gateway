@@ -131,6 +131,30 @@ class OfflineTarHeadersTests(unittest.TestCase):
         os.link(self.archive, self.root / "hardlinked")
         self.assertEqual(self.capture()[0], 1)
 
+    def test_archive_parent_symlink_and_unsafe_permissions_are_rejected(self):
+        self.make_archive([("synthetic", "file", "fixture-only")])
+        # Prior direct path open used O_NOFOLLOW for the final archive but
+        # followed a symlinked parent, defeating offline-source separation.
+        private = self.root / "private"
+        private.mkdir(mode=0o700)
+        archive = private / "safe.tar"
+        archive.write_bytes(self.archive.read_bytes())
+        archive.chmod(0o600)
+        alias = self.root / "alias"
+        alias.symlink_to(private, target_is_directory=True)
+        self.assertTrue(inspect_archive(archive)["structural_gate_passed"])
+        with self.assertRaises(ArchiveGateError):
+            inspect_archive(alias / "safe.tar")
+
+        self.root.chmod(0o755)
+        try:
+            with self.assertRaises(ArchiveGateError):
+                inspect_archive(self.archive)
+        finally:
+            self.root.chmod(0o700)
+        # The usual owner-private directory remains an accepted fixture.
+        self.assertTrue(inspect_archive(self.archive)["structural_gate_passed"])
+
     def test_fifo_and_nonregular_fail_without_blocking(self):
         fifo = self.root / "fifo"
         os.mkfifo(fifo, 0o600)
