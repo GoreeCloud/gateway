@@ -48,13 +48,32 @@ def safe_member_name(name: str) -> str:
 
 
 def inspect_archive(path: Path) -> dict:
-    if not hasattr(os, "O_NOFOLLOW"):
+    if not hasattr(os, "O_NOFOLLOW") or not hasattr(os, "O_DIRECTORY"):
         raise ArchiveGateError("safe_file_open_unavailable")
+    # Anchor the exact file open to an owner-private parent directory. A
+    # symlinked/replaced parent must not redirect the inspector into a live
+    # ingress tree or a different backup while a path is being checked.
+    parent_fd = None
     try:
-        fd = os.open(path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
-                     | getattr(os, "O_CLOEXEC", 0))
-    except OSError:
+        parent_fd = os.open(
+            path.parent, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY
+            | getattr(os, "O_CLOEXEC", 0)
+        )
+        parent = os.fstat(parent_fd)
+        if (not stat.S_ISDIR(parent.st_mode) or parent.st_uid != os.geteuid()
+                or parent.st_mode & 0o077):
+            raise ArchiveGateError("unsafe_parent_directory")
+        fd = os.open(
+            path.name, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0), dir_fd=parent_fd
+        )
+    except ArchiveGateError:
+        raise
+    except (OSError, TypeError, ValueError, AttributeError):
         raise ArchiveGateError("unavailable_or_unsafe") from None
+    finally:
+        if parent_fd is not None:
+            os.close(parent_fd)
     try:
         with os.fdopen(fd, "rb") as archive:
             first = os.fstat(archive.fileno())
