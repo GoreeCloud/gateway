@@ -52,12 +52,14 @@ def verify_archive(path: Path, expected_sha256: str, *, identity_out=None) -> st
         if parent_fd is not None:
             os.close(parent_fd)
     try:
-        # A directory can make fdopen fail before entering the context manager.
-        # Reject it explicitly and close the descriptor on this early path.
+        # Keep ownership of the raw FD until fdopen has succeeded. Both
+        # fstat() and fdopen() can raise; neither must leak the live archive
+        # descriptor. Once handed to the file object, its context manager
+        # owns closure on every early return and exceptional path.
         if not stat.S_ISREG(os.fstat(descriptor).st_mode):
-            os.close(descriptor)
             return "unsafe_file_properties"
         with os.fdopen(descriptor, "rb") as archive:
+            descriptor = None
             before = os.fstat(archive.fileno())
             if (not stat.S_ISREG(before.st_mode) or before.st_uid != os.geteuid()
                     or before.st_nlink != 1 or before.st_mode & 0o077
@@ -88,6 +90,12 @@ def verify_archive(path: Path, expected_sha256: str, *, identity_out=None) -> st
             return "matched"
     except OSError:
         return "read_failed"
+    finally:
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
 
 
 def build_report(
