@@ -20,6 +20,8 @@ To enable an *additional* OAuth bearer-token authentication path, an authorized 
 | `GOREE_GATEWAY_OIDC_CLIENT_ID` | Exact allowed `azp` OAuth client identifier |
 | `GOREE_GATEWAY_OIDC_TENANT` | Exact trusted tenant identifier expected in a signed custom `goreecloud_tenant` claim |
 
+Issuer configuration rejects empty or out-of-range explicit HTTPS ports before creating a verifier. Private, trusted issuer ports from **1 through 65535** (including 8443) remain syntactically allowed; issuer URL checks do not prove the HTTPS endpoint exists, certificates are trusted, Keycloak has been configured, or the Gate-way is deployed. No network request occurs during issuer syntax validation.
+
 An OIDC access token must carry a verified **RS256 signature**, matching issuer and audience, `typ=Bearer`, matching authorized OAuth client (`azp`), nonempty subject, a short lifetime (at most one hour), required scope `gateway:read`, the role `gateway-reader` in `realm_access.roles`, and the expected `goreecloud_tenant` claim. A signed token from the wrong audience/client/tenant, a missing scope/role, an ID token, a token with an unsupported algorithm, or an expired token is rejected. The custom tenant claim and resource audience require explicit Keycloak mapper and client configuration; they are **not** present in the current default realm fixture.
 
 The API does not accept identity headers supplied by browsers or upstream proxies as proof of user identity. It rejects duplicate Authorization headers. Static token authentication still works when OIDC is explicitly enabled; this enables controlled rollback. Both paths remain limited to the existing read-only overview endpoint.
