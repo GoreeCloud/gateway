@@ -111,6 +111,48 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertEqual(verify_archive(self.config, value), "invalid_expected_digest")
 
+    def test_archive_fdopen_failure_does_not_leak_raw_descriptor(self):
+        captured = []
+
+        def refused_fdopen(fd, *_args, **_kwargs):
+            captured.append(fd)
+            raise OSError("synthetic private file wrapper failure")
+
+        with mock.patch("ingress_backup_integrity.os.fdopen",
+                        side_effect=refused_fdopen):
+            result = verify_archive(self.config, self.checksum(self.config))
+        self.assertEqual(result, "read_failed")
+        self.assertEqual(len(captured), 1)
+        with self.assertRaises(OSError):
+            os.fstat(captured[0])
+        # The helper still works on a fresh, healthy open.
+        self.assertEqual(
+            verify_archive(self.config, self.checksum(self.config)), "matched"
+        )
+
+    def test_archive_fstat_failure_does_not_leak_raw_descriptor(self):
+        import stat
+        captured = []
+        actual_fstat = os.fstat
+
+        def refused_regular_file_stat(fd):
+            info = actual_fstat(fd)
+            if stat.S_ISREG(info.st_mode):
+                captured.append(fd)
+                raise OSError("synthetic archive stat failure")
+            return info
+
+        with mock.patch("ingress_backup_integrity.os.fstat",
+                        side_effect=refused_regular_file_stat):
+            result = verify_archive(self.config, self.checksum(self.config))
+        self.assertEqual(result, "read_failed")
+        self.assertEqual(len(captured), 1)
+        with self.assertRaises(OSError):
+            os.fstat(captured[0])
+        self.assertEqual(
+            verify_archive(self.config, self.checksum(self.config)), "matched"
+        )
+
     def test_symlink_hardlink_directory_and_missing_are_rejected(self):
         link = self.root / "linked"
         link.symlink_to(self.config)
