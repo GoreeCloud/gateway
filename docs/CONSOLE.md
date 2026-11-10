@@ -17,7 +17,7 @@ The initial milestone is deliberately read-only. I can see the current engine co
 ## Architecture
 
 - **Gateway engine:** `cmd/gateway`, existing Caddy-compatible Go entrypoint; current CLI and TLS/proxy behavior remain upstream.
-- **Management sidecar:** `cmd/console`, a separate Go process exposing a limited `/api/v1/overview` endpoint. It reads the local Caddy API at `127.0.0.1:2019` and constructs a minimized response. It does not return Caddy's raw configuration, upstream credentials, certificate material or private keys.
+- **Management sidecar:** `cmd/console`, a separate Go process exposing a limited `/api/v1/overview` endpoint and an authenticated, non-disclosing `/api/v1/readiness` endpoint. It reads the local Caddy API at `127.0.0.1:2019` and constructs a minimized response. It does not return Caddy's raw configuration, upstream credentials, certificate material or private keys.
 - **Web application:** static assets embedded in `cmd/console/web`. It uses same-origin API calls, keeps the bearer token in JavaScript memory, supports session lock, responsive sections, offline states, user guidance and a light/dark appearance preference.
 - **Android application:** actual Kotlin/Jetpack Compose Android source under `android/`. It uses a typed HTTPS client to query the same read-only API. Its access token remains only in process memory, with no persistence, backups or WebView; the native app rejects cleartext HTTP.
 - **Other services:** Caddy, DNS, NetBird, TLS termination and any Zero Trust access proxy are independent integrations. The Android application does not imply that a VPN tunnel, DNS record or a public console endpoint already exists.
@@ -69,3 +69,13 @@ The [isolated HTTPS verification script](PRIVATE_HTTPS_TEST.md) starts a separat
 6. The Caddy replacement still requires inventory of live routes and certificates, backup/restore verification, staged parity tests, a rollback rehearsal, explicit production acceptance, and verified VPS connectivity. Existing Caddy must not be removed based solely on these apps passing CI.
 
 **Not implemented yet:** authenticated multiuser roles, write approvals, audit history, route editing, config rollback UI, live request metrics, alerts, rate limiting, MFA, push notifications, Android background monitoring or production deployment. These are improvement candidates, not claims of existing features.
+
+
+### Authenticated local admin-config readiness (development)
+
+The **GET /api/v1/readiness** API requires the same bearer credentials, throttling, loopback listener and cross-site restrictions as the read-only overview. It makes one bounded, redirect-disabled local Caddy admin config request and returns only:
+
+- HTTP 200, `{"admin_config":"queryable","ingress_routes_verified":false}` when the local admin JSON was fetched and parsed.
+- HTTP 503, `{"admin_config":"unavailable","ingress_routes_verified":false}` when the admin endpoint is offline, rejects the request, returns invalid JSON or exceeds the response limit.
+
+Unauthorized callers receive 401 (or the existing failure-throttle response). The endpoint never returns Caddy hostnames, routes, certificates or raw errors. It is **not** a DNS, ACME, public HTTPS, upstream application, VPN, certificate-expiry, or complete ingress readiness check. `/healthz` remains the console-process liveness endpoint. No system or production settings are changed by the probe; do not expose it to the public Internet.
