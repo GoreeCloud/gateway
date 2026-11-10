@@ -40,6 +40,8 @@ jobs:
         run: |
           bash -n scripts/inspect_legacy_ingress.sh
           python3 -m py_compile scripts/legacy_recovery_audit.py
+      - name: Verify read-only ingress container health evidence
+        run: python3 -m unittest discover -s scripts -p 'test_inspect_legacy_ingress.py' -v
       - name: Verify redacted recovery audit and failure isolation
         run: python3 -m unittest discover -s scripts -p 'test_legacy_recovery_audit.py' -v
       - name: Verify owner-protected offline tar structure and rejection behavior

@@ -26,6 +26,13 @@ read_field() {
 
 status="$(read_field '{{.State.Status}}')"
 exit_code="$(read_field '{{.State.ExitCode}}')"
+restart_count="$(read_field '{{.RestartCount}}')"
+health_state="$(read_field '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}')"
+[[ "$restart_count" =~ ^[0-9]{1,10}$ ]] || restart_count=unknown
+case "$health_state" in
+  healthy|unhealthy|starting|none) ;;
+  *) health_state=unknown ;;
+esac
 restart="$(read_field '{{.HostConfig.RestartPolicy.Name}}')"
 error_text="$(read_field '{{.State.Error}}')"
 case "$error_text" in
@@ -40,6 +47,8 @@ network_mode="$(read_field '{{.HostConfig.NetworkMode}}')"
 printf 'inspection=read_only\n'
 printf 'container_present=true\n'
 printf 'container_status=%s\n' "$status"
+printf 'restart_count=%s\n' "$restart_count"
+printf 'docker_health_state=%s\n' "$health_state"
 printf 'exit_code=%s\n' "$exit_code"
 printf 'error_category=%s\n' "$error_kind"
 printf 'restart_policy=%s\n' "$restart"
@@ -62,7 +71,9 @@ else
 fi
 printf 'recovery_approval=required\n'
 printf 'automated_restart=never\n'
-# Nonzero means the container was not confirmed running, NOT a root cause.
-if [[ "$status" != 'running' ]]; then
+# Nonzero means running state/declared health was not confirmed, NOT a root cause.
+# No configured healthcheck (none) remains unverified, not "healthy".
+if [[ "$status" != 'running' || "$health_state" == 'unhealthy' ||
+      "$health_state" == 'starting' || "$health_state" == 'unknown' ]]; then
   exit 1
 fi
