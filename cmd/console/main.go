@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -188,6 +189,16 @@ func validateListen(value string) error {
 	addr, err := netip.ParseAddr(host)
 	if err != nil || !addr.IsLoopback() {
 		return fmt.Errorf("console must bind to numeric loopback")
+	}
+	// Never advertise an ephemeral :0 listener, silently accept an invalid
+	// port until net.Listen, or resolve a service name in this admin process.
+	// Canonical numeric spelling also avoids ambiguous port log output.
+	if len(port) > 5 {
+		return fmt.Errorf("invalid console listener port")
+	}
+	number, err := strconv.Atoi(port)
+	if err != nil || number < 1 || number > 65535 || strconv.Itoa(number) != port {
+		return fmt.Errorf("invalid console listener port")
 	}
 	return nil
 }
