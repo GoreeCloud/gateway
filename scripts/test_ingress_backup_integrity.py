@@ -118,7 +118,7 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
         hard = self.root / "hardlinked"
         os.link(self.acme, hard)
         self.assertEqual(verify_archive(hard, self.checksum(self.acme)), "unsafe_file_properties")
-        self.assertEqual(verify_archive(self.root, self.checksum(self.config)), "unsafe_file_properties")
+        self.assertEqual(verify_archive(self.root, self.checksum(self.config)), "unsafe_parent_directory")
         self.assertEqual(verify_archive(self.root / "absent", self.checksum(self.config)), "unavailable_or_unsafe")
         # Opening a FIFO without O_NONBLOCK can hang the verifier indefinitely.
         fifo = self.root / "named-pipe"
@@ -168,21 +168,48 @@ class OfflineIngressBackupDigestTests(unittest.TestCase):
             verify_archive(self.config, self.checksum(self.config)), "matched"
         )
 
-    def test_non_owner_archive_is_rejected_before_hashing(self):
-        # Simulate a privileged process that can read someone else's 0600
-        # archive: filesystem readability alone is not ownership evidence.
+    def test_non_owner_parent_is_rejected_before_opening_archive(self):
+        # Simulate a different effective owner: parent directory must
+        # already fail before reading certificate or configuration archives.
         with mock.patch("ingress_backup_integrity.os.geteuid",
                         return_value=os.geteuid() + 1):
             self.assertEqual(
                 verify_archive(self.config, self.checksum(self.config)),
-                "unsafe_file_properties",
+                "unsafe_parent_directory",
             )
             code, report = self.capture(self.args())
             self.assertEqual(code, 1)
-            self.assertEqual(report["config_archive_integrity"], "unsafe_file_properties")
-            self.assertEqual(report["acme_archive_integrity"], "unsafe_file_properties")
+            self.assertEqual(report["config_archive_integrity"], "unsafe_parent_directory")
+            self.assertEqual(report["acme_archive_integrity"], "unsafe_parent_directory")
             self.assertFalse(report["both_hashes_match"])
             self.assertEqual(report["cutover_readiness"], "not_established")
+
+    def test_non_owner_regular_file_still_refused_with_private_parent(self):
+        from types import SimpleNamespace
+        import stat
+        actual_fstat = os.fstat
+
+        def foreign_regular_file(fd):
+            actual = actual_fstat(fd)
+            if not stat.S_ISREG(actual.st_mode):
+                return actual
+            return SimpleNamespace(
+                st_mode=actual.st_mode,
+                st_uid=actual.st_uid + 1,
+                st_nlink=actual.st_nlink,
+                st_size=actual.st_size,
+                st_mtime_ns=actual.st_mtime_ns,
+                st_ctime_ns=actual.st_ctime_ns,
+                st_ino=actual.st_ino,
+                st_dev=actual.st_dev,
+            )
+
+        with mock.patch("ingress_backup_integrity.os.fstat",
+                        side_effect=foreign_regular_file):
+            self.assertEqual(
+                verify_archive(self.config, self.checksum(self.config)),
+                "unsafe_file_properties",
+            )
 
     def test_empty_file_rejected_and_report_fail_closed(self):
         self.config.write_bytes(b"")
