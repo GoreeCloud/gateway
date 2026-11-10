@@ -59,10 +59,10 @@ class LocalBackend(BaseHTTPRequestHandler):
             self.connection.settimeout(5)
             expected = (
                 (0x81, b"gateway-frame-one"),
-                (0x82, b"\\x00binary\\xff"),
+                (0x82, b"\x00binary\xff"),
                 (0x89, b"ping-test"),
                 (0x81, b"gateway-frame-two"),
-                (0x88, b"\\x03\\xe8"),
+                (0x88, b"\x03\xe8"),
             )
             for wanted_opcode, wanted_payload in expected:
                 header = self.rfile.read(2)
@@ -190,10 +190,10 @@ def verify_websocket_upgrade():
 
         for opcode, response_opcode, payload in (
             (0x81, 0x81, b"gateway-frame-one"),
-            (0x82, 0x82, b"\\x00binary\\xff"),
+            (0x82, 0x82, b"\x00binary\xff"),
             (0x89, 0x8A, b"ping-test"),
             (0x81, 0x81, b"gateway-frame-two"),
-            (0x88, 0x88, b"\\x03\\xe8"),
+            (0x88, 0x88, b"\x03\xe8"),
         ):
             mask = secrets.token_bytes(4)
             encoded = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
