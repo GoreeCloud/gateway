@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,9 +59,18 @@ func (c gatewayOIDCSettings) validate() error {
 		!realmName.MatchString(parts[2]) {
 		return errors.New("OIDC issuer must be a canonical Keycloak realm")
 	}
-	if u.Port() != "" {
-		// HTTPS over explicit non-default ports is valid for private deployments.
-		if u.Port() == "0" {
+	// Explicit empty or out-of-range port spellings cannot become trusted
+	// issuer URLs, even if net/url succeeds at parsing their syntax.
+	if strings.HasSuffix(u.Host, ":") {
+		return errors.New("invalid issuer port")
+	}
+	if port := u.Port(); port != "" {
+		// Private HTTPS issuers may use valid nondefault ports (e.g. 8443).
+		if len(port) > 5 {
+			return errors.New("invalid issuer port")
+		}
+		number, err := strconv.Atoi(port)
+		if err != nil || number < 1 || number > 65535 {
 			return errors.New("invalid issuer port")
 		}
 	}
