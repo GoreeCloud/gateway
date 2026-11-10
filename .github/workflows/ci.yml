@@ -44,6 +44,8 @@ jobs:
         run: python3 -m unittest discover -s scripts -p 'test_inspect_legacy_ingress.py' -v
       - name: Verify redacted recovery audit and failure isolation
         run: python3 -m unittest discover -s scripts -p 'test_legacy_recovery_audit.py' -v
+      - name: Verify independent offline configuration and ACME archive evidence
+        run: python3 -m unittest discover -s scripts -p 'test_ingress_backup_integrity.py' -v
       - name: Verify owner-protected offline tar structure and rejection behavior
         run: python3 -m unittest discover -s scripts -p 'test_offline_archive_structure.py' -v
       - name: Validate integration smoke syntax
