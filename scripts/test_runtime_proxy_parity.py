@@ -52,22 +52,34 @@ class LocalBackend(BaseHTTPRequestHandler):
             self.send_header("X-Backend-Request-ID", seen_id)
             self.end_headers()
             self.wfile.flush()
-            # Receive and echo two actual masked client text frames. Without
-            # this check, a 101 response alone cannot establish working relay.
+            # Require a real bidirectional text, binary, ping/pong and
+            # close exchange. Every client frame MUST be masked. Never
+            # accept extended lengths or fragmented controls in this bounded
+            # disposable test fixture.
             self.connection.settimeout(5)
-            for _ in range(2):
-                frame = self.rfile.read(2)
-                if len(frame) != 2 or frame[0] != 0x81 or frame[1] & 0x80 == 0:
-                    raise AssertionError("Expected one masked websocket text frame")
-                size = frame[1] & 0x7F
+            expected = (
+                (0x81, b"gateway-frame-one"),
+                (0x82, b"\x00binary\xff"),
+                (0x89, b"ping-test"),
+                (0x81, b"gateway-frame-two"),
+                (0x88, b"\x03\xe8"),
+            )
+            for wanted_opcode, wanted_payload in expected:
+                header = self.rfile.read(2)
+                if len(header) != 2 or header[0] != wanted_opcode or not header[1] & 0x80:
+                    raise AssertionError("Unexpected masked WebSocket frame type")
+                size = header[1] & 0x7F
                 if size > 125:
-                    raise AssertionError("Unexpected extended websocket frame size")
+                    raise AssertionError("Unexpected extended WebSocket frame length")
                 mask = self.rfile.read(4)
                 masked = self.rfile.read(size)
                 if len(mask) != 4 or len(masked) != size:
-                    raise AssertionError("Incomplete websocket client frame")
+                    raise AssertionError("Incomplete masked WebSocket client frame")
                 payload = bytes(b ^ mask[i % 4] for i, b in enumerate(masked))
-                self.wfile.write(bytes((0x81, size)) + payload)
+                if payload != wanted_payload:
+                    raise AssertionError("Unexpected proxied WebSocket frame data")
+                reply_opcode = 0x8A if wanted_opcode == 0x89 else wanted_opcode
+                self.wfile.write(bytes((reply_opcode, len(payload))) + payload)
                 self.wfile.flush()
             self.close_connection = True
             return
@@ -176,17 +188,24 @@ def verify_websocket_upgrade():
         assert re.fullmatch(r"[0-9a-f]{32}", req_id)
         assert headers.get("x-backend-request-id") == req_id
 
-        for payload in (b"gateway-frame-one", b"gateway-frame-two"):
+        for opcode, response_opcode, payload in (
+            (0x81, 0x81, b"gateway-frame-one"),
+            (0x82, 0x82, b"\x00binary\xff"),
+            (0x89, 0x8A, b"ping-test"),
+            (0x81, 0x81, b"gateway-frame-two"),
+            (0x88, 0x88, b"\x03\xe8"),
+        ):
             mask = secrets.token_bytes(4)
             encoded = bytes(b ^ mask[i % 4] for i, b in enumerate(payload))
-            # Client frames must have the MASK bit set under RFC 6455.
-            connection.sendall(bytes((0x81, 0x80 | len(payload))) + mask + encoded)
+            # RFC 6455: all client frames carry the MASK bit, whereas
+            # server frames are unmasked; control frames remain <=125 bytes.
+            connection.sendall(bytes((opcode, 0x80 | len(payload))) + mask + encoded)
             frame = recv_exact(connection, 2)
-            assert frame == bytes((0x81, len(payload))), (
-                "Expected one unmasked echo text frame"
+            assert frame == bytes((response_opcode, len(payload))), (
+                "Wrong WebSocket response opcode or server mask bit"
             )
             assert recv_exact(connection, len(payload)) == payload, (
-                "Websocket frame was not relayed bidirectionally"
+                "WebSocket text/binary/control payload was not relayed intact"
             )
 
 
@@ -269,7 +288,7 @@ def main():
             assert re.fullmatch(r"[0-9a-f]{32}", headers.get("X-Request-ID", ""))
 
             verify_websocket_upgrade()
-            print("PASS: 2 proxied routes, denied spoofed peer, cryptographic IDs, headers, redirect, stream and two full WebSocket frame echoes")
+            print("PASS: 2 proxied routes, denied spoofed peer, cryptographic IDs, headers, redirect, stream and five bidirectional WebSocket text/binary/ping/close frames")
         finally:
             for child in reversed(processes):
                 try:

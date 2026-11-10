@@ -11,7 +11,7 @@ The test verifies:
 - Opt-in `X-Frame-Options` and `X-Content-Type-Options` are present.
 - A synthetic HTTP 307 redirect preserves its target path.
 - A small chunked streaming response passes through correctly.
-- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header and relays two consecutive client-masked text frames through to the test backend and their unmasked echoed frames back to the client. This verifies short bidirectional data flow, not long-running WebSocket reliability.
+- The reverse proxy forwards an HTTP/1.1 WebSocket Upgrade handshake with the correct `Sec-WebSocket-Accept` header, then relays **five** client-masked RFC 6455 frames in sequence: text, binary (including NUL and 0xFF octets), ping (requiring an unmasked pong), a second text frame, and a two-byte normal-close control frame. The disposable backend verifies each opcode, exact payload, mask, and bounded length before emitting its unmasked response. This verifies short bidirectional text/binary/control transport, not extended-frame handling, fragmentation or long-running WebSocket reliability.
 
 Run only with a reviewed development binary:
 
@@ -20,7 +20,7 @@ CGO_ENABLED=0 go build -trimpath -o gateway ./cmd/gateway
 python3 scripts/test_runtime_proxy_parity.py
 ```
 
-This test does **not** prove long-running or multiple/binary WebSocket frames, ping/pong or reconnect semantics, long-running streams, HTTP/2, HTTP/3, full production hostname/rule parity, trust-boundary equivalence, certificate issuance or renewal, protected storage restoration, IPv6, external-network exposure, or service-level availability. These require separate acceptance evidence.
+This test does **not** prove long-running or fragmented/extended WebSocket frames, reconnect semantics, long-running streams, HTTP/2, HTTP/3, full production hostname/rule parity, trust-boundary equivalence, certificate issuance or renewal, protected storage restoration, IPv6, external-network exposure, or service-level availability. These require separate acceptance evidence.
 
 The script checks for pre-existing test port listeners, starts only temporary local processes, creates no certificates, injects no production credentials, and terminates its children. Never use it as a production Caddyfile or copy production domains/secrets into the test.
 
