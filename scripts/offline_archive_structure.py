@@ -54,6 +54,7 @@ def inspect_archive(path: Path) -> dict:
     # symlinked/replaced parent must not redirect the inspector into a live
     # ingress tree or a different backup while a path is being checked.
     parent_fd = None
+    fd = None
     try:
         parent_fd = os.open(
             path.parent, os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY
@@ -75,7 +76,10 @@ def inspect_archive(path: Path) -> dict:
         if parent_fd is not None:
             os.close(parent_fd)
     try:
+        # os.fdopen can reject an already-open descriptor without closing
+        # it. Retain responsibility until the context manager owns it.
         with os.fdopen(fd, "rb") as archive:
+            fd = None
             first = os.fstat(archive.fileno())
             if (not stat.S_ISREG(first.st_mode) or first.st_uid != os.geteuid()
                     or first.st_nlink != 1 or first.st_mode & 0o077
@@ -130,6 +134,12 @@ def inspect_archive(path: Path) -> dict:
                 raise ArchiveGateError("empty_archive")
     except (tarfile.TarError, OSError, UnicodeError, OverflowError, RecursionError):
         raise ArchiveGateError("unreadable_archive") from None
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
     return {
         "schema": SCHEMA,
         "inspection": "offline_archive_headers_only",
