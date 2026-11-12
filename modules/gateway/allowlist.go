@@ -50,6 +50,11 @@ func compilePrefixes(cidrs []string) ([]netip.Prefix, error) {
 		if err != nil {
 			return nil, fmt.Errorf("goree_ip_allowlist: invalid CIDR %q: %w", cidr, err)
 		}
+		// Normalize IPv4-mapped IPv6 CIDRs to the same address family as
+		// RemoteAddr.Unmap(). A mapped /96 covers all IPv4 addresses.
+		if prefix.Addr().Is4In6() && prefix.Bits() >= 96 {
+			prefix = netip.PrefixFrom(prefix.Addr().Unmap(), prefix.Bits()-96)
+		}
 		out = append(out, prefix.Masked())
 	}
 	return out, nil
