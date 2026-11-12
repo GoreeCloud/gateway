@@ -12,8 +12,11 @@ import json
 import os
 from pathlib import Path
 import re
+import selectors
+import signal
 import stat
 import subprocess
+import time
 
 SCHEMA = "goreecloud.gateway.offline-module-parity.v1"
 VERSION = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+(?:[-+.][A-Za-z0-9.-]+)?\Z")
@@ -58,16 +61,66 @@ def synthetic_environment() -> dict[str, str]:
     return env
 
 
+MAX_CANDIDATE_OUTPUT = 1_048_576
+MAX_CANDIDATE_RUNTIME_SECONDS = 15
+
+
 def run_candidate(binary: Path, args: list[str], *, env: dict[str, str]) -> str:
+    """Read candidate stdout incrementally; never buffer unbounded output.
+
+    No shell, captured stderr, live listener, credentials or network target.
+    A fresh child process group lets timeouts stop descendant stdout writers.
+    """
+    process = None
+    finished = False
     try:
-        result = subprocess.run([os.path.abspath(binary), *args], capture_output=True,
-                                text=True, check=False, timeout=15, env=env)
-    except (OSError, subprocess.TimeoutExpired):
+        process = subprocess.Popen(
+            [os.path.abspath(binary), *args],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+            env=env, start_new_session=True,
+        )
+        output = bytearray()
+        deadline = time.monotonic() + MAX_CANDIDATE_RUNTIME_SECONDS
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            while selector.get_map():
+                left = deadline - time.monotonic()
+                if left <= 0:
+                    raise CandidateError("candidate execution unavailable")
+                for key, _ in selector.select(timeout=left):
+                    chunk = os.read(
+                        key.fileobj.fileno(),
+                        min(65536, MAX_CANDIDATE_OUTPUT + 1 - len(output)),
+                    )
+                    if not chunk:
+                        selector.unregister(key.fileobj)
+                    else:
+                        output.extend(chunk)
+                        if len(output) > MAX_CANDIDATE_OUTPUT:
+                            raise CandidateError("candidate verification failed")
+                if time.monotonic() >= deadline and selector.get_map():
+                    raise CandidateError("candidate execution unavailable")
+        left = deadline - time.monotonic()
+        if left <= 0 or process.wait(timeout=left) != 0:
+            raise CandidateError("candidate verification failed")
+        finished = True
+        return output.decode("utf-8", errors="strict")
+    except (OSError, UnicodeError, subprocess.TimeoutExpired):
         raise CandidateError("candidate execution unavailable") from None
-    if result.returncode or len(result.stdout) > 1_048_576:
-        # Never publish raw Caddy errors, adapted JSON or credentials.
-        raise CandidateError("candidate verification failed")
-    return result.stdout
+    finally:
+        if process is not None:
+            if not finished:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            try:
+                process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=2)
+            if process.stdout is not None:
+                process.stdout.close()
 
 
 def inspect_candidate(binary: Path, source_root: Path, *, runner=run_candidate) -> dict:
