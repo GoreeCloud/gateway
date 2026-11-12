@@ -108,7 +108,9 @@ def assess(source: str, target: str) -> dict:
         "wildcard_candidate", "http_only"
     )
     selected = next((status for status in priority if status in found), None)
-    if unbalanced or (imports and selected is None):
+    # Imported Caddyfiles can add or override effective site declarations.
+    # Never issue a positive candidate verdict from an incomplete source tree.
+    if unbalanced or imports:
         selected = "indeterminate"
     if selected is None:
         selected = "absent_in_visible_root_headers"
