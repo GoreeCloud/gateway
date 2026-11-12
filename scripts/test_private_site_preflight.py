@@ -65,6 +65,25 @@ class PrivateSitePreflightTests(unittest.TestCase):
         )
         self.assertTrue(assess("import private/*.caddy\n", TARGET)["unresolved_imports"])
 
+    def test_matching_root_site_with_unresolved_import_fails_closed(self):
+        source = (
+            "https://openchat-dev.goreecloud.com {\\n respond ok\\n}\\n"
+            "import hidden/*.caddy\\n"
+        )
+        report = assess(source, TARGET)
+        self.assertEqual(report["site_declaration"], "indeterminate")
+        self.assertTrue(report["unresolved_imports"])
+        self.assertTrue(report["balanced_braces_textually"])
+        self.assertNotIn(TARGET, json.dumps(report))
+        with tempfile.TemporaryDirectory() as tmp:
+            config = Path(tmp) / "private.Caddyfile"
+            config.write_text(source, encoding="utf-8")
+            stream = io.StringIO()
+            with patch("sys.argv", ["private_site_preflight.py", str(config), TARGET]):
+                with redirect_stdout(stream):
+                    self.assertEqual(main(), 2)
+            self.assertEqual(json.loads(stream.getvalue())["site_declaration"], "indeterminate")
+
     def test_invalid_target_rejected_without_echoing(self):
         for value in ("evil.com@local", "one", "*.goreecloud.com", "openchat-dev.goreecloud.com/path",
                       "bad..goreecloud.com", "a" * 260):
