@@ -67,8 +67,8 @@ class PrivateSitePreflightTests(unittest.TestCase):
 
     def test_matching_root_site_with_unresolved_import_fails_closed(self):
         source = (
-            "https://openchat-dev.goreecloud.com {\\n respond ok\\n}\\n"
-            "import hidden/*.caddy\\n"
+            "https://openchat-dev.goreecloud.com {\n respond ok\n}\n"
+            "import hidden/*.caddy\n"
         )
         report = assess(source, TARGET)
         self.assertEqual(report["site_declaration"], "indeterminate")
