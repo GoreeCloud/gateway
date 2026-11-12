@@ -1,7 +1,10 @@
 import io
 import json
+import os
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 from contextlib import redirect_stdout
 from pathlib import Path
 
@@ -72,6 +75,63 @@ class InventoryTest(unittest.TestCase):
             path.write_bytes(b"\xff")
             with self.assertRaises(UnicodeError):
                 read_bounded(path)
+
+    def test_final_symlink_and_fifo_do_not_redirect_or_block(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            real = root / "private.Caddyfile"
+            real.write_text(FIXTURE)
+            alias = root / "link.Caddyfile"
+            alias.symlink_to(real)
+            with self.assertRaises(OSError):
+                read_bounded(alias)
+            fifo = root / "fifo.Caddyfile"
+            os.mkfifo(fifo, 0o600)
+            with self.assertRaises(ValueError):
+                read_bounded(fifo)
+            self.assertEqual(read_bounded(real), FIXTURE)
+
+    def test_changed_inode_metadata_rejected_even_without_content_difference(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "private.Caddyfile"
+            target.write_text(FIXTURE)
+            original_fstat = os.fstat
+            count = 0
+
+            def changed_after_read(fd):
+                nonlocal count
+                count += 1
+                original = original_fstat(fd)
+                if count == 2:
+                    return SimpleNamespace(
+                        st_dev=original.st_dev, st_ino=original.st_ino,
+                        st_size=original.st_size,
+                        st_mtime_ns=original.st_mtime_ns + 1,
+                        st_ctime_ns=original.st_ctime_ns,
+                    )
+                return original
+
+            with patch("caddyfile_inventory.os.fstat", side_effect=changed_after_read):
+                with self.assertRaises(ValueError):
+                    read_bounded(target)
+            self.assertEqual(count, 2)
+            self.assertEqual(read_bounded(target), FIXTURE)
+
+    def test_fdopen_failure_closes_owned_descriptor_without_path_disclosure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            target = Path(tmp) / "secret-do-not-log.Caddyfile"
+            target.write_text(FIXTURE)
+            opened = []
+            def fail_wrapper(fd, *_args, **_kwargs):
+                opened.append(fd)
+                raise OSError("synthetic confidential wrapper failure")
+            with patch("caddyfile_inventory.os.fdopen", side_effect=fail_wrapper):
+                with self.assertRaises(OSError):
+                    read_bounded(target)
+            self.assertEqual(len(opened), 1)
+            with self.assertRaises(OSError):
+                os.fstat(opened[0])
+            self.assertEqual(read_bounded(target), FIXTURE)
 
     def test_empty_file_counts_only(self):
         result = count_features("# comment\n")
