@@ -3,6 +3,7 @@ import io
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -108,12 +109,34 @@ class CandidateModuleParityTests(unittest.TestCase):
         self.assertNotIn("REAL_PORKBUN_CREDENTIAL", json.dumps(env))
 
     def test_relative_candidate_path_uses_absolute_executable(self):
-        with patch("candidate_module_parity.subprocess.run") as subprocess_mock:
-            subprocess_mock.return_value.returncode = 0
-            subprocess_mock.return_value.stdout = "v2.11.8 synthetic"
-            result = run_candidate(Path("./gateway"), ["version"], env={})
+        executable = self.root / "synthetic-candidate"
+        executable.write_text("#!/bin/sh\nprintf 'v2.11.8 synthetic'\n")
+        executable.chmod(0o700)
+        relative = Path(os.path.relpath(executable))
+        result = run_candidate(relative, ["version"], env=synthetic_environment())
         self.assertEqual(result, "v2.11.8 synthetic")
-        self.assertEqual(subprocess_mock.call_args.args[0][0], os.path.abspath("gateway"))
+
+    def test_large_stdout_is_refused_before_collecting_unbounded_output(self):
+        script = "import sys; sys.stdout.buffer.write(b'x' * 1048577)"
+        with self.assertRaisesRegex(CandidateError, "candidate verification failed"):
+            run_candidate(Path(sys.executable), ["-c", script],
+                          env=synthetic_environment())
+
+    def test_late_stdout_and_nonzero_exit_fail_closed(self):
+        script = "import sys;sys.stdout.write('secret-token');sys.exit(7)"
+        with self.assertRaises(CandidateError) as error:
+            run_candidate(Path(sys.executable), ["-c", script],
+                          env=synthetic_environment())
+        self.assertNotIn("secret-token", str(error.exception))
+
+    def test_noncooperative_candidate_deadline_is_bounded_and_redacted(self):
+        import candidate_module_parity as module
+        script = "import time;time.sleep(3)"
+        with patch.object(module, "MAX_CANDIDATE_RUNTIME_SECONDS", 0.1):
+            with self.assertRaises(CandidateError) as error:
+                run_candidate(Path(sys.executable), ["-c", script],
+                              env=synthetic_environment())
+        self.assertNotIn("time.sleep", str(error.exception))
 
     def test_missing_executable_cli_failure_is_redacted(self):
         stdout = io.StringIO()
