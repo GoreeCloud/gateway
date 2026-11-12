@@ -8,7 +8,9 @@ It neither writes files nor contacts networks.
 
 import argparse
 import json
+import os
 import re
+import stat
 from pathlib import Path
 
 MAX_SIZE = 1_048_576
@@ -80,12 +82,38 @@ def count_features(source: str) -> dict:
 
 
 def read_bounded(path: Path) -> str:
-    # Do not print the path, file contents, errors or exception strings.
-    with path.open("rb") as handle:
-        data = handle.read(MAX_SIZE + 1)
-    if len(data) > MAX_SIZE:
-        raise ValueError("oversized")
-    return data.decode("utf-8", errors="strict")
+    """Inspect a stable regular file without following final symlinks or FIFOs.
+
+    The parent directory is outside this helper's trust boundary; the caller
+    must select an authorized local path. This never authenticates a backup,
+    parses an effective Caddy configuration or prints private source text.
+    """
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise ValueError("safe final-file open unavailable")
+    fd = None
+    try:
+        fd = os.open(
+            path, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
+            | getattr(os, "O_CLOEXEC", 0),
+        )
+        with os.fdopen(fd, "rb") as handle:
+            fd = None
+            before = os.fstat(handle.fileno())
+            if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_SIZE:
+                raise ValueError("unsafe Caddyfile source")
+            data = handle.read(MAX_SIZE + 1)
+            after = os.fstat(handle.fileno())
+            if (len(data) > MAX_SIZE or len(data) != before.st_size
+                    or (before.st_dev, before.st_ino) !=
+                    (after.st_dev, after.st_ino)
+                    or before.st_size != after.st_size
+                    or before.st_mtime_ns != after.st_mtime_ns
+                    or before.st_ctime_ns != after.st_ctime_ns):
+                raise ValueError("unstable or oversized Caddyfile source")
+        return data.decode("utf-8", errors="strict")
+    finally:
+        if fd is not None:
+            os.close(fd)
 
 
 def main() -> int:
