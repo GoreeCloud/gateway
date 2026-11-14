@@ -92,6 +92,9 @@ func TestConsoleAdminReadinessFailsClosed(t *testing.T) {
 	}{
 		{"upstream_503", `{"message":"private-debug"}`, http.StatusServiceUnavailable},
 		{"malformed_json", "{not-valid-json", http.StatusOK},
+		{"null_document", "null", http.StatusOK},
+		{"whitespace_null_document", " \n null \t", http.StatusOK},
+		{"empty_document", " \n \t ", http.StatusOK},
 		{"oversized", strings.Repeat("x", maxConfig+1), http.StatusOK},
 	}
 	for _, tc := range tests {
