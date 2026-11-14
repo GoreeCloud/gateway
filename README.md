@@ -86,6 +86,8 @@ GitHub's Android CI verifies APK structure and SHA-256 and retains a **debug-onl
 
 For legacy Dockerized Caddy, the [read-only diagnostic guide](docs/INGRESS_RECOVERY.md), [inspection script](scripts/inspect_legacy_ingress.sh), and [redacted JSON recovery audit](scripts/legacy_recovery_audit.py) report limited health metadata without modifying live infrastructure. Unknown or protected certificate/backup state is explicitly **not verified**, never silently treated as passed. Diagnostic output does not establish that restarting or replacing a stopped container is safe.
 
+The optional `python3 scripts/adguard_bridge_socket_preflight.py` checks the AdGuard-to-Caddy systemd **socket unit state** and two independent TCP/3001 listener snapshots using read-only `systemctl show` and `ss`. Its output is fixed-field, redacted JSON: it never prints the bridge address, logs, credentials or raw errors. An active unit and listening port still **do not verify** Caddy routing, AdGuard dashboard reachability, TLS or readiness to migrate; a failed `Result=resources` unit requires separate authorized diagnosis and reversible recovery. The diagnostic never restarts or changes anything.
+
 ## Production safety
 
 Do not change the running `caddy` service, port 80/443 ownership, systemd units, firewall, DNS, or certificate data until the [cutover checklist](docs/CUTOVER.md) is satisfied, the existing ingress owner's identity is verified, and a tested rollback is ready. Any actual production deployment requires its own acceptance and authorization.
