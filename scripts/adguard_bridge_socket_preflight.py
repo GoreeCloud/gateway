@@ -13,7 +13,7 @@ import subprocess
 UNIT = "adguard-caddy-proxy.socket"
 FIELDS = ("LoadState", "ActiveState", "SubState", "Result")
 PORT = 3001
-PORT_RE = re.compile(r":([0-9]{1,5})\\Z")
+PORT_RE = re.compile(r":([0-9]{1,5})\Z")
 
 
 def parse_unit(text: str) -> dict[str, str]:
