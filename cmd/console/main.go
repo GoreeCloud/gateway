@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -59,8 +60,14 @@ func summarize(r io.Reader) (overview, error) {
 	if err != nil || len(data) > maxConfig {
 		return overview{}, errors.New("oversized response")
 	}
+	// A 200 response containing JSON null is valid JSON but not a Caddy
+	// configuration object. Never report this as a connected admin API.
+	document := bytes.TrimSpace(data)
+	if len(document) == 0 || document[0] != '{' {
+		return overview{}, errors.New("invalid response")
+	}
 	var cfg adminConfig
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if err := json.Unmarshal(document, &cfg); err != nil {
 		return overview{}, errors.New("invalid response")
 	}
 	routes := 0
