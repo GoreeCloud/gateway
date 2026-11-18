@@ -1,0 +1,42 @@
+[Unit]
+Description=GoreeCloud Gateway (Caddy-powered development ingress)
+Documentation=https://github.com/GoreeCloud/gateway
+Wants=network-online.target
+After=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=goreecloud-gateway
+Group=goreecloud-gateway
+WorkingDirectory=/var/lib/goreecloud-gateway
+StateDirectory=goreecloud-gateway
+StateDirectoryMode=0700
+EnvironmentFile=/etc/goreecloud-gateway/gateway.env
+ExecStart=/usr/local/bin/gateway serve --listen 127.0.0.1:8787 --sites /var/lib/goreecloud-gateway/sites.json --state-dir /var/lib/goreecloud-gateway/managed
+UMask=0077
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=10
+
+# Restrict the service while retaining the ability to bind Caddy HTTP/HTTPS
+# listener ports if and only if a separately approved managed route is loaded.
+NoNewPrivileges=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectControlGroups=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+LockPersonality=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/goreecloud-gateway
+
+[Install]
+WantedBy=multi-user.target
