@@ -78,6 +78,8 @@ The optional Python 3 script `scripts/ingress_preflight.py` is **read-only** and
 
 **Important:** The result always reports backups, live TLS health, actual route parity, rollback testing, and production-cutover readiness as unverified. It is **not** a backup tool, healthcheck, upgrade executor or substitute for independent recovery testing. See [staging acceptance](docs/STAGING_ACCEPTANCE.md).
 
+For legacy Caddy patching, independent backup restoration and production recovery, follow the [risk-gated security upgrade plan](docs/LEGACY_CADDY_PATCH_GATES.md). This document is a checklist, **not** an upgrade executor.
+
 ## Security and limitations
 
 See [staging and production acceptance](docs/STAGING_ACCEPTANCE.md) and [security/MIPS boundaries](docs/SECURITY_AND_MIPS.md) for precise tests and outstanding gates.
