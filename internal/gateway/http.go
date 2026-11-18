@@ -14,6 +14,9 @@ import (
 	"time"
 )
 
+// Version is overwritten by -ldflags for tagged release builds.
+var Version = "0.1.0-dev"
+
 type api struct {
 	manager    *Manager
 	token      []byte
@@ -117,7 +120,7 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sites, running := a.manager.Snapshot()
-		send(w, 200, map[string]any{"name": "GoreeCloud Gateway", "engine": "Caddy v2", "version": "0.1.0-dev", "running": running, "siteCount": len(sites), "writable": a.write, "management": "loopback"})
+		send(w, 200, map[string]any{"name": "GoreeCloud Gateway", "engine": "Caddy v2", "version": Version, "running": running, "siteCount": len(sites), "writable": a.write, "management": "loopback"})
 		return
 	case "/api/sites":
 		if r.Method == http.MethodGet {
@@ -213,7 +216,21 @@ func readSite(r *http.Request) (Site, error) {
 
 // Failed authentication is counted using only the direct TCP peer, not any
 // untrusted Forwarded or X-Forwarded-For headers. State is volatile and never logged.
+// authPeerKey strips the ephemeral TCP source port and canonicalizes the
+// literal direct-peer IP; never use X-Forwarded-For for this decision.
+func authPeerKey(remoteAddr string) string {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		return remoteAddr
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.String()
+	}
+	return host
+}
+
 func (a *api) tooManyFailures(peer string) bool {
+	peer = authPeerKey(peer)
 	a.failuresMu.Lock()
 	defer a.failuresMu.Unlock()
 	f := a.failures[peer]
@@ -225,6 +242,7 @@ func (a *api) tooManyFailures(peer string) bool {
 }
 
 func (a *api) noteFailure(peer string) {
+	peer = authPeerKey(peer)
 	a.failuresMu.Lock()
 	defer a.failuresMu.Unlock()
 	f := a.failures[peer]
@@ -236,6 +254,7 @@ func (a *api) noteFailure(peer string) {
 }
 
 func (a *api) clearFailures(peer string) {
+	peer = authPeerKey(peer)
 	a.failuresMu.Lock()
 	defer a.failuresMu.Unlock()
 	delete(a.failures, peer)
