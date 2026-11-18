@@ -30,23 +30,25 @@ go test ./...
 go build -trimpath -o gateway .
 ```
 
-**Tagged release builds:** the API defaults to `0.1.0-dev` for source builds. Release packagers must set the public version through the Go linker, for example `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-alpha.4" -o gateway .`, and independently verify the resulting runtime status.
+**Tagged release builds:** the API defaults to `0.1.0-dev` for source builds. Release packagers must set the public version through the Go linker, for example `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-alpha.6" -o gateway .`, and independently verify the resulting runtime status.
 
 ## Verify published development artifacts
 
-The [GitHub releases page](https://github.com/GoreeCloud/gateway/releases) contains prerelease binaries and separate SHA-256 checksums. For example, [v0.1.0-alpha.4](https://github.com/GoreeCloud/gateway/releases/tag/v0.1.0-alpha.4) was verified against protected source commit `09d4f54efcd0f97d4bdb82dbe31f331d6370e21a`. Subsequent protected `main` commits may include tests or fixes **not** in the release. Verify exact source, checksum and version, and never infer production readiness from release publication.
+The [GitHub releases page](https://github.com/GoreeCloud/gateway/releases) publishes **development pre-releases**, not production-approved binaries. [v0.1.0-alpha.6](https://github.com/GoreeCloud/gateway/releases/tag/v0.1.0-alpha.6) contains separate native Linux **AMD64** and cross-compiled **ARM64** executables, built from protected source commit `d78a27c299ba50387749ebb9e134bd97d1f40f3d`. GitHub-hosted archives were downloaded back and independently matched their SHA-256 checksums and source provenance. No release has undergone public TLS/DNS-01 or real ARM64-device acceptance.
 
-After downloading both alpha.4 assets into the same private directory:
+Download both archives and `SHA256SUMS.txt` into a private directory before verifying them:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-tar -tzf goreecloud-gateway-v0.1.0-alpha.4-linux-amd64.tar.gz | head -25
-tar -xzf goreecloud-gateway-v0.1.0-alpha.4-linux-amd64.tar.gz
+tar -tzf goreecloud-gateway-v0.1.0-alpha.6-linux-amd64.tar.gz | head -25
+tar -xzf goreecloud-gateway-v0.1.0-alpha.6-linux-amd64.tar.gz
 cat BUILDINFO.txt
 go version -m ./gateway
 ```
 
-Treat the binary and its archive as untrusted until independently verified; inspection and checksum consistency do not replace maintainer signature, SBOM or upstream provenance acceptance. Older alpha.1–alpha.3 releases have security warnings for affected `klauspost/compress` v1.20.1 source. The alpha.4 binary uses v1.20.2; no published alpha is production-accepted.
+For ARM64, substitute `linux-arm64` in the archive filename; **ARM64 has not yet been run on physical ARM64 hardware**. Release archives include upstream license notices, source/build metadata, the React console bundled in the executable, synthetic staging examples, and redacted preflight scripts. Matching checksums alone do not replace a release signature, binary provenance review or independent security audit.
+
+Earlier alpha.1–alpha.3 include affected `klauspost/compress v1.20.1` and carry release-page warnings. Alpha.5 embeds OpenTelemetry modules affected by [GHSA-q7gw-24fr-5p69](https://github.com/advisories/GHSA-q7gw-24fr-5p69); alpha.6 updates those modules to **1.47.0** through [PR #25](https://github.com/GoreeCloud/gateway/pull/25). The separate inherited `go-jose/v3` alerts remain tracked in [issue #27](https://github.com/GoreeCloud/gateway/issues/27). Do not deploy any development alpha to production.
 
 ### Linux ARM64 build verification
 
@@ -58,7 +60,7 @@ file gateway-linux-arm64
 go version -m gateway-linux-arm64
 ```
 
-This ARM64 artifact is **CI-only** unless separately packaged and released. Cross-compilation does not demonstrate running on real ARM64 hardware, real-network support, or production installation. The published alpha.4 pre-release contains only Linux AMD64.
+The alpha.6 release includes a Linux ARM64 archive as well as AMD64. Cross-compilation and architecture/module checks do **not** establish real ARM64 runtime behavior, production network support or readiness.
 
 ## Local development: management console
 
@@ -125,7 +127,7 @@ Firefox and WebKit projects are also available when their Playwright browser bin
 
 The required `validate` CI uses patched Go 1.27.4 (while `go.mod` retains the compatible minimum Go 1.26 API version) and runs the official `govulncheck@v1.10.0` tool in source mode against the Go vulnerability database. It rejects **reachable** affected Go symbols, while keeping imported-but-unreachable advisories visible for follow-up. Official Go tooling sends module/version metadata to its public vulnerability database, not source files; local tool telemetry is disabled for the CI step. This is a development check, not a runtime security certification or proof of safe production upgrade.
 
-The dependency security baseline corrects [GO-2026-6865](https://pkg.go.dev/vuln/GO-2026-6865) by pinning `github.com/klauspost/compress` v1.20.2, and updates `golang.org/x/net` to v0.62.0 and `golang.org/x/crypto` to v0.59.0 for their corresponding advisories. Earlier alpha releases used the affected `compress` version and carry explicit release-page warnings.
+The dependency security baseline corrects [GO-2026-6865](https://pkg.go.dev/vuln/GO-2026-6865) by pinning `github.com/klauspost/compress` v1.20.2, and updates `golang.org/x/net` to v0.62.0 and `golang.org/x/crypto` to v0.59.0 for their corresponding advisories. Alpha.1–alpha.3 used the affected compression version and carry release-page warnings; alpha.4 and later pin patched v1.20.2.
 
 ## Security and limitations
 
