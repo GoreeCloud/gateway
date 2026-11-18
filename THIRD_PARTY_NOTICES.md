@@ -21,3 +21,11 @@ All original Gateway files are licensed under Apache-2.0 (LICENSE). Dependency l
 **axe-core / @axe-core/playwright** — Deque Systems, Mozilla Public License 2.0 (MPL-2.0), https://www.deque.com/axe/axe-core/ — pinned development-only accessibility test dependencies. Neither the axe engine nor test runner is bundled in the native Gateway release binary.
 
 **Go dependency security maintenance (November 18, 2026)** — github.com/klauspost/compress v1.20.2 (BSD-3-Clause; preserved license in [third_party_licenses/klauspost-compress-LICENSE](third_party_licenses/klauspost-compress-LICENSE)); golang.org/x/net v0.62.0 and golang.org/x/crypto v0.59.0 (BSD-3-Clause). Their upstream copyrights and license obligations remain effective. This project does not claim ownership of these packages.
+
+**OpenTelemetry Go indirect dependencies** — `go.opentelemetry.io/otel`, `otel/sdk`,
+`otel/sdk/log`, `otel/trace` and related log/metric modules pinned to
+v1.47.0. Apache License 2.0, copyright OpenTelemetry contributors. See
+[third_party_licenses/opentelemetry-go-LICENSE](third_party_licenses/opentelemetry-go-LICENSE)
+and https://github.com/open-telemetry/opentelemetry-go . These version upgrades
+address [GHSA-q7gw-24fr-5p69](https://github.com/advisories/GHSA-q7gw-24fr-5p69)
+in the pinned dependency graph. All upstream rights remain effective.

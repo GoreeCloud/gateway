@@ -25,3 +25,23 @@ No application-level persistent audit log, certificate inventory, active upstrea
 ## Go dependency vulnerability maintenance
 
 The patched source pins `github.com/klauspost/compress` v1.20.2 to remediate [GO-2026-6865](https://pkg.go.dev/vuln/GO-2026-6865), `golang.org/x/net` v0.62.0 for GO-2026-6860 and GO-2026-6866, and `golang.org/x/crypto` v0.59.0 for GO-2026-5932. The protected CI uses patched Go 1.27.4 and `validate` includes the official `govulncheck@v1.10.0` source-reachability scan; module metadata is submitted to the Go vulnerability database and Go telemetry is disabled. Passing it does not prove the absence of all vulnerabilities, protect a deployed legacy Caddy version, or provide live recovery.
+
+## Additional dependency advisory review
+
+GitHub Dependabot flagged the OpenTelemetry
+[GHSA-q7gw-24fr-5p69](https://github.com/advisories/GHSA-q7gw-24fr-5p69)
+dependency vulnerability. This source upgrades the affected `otel/trace`,
+`otel/sdk` and `otel/sdk/log` modules to v1.47.0, with compatible related
+modules. Go tests, module verification and the official reachable-code scanner
+must pass for the exact source commit. The runtime is still a development alpha.
+
+GitHub also lists **three separate unpatched** `go-jose/go-jose/v3` advisories
+([GHSA-mgcc-cww5-fp2q](https://github.com/advisories/GHSA-mgcc-cww5-fp2q),
+[GHSA-4w3g-jfj2-cw2q](https://github.com/advisories/GHSA-4w3g-jfj2-cw2q),
+and [GHSA-vvm8-gf78-28g4](https://github.com/advisories/GHSA-vvm8-gf78-28g4)).
+Caddy's standard PKI imports `go.step.sm/crypto/jose`, which imports affected
+`go-jose/v3` v3.0.5. Upstream has not published a fixed v3 release as of this
+review. Do **not** mark these alerts dismissed, downgrade the advisory, assert
+runtime exploitability, remove Caddy modules without a compatibility review, or
+equate a zero-reachable-result source scan with resolution of these alerts.
+Independent review and a verified upstream/compatible patch remain open.
