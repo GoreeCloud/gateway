@@ -16,7 +16,7 @@ CGO_ENABLED=0 go build -trimpath -o gateway .
 ./gateway list-modules | grep -E 'http.handlers.reverse_proxy|dns.providers.porkbun'
 ```
 
-Automated Go tests now exercise a real Caddy engine behind ephemeral loopback HTTP listeners: upstream response and headers, streaming chunks, and a complete WebSocket text-frame echo. They also check API auth/Host enforcement, private storage isolation, rollback, and *offline* Porkbun Caddyfile adaptation. No public DNS, DNS API key, ACME issuance, TLS port 443, or real user routes are involved.
+Automated Go tests exercise a real Caddy engine behind ephemeral loopback listeners: upstream HTTP response and headers, streaming chunks, a WebSocket text-frame echo, and a locally trusted HTTPS fixture. A separate synthetic legacy-style Caddyfile regression exercises `handle` routing, path-prefix stripping, upstream request/response headers, Basic Auth deny/allow, an explicit-matcher redirect, and unmatched-route fallback. They also check API auth/Host enforcement, private storage isolation, rollback, and *offline* Porkbun Caddyfile adaptation. No public DNS, DNS API key, ACME issuance, TLS port 443, or real user routes are involved.
 
 ## Redacted, non-mutating legacy ingress preflight
 
