@@ -18,3 +18,7 @@ web/.vite/
 
 # Dedicated managed-mode Caddy configuration and certificate storage
 .gateway-state/
+
+# Python synthetic-test cache (never commit local bytecode)
+__pycache__/
+*.pyc
