@@ -31,6 +31,9 @@ func Open(path string, loader Loader) (*Manager, error) {
 	if path == "" {
 		return nil, errors.New("site state path is required")
 	}
+	if err := validateSitesParent(path); err != nil {
+		return nil, err
+	}
 	m := &Manager{path: path, load: loader}
 	info, err := os.Lstat(path)
 	if errors.Is(err, os.ErrNotExist) {
@@ -143,6 +146,12 @@ func (m *Manager) change(next []Site) error {
 	if err != nil {
 		return err
 	}
+	// Do not temporarily apply an ingress change if the persistence parent
+	// has already been redirected through a symlink. saveAtomic checks again
+	// after the engine load to limit pathname-replacement exposure.
+	if err := validateSitesParent(m.path); err != nil {
+		return fmt.Errorf("unsafe sites persistence parent: %w", err)
+	}
 	if err := m.load(cfg, true); err != nil {
 		return fmt.Errorf("engine refused configuration; no changes saved: %w", err)
 	}
@@ -160,7 +169,35 @@ func (m *Manager) change(next []Site) error {
 	return nil
 }
 
+// validateSitesParent rejects a symlink in any existing parent directory.
+// It is a point-in-time check; the operator must still use stable, trusted
+// parent directories because pathname replacement between checks is possible.
+func validateSitesParent(path string) error {
+	dir, err := filepath.Abs(filepath.Dir(path))
+	if err != nil {
+		return err
+	}
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return fmt.Errorf("resolve sites persistence parent: %w", err)
+	}
+	if resolved != dir {
+		return errors.New("sites file parent path must not contain symbolic links")
+	}
+	info, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return errors.New("sites persistence parent must be a directory")
+	}
+	return nil
+}
+
 func saveAtomic(path string, sites []Site) error {
+	if err := validateSitesParent(path); err != nil {
+		return err
+	}
 	dir := filepath.Dir(path)
 	data, err := json.MarshalIndent(sites, "", "  ")
 	if err != nil {
