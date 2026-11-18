@@ -33,6 +33,11 @@ type authFailure struct {
 	until time.Time
 }
 
+// The loopback-only management console still accepts connections from many
+// different 127/8 source addresses. Bound per-peer failure history so a local
+// untrusted process cannot grow its in-memory rate-limit table without limit.
+const maxAuthFailurePeers = 256
+
 func Handler(m *Manager, assets fs.FS, token string, allowWrite bool) http.Handler {
 	index, err := fs.ReadFile(assets, "index.html")
 	if err != nil {
@@ -272,9 +277,32 @@ func (a *api) noteFailure(peer string) {
 	peer = authPeerKey(peer)
 	a.failuresMu.Lock()
 	defer a.failuresMu.Unlock()
-	f := a.failures[peer]
-	if time.Now().After(f.until) {
-		f = authFailure{until: time.Now().Add(time.Minute)}
+	now := time.Now()
+	f, known := a.failures[peer]
+	if !known && len(a.failures) >= maxAuthFailurePeers {
+		// Reclaim expired entries before evicting a currently tracked peer.
+		for key, entry := range a.failures {
+			if !now.Before(entry.until) {
+				delete(a.failures, key)
+			}
+		}
+		if len(a.failures) >= maxAuthFailurePeers {
+			// If many direct loopback peers fail at once, discard the
+			// oldest record rather than allocating unbounded state.
+			// This is local-process abuse resistance, not a distributed
+			// authentication defense.
+			var oldestKey string
+			var oldestDeadline time.Time
+			for key, entry := range a.failures {
+				if oldestKey == "" || entry.until.Before(oldestDeadline) {
+					oldestKey, oldestDeadline = key, entry.until
+				}
+			}
+			delete(a.failures, oldestKey)
+		}
+	}
+	if !now.Before(f.until) {
+		f = authFailure{until: now.Add(time.Minute)}
 	}
 	f.count++
 	a.failures[peer] = f
