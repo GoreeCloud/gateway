@@ -12,8 +12,8 @@ class PreflightTest(unittest.TestCase):
             True, False,
             "80/tcp -> 0.0.0.0:80\n443/tcp -> [::]:443\n443/udp -> 0.0.0.0:443\n",
             "/etc/caddy|bind\n/data|bind\n/config|bind\n",
-            "v2.11.4 h1:some-hash", "dns.providers.porkbun\n")
-        self.assertEqual(result["caddy_binary_version"], "v2.11.4")
+            "v2.11.3 h1:some-hash", "dns.providers.porkbun\n")
+        self.assertEqual(result["caddy_binary_version"], "v2.11.3")
         self.assertTrue(result["caddy_pre_2_11_5"])
         self.assertFalse(result["ready_for_production_cutover"])
         self.assertTrue(result["porkbun_module_registered"])
@@ -42,7 +42,7 @@ class PreflightTest(unittest.TestCase):
         fixture = [
             "true|false", "80/tcp -> 10.0.0.8:80\n443/tcp -> 10.0.0.8:443",
             "/data|bind\n/very-private-host-location|bind\n",
-            "v2.11.4 h1:private-hash",
+            "v2.11.3 h1:private-hash",
             "dns.providers.porkbun\nhttp.handlers.reverse_proxy\n",
         ]
         with mock.patch.object(audit, "docker_read", side_effect=fixture) as run:
