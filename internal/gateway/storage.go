@@ -24,6 +24,18 @@ func PrepareManagedStorage(directory string) error {
 	if err := os.MkdirAll(absolute, 0700); err != nil {
 		return fmt.Errorf("prepare Gateway state directory: %w", err)
 	}
+	// Refuse storage paths that traverse symlinked ancestors, even when the
+	// final directory itself is private. A symlinked parent could redirect
+	// new autosave/certificate files outside the operator's chosen directory.
+	// This is a point-in-time check; trusted, stable parent ownership is
+	// still required to prevent concurrent pathname replacement.
+	resolved, err := filepath.EvalSymlinks(absolute)
+	if err != nil {
+		return fmt.Errorf("resolve Gateway state directory: %w", err)
+	}
+	if resolved != absolute {
+		return errors.New("Gateway state directory path must not contain symbolic links")
+	}
 	if err := validatePrivateDirectory(absolute); err != nil {
 		return err
 	}
