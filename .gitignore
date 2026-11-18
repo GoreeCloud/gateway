@@ -2,8 +2,8 @@
 .env
 .env.*
 !.env.example
-gateway
-gateway-*
+/gateway
+/gateway-*
 gateway-sites.json
 gateway-sites.json.*
 *.pem
