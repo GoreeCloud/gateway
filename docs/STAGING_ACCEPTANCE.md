@@ -31,6 +31,8 @@ Output is a metadata-only JSON summary: running state, healthcheck presence, por
 
 This preflight alone cannot verify that a backup exists or can be restored, that certificates will renew, that any external route works, or that a Caddy security upgrade is safe. A confirmed legacy binary below Caddy 2.11.5 remains a priority for a separately authorized, rollback-ready patch.
 
+For the existing legacy Caddy v2.11.4 security-upgrade and rollback decision, use the [risk-gated patch and recovery runbook](LEGACY_CADDY_PATCH_GATES.md). It records blockers without treating Docker state as recovery proof.
+
 ## Outstanding production gates
 
 - [ ] Inventory full legacy Caddyfile configuration, routing, redirects, headers, `handle`, basic auth, DNS and TLS without disclosing secrets.
