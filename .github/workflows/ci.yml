@@ -20,6 +20,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Install and build web console
         run: npm ci --prefix web --ignore-scripts && npm run build --prefix web
+      - name: Install isolated Chromium for keyboard and UI regression tests
+        run: npm exec --prefix web -- playwright install --with-deps chromium
+      - name: Browser keyboard and mobile accessibility checks (synthetic API)
+        run: npm run test:e2e --prefix web -- --project=chromium
       - name: Audit pinned web dependencies
         run: npm audit --prefix web --audit-level=high
       - name: Redacted preflight synthetic tests (no Docker contact)

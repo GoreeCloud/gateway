@@ -220,3 +220,12 @@ a{color:var(--brand)}
 }
 @media(max-width:420px){.local-badge{display:none}.login-card{padding:32px 24px 24px}.login-top{top:25px}.hero{padding:24px}.hero h2{font-size:33px}.app-footer{flex-direction:column;align-items:flex-start}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}}
+
+/* Visible on keyboard focus only; consistent with the verified theme tokens. */
+.skip-link{position:fixed;left:12px;top:12px;transform:translateY(-160%);z-index:100;padding:12px 16px;border:2px solid var(--brand);border-radius:10px;background:var(--surface);color:var(--text);font-size:13px;font-weight:700}
+.skip-link:focus{transform:translateY(0)}
+/* Offscreen mobile navigation must also leave the keyboard/accessibility tree. */
+@media(max-width:730px){
+  .sidebar:not(.mobile-open){visibility:hidden}
+  .sidebar.mobile-open{visibility:visible}
+}
