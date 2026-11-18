@@ -64,6 +64,16 @@ The alpha.6 release includes a Linux ARM64 archive as well as AMD64. Cross-compi
 
 A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
 
+## Optional hardened Linux systemd service
+
+An **opt-in example** [systemd unit](examples/systemd/goreecloud-gateway.service)
+and [deployment safety guide](docs/LINUX_SERVICE.md) use a dedicated static
+Linux account, private persistent state, root-owned environment file, loopback
+management and restrictive service privileges. This template is **not
+automatically installed**, tested against real production ingress, or approved
+for cutover; persisted Caddy routes can still bind public listeners even while
+the web console is read-only.
+
 ## Local development: management console
 
 Choose a secure random token, preserve it in your password manager, and export it into your session without adding it to shell history:
