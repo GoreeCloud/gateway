@@ -2,17 +2,17 @@
 
 **A native, self-hosted ingress service and web console built on Caddy's real Go engine.** New GoreeCloud product, not a fork claiming independent authorship of Caddy.
 
-GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and adds a first-party React management app and a small, loopback-only Go control plane. Caddy remains responsible for HTTP routing, reverse-proxy behavior, TLS automation and protocol handling. The managed console is intentionally scoped to simple hostname-to-upstream routes; advanced Caddyfile configuration is supported by the native CLI, not rewritten by this console.
+GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and adds a first-party React management app and a small, loopback-only Go control plane. Caddy remains responsible for HTTP routing, reverse-proxy behavior, TLS automation and protocol handling. The native binary also registers the optional upstream Porkbun DNS-01 module v0.3.1 for Caddyfile migration compatibility; the web editor does not manage DNS credentials or DNS-01 policies. The managed console is intentionally scoped to simple hostname-to-upstream routes; advanced Caddyfile configuration is supported by the native CLI, not rewritten by this console.
 
 ## Capabilities
 
 - Native Go executable with upstream Caddy commands (`run`, `adapt`, `validate`, etc.) and a new `serve` mode.
 - Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams.
 - Caddyfile-to-JSON adaptation with Caddy itself; live configuration load with refusal on error.
-- Atomic JSON state persistence (0600 permissions), rollback when persistence fails, no direct writes to unrelated Caddyfiles.
+- Atomic JSON state persistence (0600 permissions), rollback when persistence fails, no direct writes to unrelated Caddyfiles. The managed engine uses separate, private Caddy autosave and certificate storage (0700).
 - React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
 - Browser control plane defaults to read-only and **only binds a loopback IP**; all private API endpoints require a bearer token.
-- No tracking or cloud account requirement. No persistent browser token storage.
+- No tracking or cloud account requirement. No persistent browser token storage. Management requests reject DNS-rebound Host headers, rate-limit repeated direct-peer authentication failures, and use stricter browser security headers.
 
 ## Build requirements
 
@@ -51,7 +51,7 @@ The bundled binary passes all commands other than `serve` to the upstream Caddy 
 ./gateway run --config Caddyfile --adapter caddyfile
 ```
 
-The `serve` console **does not import, inspect or modify** an unrelated Caddyfile or another Caddy process. Use one managed `--sites` file per Gateway instance.
+The `serve` console **does not import, inspect or modify** an unrelated Caddyfile or another Caddy process. By default it keeps its Caddy autosave and certificate data in `.gateway-state/` alongside the selected sites file; use `--state-dir /absolute/private/path` for persistent service storage. The runtime refuses group/world-readable state directories. Use one managed `--sites` file per Gateway instance.
 
 ## API
 
@@ -70,7 +70,9 @@ Each site is a JSON object such as `{"host":"app.example.com","upstream":"http:/
 
 ## Security and limitations
 
-This is an **early development build**, not a production-accepted release. It has no external authentication integration, multi-user roles, certificate inventory, active upstream health checks, request-log viewer, DNS-provider UI, backup scheduler or audit-log retention. The API is bearer-token protected and same-origin, but the local console serves HTTP on loopback only. Access it remotely through an authenticated SSH tunnel; do not publish TCP 8787 directly or expose Caddy's admin interface (typically port 2019).
+See [staging and production acceptance](docs/STAGING_ACCEPTANCE.md) and [security/MIPS boundaries](docs/SECURITY_AND_MIPS.md) for precise tests and outstanding gates.
+
+This is an **early development build**, not a production-accepted release. The pre-release binary on GitHub can lag behind the protected main branch; check the source commit and version before testing. It has no external authentication integration, multi-user roles, certificate inventory, active upstream health checks, request-log viewer, DNS-provider UI, backup scheduler or audit-log retention. The API is bearer-token protected and same-origin, but the local console serves HTTP on loopback only. Access it remotely through an authenticated SSH tunnel; do not publish TCP 8787 directly or expose Caddy's admin interface (typically port 2019).
 
 Managed routes may use automatic HTTPS under Caddy's normal certificate and domain eligibility rules. The UI reports configuration state, **not** certificate issuance, DNS reachability, upstream health or internet availability.
 

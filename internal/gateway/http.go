@@ -6,17 +6,27 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 )
 
 type api struct {
-	manager *Manager
-	token   []byte
-	write   bool
-	public  http.Handler
-	index   []byte
+	manager    *Manager
+	token      []byte
+	write      bool
+	public     http.Handler
+	index      []byte
+	failuresMu sync.Mutex
+	failures   map[string]authFailure
+}
+
+type authFailure struct {
+	count int
+	until time.Time
 }
 
 func Handler(m *Manager, assets fs.FS, token string, allowWrite bool) http.Handler {
@@ -24,16 +34,30 @@ func Handler(m *Manager, assets fs.FS, token string, allowWrite bool) http.Handl
 	if err != nil {
 		panic("web build missing index.html: " + err.Error())
 	}
-	a := &api{manager: m, token: []byte(token), write: allowWrite, public: http.FileServer(http.FS(assets)), index: index}
+	a := &api{manager: m, token: []byte(token), write: allowWrite, public: http.FileServer(http.FS(assets)), index: index, failures: map[string]authFailure{}}
 	return http.HandlerFunc(a.serve)
 }
 
 func (a *api) serve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("Cross-Origin-Resource-Policy", "same-origin")
+	w.Header().Set("Cross-Origin-Opener-Policy", "same-origin")
+	w.Header().Set("Permissions-Policy", "geolocation=(), camera=(), microphone=()")
 	w.Header().Set("Referrer-Policy", "no-referrer")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Security-Policy", "default-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+	// Reject DNS-rebinding and spoofed Host headers. The listener itself is
+	// also restricted to a loopback IP address by main.serve.
+	hostname := r.Host
+	if h, _, err := net.SplitHostPort(r.Host); err == nil {
+		hostname = h
+	}
+	address := net.ParseIP(hostname)
+	if hostname != "localhost" && (address == nil || !address.IsLoopback()) {
+		http.Error(w, "Invalid management Host", http.StatusForbidden)
+		return
+	}
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		a.routeAPI(w, r)
 		return
@@ -76,10 +100,16 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 		send(w, 200, map[string]bool{"ok": true})
 		return
 	}
+	if a.tooManyFailures(r.RemoteAddr) {
+		fail(w, 429, "Too many authentication failures")
+		return
+	}
 	if !a.authorized(r) {
+		a.noteFailure(r.RemoteAddr)
 		fail(w, 401, "Unauthorized")
 		return
 	}
+	a.clearFailures(r.RemoteAddr)
 	switch r.URL.Path {
 	case "/api/status":
 		if r.Method != http.MethodGet {
@@ -179,4 +209,34 @@ func readSite(r *http.Request) (Site, error) {
 		return s, errors.New("Unexpected trailing JSON")
 	}
 	return ValidateSite(s)
+}
+
+// Failed authentication is counted using only the direct TCP peer, not any
+// untrusted Forwarded or X-Forwarded-For headers. State is volatile and never logged.
+func (a *api) tooManyFailures(peer string) bool {
+	a.failuresMu.Lock()
+	defer a.failuresMu.Unlock()
+	f := a.failures[peer]
+	if time.Now().After(f.until) {
+		delete(a.failures, peer)
+		return false
+	}
+	return f.count >= 10
+}
+
+func (a *api) noteFailure(peer string) {
+	a.failuresMu.Lock()
+	defer a.failuresMu.Unlock()
+	f := a.failures[peer]
+	if time.Now().After(f.until) {
+		f = authFailure{until: time.Now().Add(time.Minute)}
+	}
+	f.count++
+	a.failures[peer] = f
+}
+
+func (a *api) clearFailures(peer string) {
+	a.failuresMu.Lock()
+	defer a.failuresMu.Unlock()
+	delete(a.failures, peer)
 }

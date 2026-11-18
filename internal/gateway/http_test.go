@@ -22,6 +22,7 @@ func TestAPIAuthenticationAndWriteGates(t *testing.T) {
 	request := func(method, path, token, body string) *httptest.ResponseRecorder {
 		t.Helper()
 		req := httptest.NewRequest(method, path, strings.NewReader(body))
+		req.Host = "127.0.0.1:8787"
 		if token != "" {
 			req.Header.Set("Authorization", "Bearer "+token)
 		}

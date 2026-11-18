@@ -13,10 +13,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 
 	"github.com/GoreeCloud/gateway/internal/gateway"
+	_ "github.com/caddy-dns/porkbun"
 	caddycmd "github.com/caddyserver/caddy/v2/cmd"
 	_ "github.com/caddyserver/caddy/v2/modules/standard"
 )
@@ -41,6 +43,7 @@ func serve(args []string) error {
 	listen := flags.String("listen", "127.0.0.1:8787", "loopback-only management address")
 	sitesPath := flags.String("sites", "./gateway-sites.json", "managed site state file")
 	allowWrite := flags.Bool("allow-write", false, "enable authenticated site changes")
+	stateDir := flags.String("state-dir", "", "private Gateway-managed certificate and autosave directory")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
@@ -60,6 +63,13 @@ func serve(args []string) error {
 		return errors.New("set GATEWAY_ADMIN_TOKEN to a random secret of at least 24 characters")
 	}
 
+	managedDir := *stateDir
+	if managedDir == "" {
+		managedDir = filepath.Join(filepath.Dir(*sitesPath), ".gateway-state")
+	}
+	if err := gateway.PrepareManagedStorage(managedDir); err != nil {
+		return fmt.Errorf("unsafe managed runtime storage: %w", err)
+	}
 	manager, err := gateway.Open(*sitesPath, nil)
 	if err != nil {
 		return err

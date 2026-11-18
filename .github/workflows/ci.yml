@@ -19,14 +19,18 @@ jobs:
           cache: npm
           cache-dependency-path: web/package-lock.json
       - name: Install and build web console
-        run: npm ci --prefix web && npm run build --prefix web
+        run: npm ci --prefix web --ignore-scripts && npm run build --prefix web
+      - name: Audit pinned web dependencies
+        run: npm audit --prefix web --audit-level=high
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
       - name: Go tests and vet
-        run: go test ./... && go vet ./...
+        run: go test -count=1 ./... && go vet ./...
       - name: Native build
-        run: go build -trimpath -o gateway .
+        run: CGO_ENABLED=0 go build -trimpath -o gateway .
       - name: Confirm Caddy modules are available
-        run: ./gateway list-modules | grep -F http.handlers.reverse_proxy
+        run: |
+          ./gateway list-modules | grep -F http.handlers.reverse_proxy
+          ./gateway list-modules | grep -F dns.providers.porkbun

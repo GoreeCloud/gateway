@@ -15,3 +15,6 @@ web/.vite/
 .DS_Store
 .idea/
 .vscode/
+
+# Dedicated managed-mode Caddy configuration and certificate storage
+.gateway-state/
