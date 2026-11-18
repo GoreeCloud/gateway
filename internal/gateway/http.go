@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -136,9 +137,9 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 				fail(w, 403, "Read-only console; use --allow-write")
 				return
 			}
-			site, err := readSite(r)
+			site, err := readSite(w, r)
 			if err != nil {
-				fail(w, 400, err.Error())
+				failSiteInput(w, err)
 				return
 			}
 			if err = a.manager.Add(site); err != nil {
@@ -177,9 +178,9 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 			}
 			w.WriteHeader(http.StatusNoContent)
 		case http.MethodPut:
-			site, e := readSite(r)
+			site, e := readSite(w, r)
 			if e != nil {
-				fail(w, 400, e.Error())
+				failSiteInput(w, e)
 				return
 			}
 			err = a.manager.Update(host, site)
@@ -198,20 +199,46 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func readSite(r *http.Request) (Site, error) {
-	var s Site
-	if !strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		return s, errors.New("Content-Type must be application/json")
+var errSiteBodyTooLarge = errors.New("site JSON exceeds 8 KiB limit")
+
+func failSiteInput(w http.ResponseWriter, err error) {
+	status := http.StatusBadRequest
+	if errors.Is(err, errSiteBodyTooLarge) {
+		status = http.StatusRequestEntityTooLarge
 	}
-	reader := json.NewDecoder(io.LimitReader(r.Body, 8<<10))
+	fail(w, status, err.Error())
+}
+
+func siteJSONError(err error) error {
+	var sizeErr *http.MaxBytesError
+	if errors.As(err, &sizeErr) {
+		return errSiteBodyTooLarge
+	}
+	return errors.New("Invalid site JSON")
+}
+
+func readSite(w http.ResponseWriter, r *http.Request) (Site, error) {
+	var site Site
+	values := r.Header.Values("Content-Type")
+	if len(values) != 1 {
+		return site, errors.New("Content-Type must be application/json")
+	}
+	mediaType, params, err := mime.ParseMediaType(values[0])
+	if err != nil || mediaType != "application/json" ||
+		(len(params) > 0 && (len(params) != 1 || !strings.EqualFold(params["charset"], "utf-8"))) {
+		return site, errors.New("Content-Type must be application/json")
+	}
+	// Unlike io.LimitReader, MaxBytesReader reports oversized input even if
+	// extra bytes follow otherwise valid JSON or consist only of whitespace.
+	reader := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
 	reader.DisallowUnknownFields()
-	if err := reader.Decode(&s); err != nil {
-		return s, errors.New("Invalid site JSON")
+	if err := reader.Decode(&site); err != nil {
+		return site, siteJSONError(err)
 	}
 	if err := reader.Decode(&struct{}{}); err != io.EOF {
-		return s, errors.New("Unexpected trailing JSON")
+		return site, siteJSONError(err)
 	}
-	return ValidateSite(s)
+	return ValidateSite(site)
 }
 
 // Failed authentication is counted using only the direct TCP peer, not any
