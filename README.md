@@ -1,1 +1,90 @@
-# gateway
+# GoreeCloud Gateway
+
+**A native, self-hosted ingress service and web console built on Caddy's real Go engine.** New GoreeCloud product, not a fork claiming independent authorship of Caddy.
+
+GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and adds a first-party React management app and a small, loopback-only Go control plane. Caddy remains responsible for HTTP routing, reverse-proxy behavior, TLS automation and protocol handling. The managed console is intentionally scoped to simple hostname-to-upstream routes; advanced Caddyfile configuration is supported by the native CLI, not rewritten by this console.
+
+## Capabilities
+
+- Native Go executable with upstream Caddy commands (`run`, `adapt`, `validate`, etc.) and a new `serve` mode.
+- Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams.
+- Caddyfile-to-JSON adaptation with Caddy itself; live configuration load with refusal on error.
+- Atomic JSON state persistence (0600 permissions), rollback when persistence fails, no direct writes to unrelated Caddyfiles.
+- React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
+- Browser control plane defaults to read-only and **only binds a loopback IP**; all private API endpoints require a bearer token.
+- No tracking or cloud account requirement. No persistent browser token storage.
+
+## Build requirements
+
+Go 1.25+ and Node.js 22+ with npm (esbuild bundler). For a reproducible build, use the committed npm lockfile and Go sums.
+
+```sh
+cd web
+npm ci
+npm run build
+cd ..
+go mod download
+go test ./...
+go build -trimpath -o gateway .
+```
+
+## Local development: management console
+
+Choose a secure random token, preserve it in your password manager, and export it into your session without adding it to shell history:
+
+```sh
+read -rsp 'Gateway admin token: ' GATEWAY_ADMIN_TOKEN; echo
+export GATEWAY_ADMIN_TOKEN
+./gateway serve --listen 127.0.0.1:8787 --sites ./gateway-sites.json --allow-write
+```
+
+Open **http://127.0.0.1:8787** and enter the same token. `GATEWAY_ADMIN_TOKEN` must contain at least 24 characters. Without `--allow-write`, the console is read-only. Never use a sample token in a real environment.
+
+**Important:** Adding a public domain may cause Caddy to bind its normal HTTP/HTTPS ports and request TLS certificates if DNS points to the host. For first-run testing without DNS or certificates, add `localhost` with an HTTP upstream on a machine where the needed local ports are free. Before operating on a server, plan listener ports, firewall rules and certificates, and confirm the current ingress service is not using them. This repository does not migrate existing ingress automatically.
+
+## Native Caddy CLI: advanced configurations
+
+The bundled binary passes all commands other than `serve` to the upstream Caddy CLI:
+
+```sh
+./gateway validate --config Caddyfile --adapter caddyfile
+./gateway run --config Caddyfile --adapter caddyfile
+```
+
+The `serve` console **does not import, inspect or modify** an unrelated Caddyfile or another Caddy process. Use one managed `--sites` file per Gateway instance.
+
+## API
+
+All paths other than `GET /api/health` require `Authorization: Bearer <your-token>`.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/health` | Minimal process liveness, no sensitive data |
+| `GET /api/status` | Console mode, Caddy state and route count |
+| `GET /api/sites` | List managed site mappings |
+| `POST /api/sites` | Add a route (when writes enabled) |
+| `PUT /api/sites/{host}` | Replace a route (when writes enabled) |
+| `DELETE /api/sites/{host}` | Remove a route (when writes enabled) |
+
+Each site is a JSON object such as `{"host":"app.example.com","upstream":"http://127.0.0.1:3000"}`. Hostnames must be DNS-compatible. Upstream URLs must use HTTP or HTTPS and may not include credentials, a non-root path, query or fragment.
+
+## Security and limitations
+
+This is an **early development build**, not a production-accepted release. It has no external authentication integration, multi-user roles, certificate inventory, active upstream health checks, request-log viewer, DNS-provider UI, backup scheduler or audit-log retention. The API is bearer-token protected and same-origin, but the local console serves HTTP on loopback only. Access it remotely through an authenticated SSH tunnel; do not publish TCP 8787 directly or expose Caddy's admin interface (typically port 2019).
+
+Managed routes may use automatic HTTPS under Caddy's normal certificate and domain eligibility rules. The UI reports configuration state, **not** certificate issuance, DNS reachability, upstream health or internet availability.
+
+Before any production cutover, validate route-by-route parity, TLS, redirects, authentication, WebSockets, streaming, backup/restore, controlled rollback, ownership, and firewall impact. No production migration is performed by a build or by running tests.
+
+## Design-system status
+
+The console uses the current GoreeCloud UI **alpha** semantic colors, Iris accent, spacing and shape values from [GoreeCloud/gc-ui](https://github.com/GoreeCloud/gc-ui). These tokens are provisional and do not establish Stable design acceptance. GoreeCloud Shield privacy, Wardveil security, Mesh integration and Identity remain distinct ecosystem responsibilities; deeper integrations are not yet implemented here.
+
+## Source, license and attribution
+
+- Original Gateway Go control plane, React console, tests and documentation: Apache License 2.0, see [LICENSE](LICENSE).
+- **Caddy v2**: [caddyserver/caddy](https://github.com/caddyserver/caddy), Apache License 2.0. Caddy engine, modules and internal behavior are upstream work, not GoreeCloud originals.
+- GoreeCloud UI tokens: [GoreeCloud/gc-ui](https://github.com/GoreeCloud/gc-ui), MIT. Used as an alpha design reference.
+- React, Lucide and build tools remain independently licensed dependencies; see their package notices.
+
+This product is independent of and not endorsed by the upstream Caddy maintainers.

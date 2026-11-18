@@ -1,0 +1,6 @@
+# This is for the standalone Caddy-compatible CLI, not managed console mode.
+# Replace the host and upstream only after checking DNS, ports and TLS.
+app.example.com {
+  encode zstd gzip
+  reverse_proxy 127.0.0.1:3000
+}
