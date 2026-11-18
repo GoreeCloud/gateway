@@ -18,6 +18,19 @@ CGO_ENABLED=0 go build -trimpath -o gateway .
 
 Automated Go tests now exercise a real Caddy engine behind ephemeral loopback HTTP listeners: upstream response and headers, streaming chunks, and a complete WebSocket text-frame echo. They also check API auth/Host enforcement, private storage isolation, rollback, and *offline* Porkbun Caddyfile adaptation. No public DNS, DNS API key, ACME issuance, TLS port 443, or real user routes are involved.
 
+## Redacted, non-mutating legacy ingress preflight
+
+Use the independently reviewed [preflight script](../scripts/ingress_preflight.py) only on a host where Docker inspection is authorized. Default invocation displays help. The live flag executes five fixed, bounded read-only commands (`docker inspect`, `docker port`, and `docker exec caddy version/list-modules`), never inspects credentials or certificate files, and never restarts or reconfigures the container.
+
+```sh
+python3 scripts/ingress_preflight.py
+python3 scripts/ingress_preflight.py --live --container caddy
+```
+
+Output is a metadata-only JSON summary: running state, healthcheck presence, port mapping *presence* without IPs, expected mount *destination* presence without host sources, Caddy binary version, Porkbun registration, and explicitly **unverified** backup/TLS/route/recovery gates. If Docker access fails, the script emits a generic error code without raw stderr. Treat even redacted operational metadata as private unless its disclosure is authorized. Do **not** publish source Caddyfiles, service hostnames, Docker labels, backup locations, volume paths or certificates. Seven synthetic Python unit tests run in CI without Docker.
+
+This preflight alone cannot verify that a backup exists or can be restored, that certificates will renew, that any external route works, or that a Caddy security upgrade is safe. A confirmed legacy binary below Caddy 2.11.5 remains a priority for a separately authorized, rollback-ready patch.
+
 ## Outstanding production gates
 
 - [ ] Inventory full legacy Caddyfile configuration, routing, redirects, headers, `handle`, basic auth, DNS and TLS without disclosing secrets.
