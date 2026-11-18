@@ -83,7 +83,7 @@ The bundled binary passes all commands other than `serve` to the upstream Caddy 
 ./gateway run --config Caddyfile --adapter caddyfile
 ```
 
-The `serve` console **does not import, inspect or modify** an unrelated Caddyfile or another Caddy process. By default it keeps its Caddy autosave and certificate data in `.gateway-state/` alongside the selected sites file; use `--state-dir /absolute/private/path` for persistent service storage. The runtime refuses group/world-readable state directories. Use one managed `--sites` file per Gateway instance.
+The `serve` console **does not import, inspect or modify** an unrelated Caddyfile or another Caddy process. By default it keeps its Caddy autosave and certificate data in `.gateway-state/` alongside the selected sites file; use `--state-dir /absolute/private/path` for persistent service storage. The runtime refuses group/world-readable managed-state directories and paths traversing symlinked ancestors. Use a stable, operator-controlled path without directory aliases for `--state-dir`; path validation does not defend against an attacker who can concurrently replace writable parent directories. Use one managed `--sites` file per Gateway instance.
 
 ## API
 

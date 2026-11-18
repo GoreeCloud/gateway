@@ -52,3 +52,32 @@ func TestPrepareManagedStorageRejectsSharedDirectoryAndSymlink(t *testing.T) {
 		t.Fatal("accepted symlink state directory")
 	}
 }
+
+// Reject paths with a symlinked ancestor, not just symlinks in the final
+// directory. Caddy's autosave and certificate settings must remain unchanged
+// after validation rejects a path.
+func TestPrepareManagedStorageRejectsSymlinkedAncestorWithoutGlobalChanges(t *testing.T) {
+	parent := t.TempDir()
+	actual := filepath.Join(parent, "actual")
+	if err := os.Mkdir(actual, 0700); err != nil {
+		t.Fatal(err)
+	}
+	alias := filepath.Join(parent, "alias")
+	if err := os.Symlink(actual, alias); err != nil {
+		t.Fatal(err)
+	}
+	oldAutosave, oldStorage := caddy.ConfigAutosavePath, caddy.DefaultStorage
+	t.Setenv("XDG_DATA_HOME", "fixture-original-data")
+	t.Setenv("XDG_CONFIG_HOME", "fixture-original-config")
+	err := PrepareManagedStorage(filepath.Join(alias, "managed"))
+	if err == nil {
+		t.Fatal("accepted a symlinked parent in the private certificate state path")
+	}
+	if caddy.ConfigAutosavePath != oldAutosave || caddy.DefaultStorage != oldStorage {
+		t.Fatal("rejected state path mutated the Caddy globals")
+	}
+	if os.Getenv("XDG_DATA_HOME") != "fixture-original-data" ||
+		os.Getenv("XDG_CONFIG_HOME") != "fixture-original-config" {
+		t.Fatal("rejected state path mutated XDG state env")
+	}
+}
