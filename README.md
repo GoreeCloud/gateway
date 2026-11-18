@@ -129,6 +129,11 @@ The dependency security baseline corrects [GO-2026-6865](https://pkg.go.dev/vuln
 
 ## Security and limitations
 
+Please report suspected vulnerabilities through
+[private security reporting](.github/SECURITY.md), not public issues.
+Dependabot dependency updates are proposed as reviewable pull requests with
+required CI and no automatic merging.
+
 See [staging and production acceptance](docs/STAGING_ACCEPTANCE.md) and [security/MIPS boundaries](docs/SECURITY_AND_MIPS.md) for precise tests and outstanding gates.
 
 This is an **early development build**, not a production-accepted release. The pre-release binary on GitHub can lag behind the protected main branch; check the source commit and version before testing. It has no external authentication integration, multi-user roles, certificate inventory, active upstream health checks, request-log viewer, DNS-provider UI, backup scheduler or audit-log retention. The API is bearer-token protected and same-origin, but the local console serves HTTP on loopback only. Access it remotely through an authenticated SSH tunnel; do not publish TCP 8787 directly or expose Caddy's admin interface (typically port 2019).
