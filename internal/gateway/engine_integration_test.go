@@ -62,7 +62,9 @@ func TestLoopbackEngineHTTPStreamingAndWebSocket(t *testing.T) {
 				return
 			}
 			sum := sha1.Sum([]byte(key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))
-			_, _ = fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: %s\r\n\r\n", base64.StdEncoding.EncodeToString(sum[:]))
+			// Deliberately inject hop-by-hop upstream response headers. Caddy
+			// before v2.11.5 leaked these on WebSocket 101 responses.
+			_, _ = fmt.Fprintf(conn, "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade, X-Untrusted-Hop\r\nSec-WebSocket-Accept: %s\r\nKeep-Alive: timeout=60\r\nProxy-Authenticate: Basic realm=fixture\r\nAlt-Svc: h3=\":9999\"\r\nX-Untrusted-Hop: fixture-private\r\n\r\n", base64.StdEncoding.EncodeToString(sum[:]))
 			header := make([]byte, 2)
 			if _, err := io.ReadFull(conn, header); err != nil {
 				t.Errorf("read websocket header: %v", err)
@@ -160,6 +162,7 @@ func TestLoopbackEngineHTTPStreamingAndWebSocket(t *testing.T) {
 	if err != nil || !strings.Contains(line, "101 Switching Protocols") {
 		t.Fatalf("websocket handshake: %q error=%v", line, err)
 	}
+	upgradeHeaders := make(http.Header)
 	for {
 		h, err := reader.ReadString('\n')
 		if err != nil {
@@ -168,6 +171,23 @@ func TestLoopbackEngineHTTPStreamingAndWebSocket(t *testing.T) {
 		if h == "\r\n" {
 			break
 		}
+		name, value, ok := strings.Cut(strings.TrimSpace(h), ":")
+		if !ok {
+			t.Fatalf("malformed WebSocket upgrade header: %q", h)
+		}
+		upgradeHeaders.Add(name, strings.TrimSpace(value))
+	}
+	// This verifies the specific HTTP 101 header-boundary fix in upstream
+	// Caddy >= 2.11.5, not a live production or public TLS deployment.
+	for _, name := range []string{"Alt-Svc", "Keep-Alive", "Proxy-Authenticate", "X-Untrusted-Hop"} {
+		if value := upgradeHeaders.Get(name); value != "" {
+			t.Fatalf("upstream-only %s leaked through WebSocket 101: %q", name, value)
+		}
+	}
+	if upgradeHeaders.Get("Upgrade") != "websocket" ||
+		!strings.EqualFold(upgradeHeaders.Get("Connection"), "Upgrade") ||
+		upgradeHeaders.Get("Sec-WebSocket-Accept") == "" {
+		t.Fatalf("valid WebSocket upgrade headers missing: %v", upgradeHeaders)
 	}
 	_, _ = conn.Write([]byte{0x81, 0x84, 1, 2, 3, 4, 'p' ^ 1, 'o' ^ 2, 'n' ^ 3, 'g' ^ 4})
 	echo := make([]byte, 6)
