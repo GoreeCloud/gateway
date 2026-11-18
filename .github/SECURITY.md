@@ -24,8 +24,10 @@ also follow that upstream maintainer's security reporting process.
 - **Latest protected main:** receives active development changes and required
   CI security checks. A passing check is not a production acceptance or
   vulnerability-free guarantee.
-- **v0.1.0-alpha.4:** development-only release with patched Go dependency
-  versions; verify exact source, build provenance and its SHA-256 checksums.
+- **Published development alphas:** refer to the
+  [current release listing](https://github.com/GoreeCloud/gateway/releases).
+  Independently verify the exact tag, source revision, build provenance,
+  dependency security advisories and SHA-256 checksums before testing.
 - **v0.1.0-alpha.1 through alpha.3:** superseded development releases with
   published security notices for a vulnerable compression dependency.
   Do not deploy these builds.
