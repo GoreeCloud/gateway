@@ -73,11 +73,36 @@ func TestPrepareManagedStorageRejectsSymlinkedAncestorWithoutGlobalChanges(t *te
 	if err == nil {
 		t.Fatal("accepted a symlinked parent in the private certificate state path")
 	}
+	// The early check must not create anything behind the link, even if
+	// later validation would reject the redirected path.
+	if _, err := os.Lstat(filepath.Join(actual, "managed")); !os.IsNotExist(err) {
+		t.Fatalf("unsafe symlink ancestor caused a filesystem mutation: %v", err)
+	}
 	if caddy.ConfigAutosavePath != oldAutosave || caddy.DefaultStorage != oldStorage {
 		t.Fatal("rejected state path mutated the Caddy globals")
 	}
 	if os.Getenv("XDG_DATA_HOME") != "fixture-original-data" ||
 		os.Getenv("XDG_CONFIG_HOME") != "fixture-original-config" {
 		t.Fatal("rejected state path mutated XDG state env")
+	}
+}
+
+// Reject a symlinked *leaf* before MkdirAll creates subdirectories or alters
+// inherited Caddy certificate storage settings.
+func TestPrepareManagedStorageRejectsSymlinkedLeafBeforeMutation(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "target")
+	if err := os.Mkdir(target, 0700); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(target, link); err != nil {
+		t.Fatal(err)
+	}
+	if err := PrepareManagedStorage(filepath.Join(link, "nested", "data")); err == nil {
+		t.Fatal("accepted symlinked ancestor")
+	}
+	if _, err := os.Lstat(filepath.Join(target, "nested")); !os.IsNotExist(err) {
+		t.Fatalf("created directory in redirected certificate target: %v", err)
 	}
 }

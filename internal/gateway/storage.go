@@ -21,6 +21,12 @@ func PrepareManagedStorage(directory string) error {
 	if err != nil {
 		return err
 	}
+	// Check all existing path components before MkdirAll; otherwise a
+	// symlinked ancestor can cause us to create a directory outside the
+	// operator's selected storage tree *before* later validation rejects it.
+	if err := rejectSymlinkedStorageComponents(absolute); err != nil {
+		return err
+	}
 	if err := os.MkdirAll(absolute, 0700); err != nil {
 		return fmt.Errorf("prepare Gateway state directory: %w", err)
 	}
@@ -54,6 +60,31 @@ func PrepareManagedStorage(directory string) error {
 	}
 	caddy.ConfigAutosavePath = filepath.Join(absolute, "autosave.json")
 	caddy.DefaultStorage = &certmagic.FileStorage{Path: filepath.Join(data, "caddy")}
+	return nil
+}
+
+// rejectSymlinkedStorageComponents checks every existing ancestor, including
+// the requested leaf, without following symlinks. Missing components are
+// allowed because PrepareManagedStorage creates them later. Like the
+// post-MkdirAll verification, this cannot prevent races by a hostile writer
+// with permission to replace parent path components.
+func rejectSymlinkedStorageComponents(absolute string) error {
+	for component := absolute; ; component = filepath.Dir(component) {
+		info, err := os.Lstat(component)
+		if err == nil {
+			if info.Mode()&os.ModeSymlink != 0 {
+				return errors.New("Gateway state directory path must not contain symbolic links")
+			}
+			if !info.IsDir() {
+				return fmt.Errorf("Gateway state path component %q must be a directory", component)
+			}
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("inspect Gateway state path component: %w", err)
+		}
+		if parent := filepath.Dir(component); parent == component {
+			break
+		}
+	}
 	return nil
 }
 
