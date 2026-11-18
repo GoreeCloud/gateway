@@ -48,6 +48,19 @@ jobs:
           "$RUNNER_TEMP/govulncheck" -mode=source ./...
       - name: Native build
         run: CGO_ENABLED=0 go build -trimpath -o gateway .
+      - name: Cross-compile Linux ARM64 native engine (no emulation or execution)
+        env:
+          GOOS: linux
+          GOARCH: arm64
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          go build -trimpath -o gateway-linux-arm64 .
+          test -s gateway-linux-arm64
+          file gateway-linux-arm64 | grep -E 'ELF 64-bit.*aarch64|ELF 64-bit.*ARM aarch64'
+          go version -m gateway-linux-arm64 | grep -F 'GOARCH=arm64'
+          go version -m gateway-linux-arm64 | grep -F 'github.com/caddyserver/caddy/v2'
+          go version -m gateway-linux-arm64 | grep -F 'github.com/caddy-dns/porkbun'
       - name: Confirm Caddy modules are available
         run: |
           ./gateway list-modules | grep -F http.handlers.reverse_proxy
