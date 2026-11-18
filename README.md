@@ -48,6 +48,18 @@ go version -m ./gateway
 
 Treat the binary and its archive as untrusted until independently verified; inspection and checksum consistency do not replace maintainer signature, SBOM or upstream provenance acceptance. Older alpha.1–alpha.3 releases have security warnings for affected `klauspost/compress` v1.20.1 source. The alpha.4 binary uses v1.20.2; no published alpha is production-accepted.
 
+### Linux ARM64 build verification
+
+Protected CI cross-compiles an additional static **Linux ARM64** executable and checks its ELF architecture plus embedded upstream Caddy/Porkbun module metadata. To reproduce the cross-compile on a trusted machine with Go installed:
+
+```sh
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o gateway-linux-arm64 .
+file gateway-linux-arm64
+go version -m gateway-linux-arm64
+```
+
+This ARM64 artifact is **CI-only** unless separately packaged and released. Cross-compilation does not demonstrate running on real ARM64 hardware, real-network support, or production installation. The published alpha.4 pre-release contains only Linux AMD64.
+
 ## Local development: management console
 
 Choose a secure random token, preserve it in your password manager, and export it into your session without adding it to shell history:
