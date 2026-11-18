@@ -1,13 +1,15 @@
 # Legacy Caddy ingress: security-upgrade and recovery gates
 
 **Status: P1 planning document — not an approved production change or verified restore.**
-The running legacy Caddy executable was last read-only verified as **v2.11.4** with the
-Porkbun DNS provider installed. The upstream
+This public, general-purpose runbook **does not publish any existing deployment's**
+hostname, current binary version, module inventory, service status, ports,
+certificate condition or backup findings. Keep those observations in authorized
+**private** operational records. Upstream's
 [CVE-2026-55458 advisory](https://github.com/caddyserver/caddy/security/advisories/GHSA-8qx7-j2v2-x6q5)
-reports a reverse-proxy HTTP-101/WebSocket hop-by-hop response-header issue in
-versions before **2.11.5**. Exposure prerequisites and exploitation on this
-specific host have **not** been demonstrated. Prioritize a controlled patched
-upgrade without disrupting an unverified ingress/backup environment.
+documents an HTTP-101/WebSocket hop-by-hop response-header issue in Caddy
+versions before **2.11.5**. Assess any specific installation's affected version,
+upgrade needs and patch readiness privately; do **not** infer its exposure,
+compromise or recovery state from this repository.
 
 The development Gateway binary uses upstream Caddy 2.11.9, but **its simple
 web route editor is not a lossless import for the existing complex Caddyfile**.
@@ -98,9 +100,9 @@ restored copy; simply restarting a stopped container is insufficient.
 
 Any future execution must be a **separately authorized** controlled change,
 not an automatic action of this document, CI or a Gateway release.
-Do not stop/restart/remove the current Docker Caddy container, change
-NetBird/VPN, modify firewall/DNS records, mount protected state, or overwrite
-legacy certificate directories during these planning steps.
+Do not stop/restart/remove existing production ingress processes or containers,
+change NetBird/VPN, modify firewall/DNS records, mount protected state, or
+overwrite live certificate directories during these planning steps.
 
 ## Ownership and evidence
 
