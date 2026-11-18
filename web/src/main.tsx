@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Activity, ArrowRight, Check, ChevronDown, CircleHelp, Cloud,
@@ -37,6 +37,67 @@ function App() {
   const [search, setSearch] = useState('')
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
   const [menuOpen, setMenuOpen] = useState(false)
+  const dialogRef = useRef<HTMLElement>(null)
+  const formTriggerRef = useRef<HTMLElement | null>(null)
+  const mobileMenuRef = useRef<HTMLButtonElement>(null)
+  const mobileReturnFocusRef = useRef(false)
+
+  // The dialog owns keyboard focus while open; return focus to its trigger
+  // after a close/save so keyboard-only operators do not lose their place.
+  useEffect(() => {
+    if (!formOpen) {
+      const trigger = formTriggerRef.current
+      // Save may finish before the busy flag clears, leaving its original
+      // trigger temporarily disabled. Retry focus restoration when busy ends.
+      if (trigger?.isConnected && trigger.matches(':disabled')) return
+      formTriggerRef.current = null
+      if (trigger?.isConnected) trigger.focus()
+      return
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !busy) {
+        event.preventDefault()
+        event.stopPropagation()
+        setFormOpen(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const controls = Array.from(dialog.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),a[href]'))
+        .filter(control => control.getClientRects().length > 0)
+      const first = controls[0]
+      const last = controls[controls.length - 1]
+      if (!first || !last) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [formOpen, busy])
+
+  useEffect(() => {
+    // The menu opener is inside main, which is inert while the menu is shown.
+    // Restore focus only after the close render removes that inert state.
+    if (!menuOpen) {
+      if (mobileReturnFocusRef.current) {
+        mobileReturnFocusRef.current = false
+        mobileMenuRef.current?.focus()
+      }
+      return
+    }
+    mobileReturnFocusRef.current = true
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', onEscape)
+    return () => document.removeEventListener('keydown', onEscape)
+  }, [menuOpen])
 
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
 
@@ -61,8 +122,8 @@ function App() {
   }
   function logout() { setToken(''); setDraftToken(''); setLoggedIn(false); setSites([]); setStatus(initialStatus); setMessage(''); setView('overview') }
   async function reload() { setBusy(true); setError(''); try { await refresh(); setMessage('Console refreshed') } catch (err) { setError((err as Error).message) } finally { setBusy(false) } }
-  function openCreate() { setEditing(null); setHost(''); setUpstream('http://127.0.0.1:3000'); setError(''); setFormOpen(true) }
-  function openEdit(site: Site) { setEditing(site.host); setHost(site.host); setUpstream(site.upstream); setError(''); setFormOpen(true) }
+  function openCreate() { formTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setEditing(null); setHost(''); setUpstream('http://127.0.0.1:3000'); setError(''); setFormOpen(true) }
+  function openEdit(site: Site) { formTriggerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; setEditing(site.host); setHost(site.host); setUpstream(site.upstream); setError(''); setFormOpen(true) }
   async function save(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setError('')
     try {
@@ -102,7 +163,8 @@ function App() {
   </div>
 
   return <div className="app-shell">
-    <aside className={'sidebar ' + (menuOpen ? 'mobile-open' : '')}>
+    <a className="skip-link" href="#main-content">Skip to main content</a>
+    <aside inert={formOpen} className={'sidebar ' + (menuOpen ? 'mobile-open' : '')}>
       <div className="side-head"><span className="brand-glyph"><Network size={21}/></span><div className="brand-word">GoreeCloud <strong>Gateway</strong><small>INGRESS CONTROL</small></div><button className="mobile-close icon-button" aria-label="Close navigation" onClick={()=>setMenuOpen(false)}><X size={20}/></button></div>
       <div className="side-section-title">WORKSPACE</div>
       <nav aria-label="Primary navigation">{nav.map(item => {const Icon=item.icon;return <button key={item.id} onClick={()=>{setView(item.id);setMenuOpen(false);setError('');setMessage('')}} className={'nav-link '+(view===item.id?'active':'')} aria-current={view===item.id?'page':undefined}><Icon size={20} strokeWidth={1.9}/>{item.label}{view===item.id&&<span className="nav-current"/>}</button>})}</nav>
@@ -110,8 +172,8 @@ function App() {
       <div className="side-bottom"><div className="sidebar-instance"><div className="instance-symbol"><Server size={18}/></div><div><strong>Local instance</strong><span>{status.running ? 'Caddy runtime loaded' : 'Awaiting first route'}</span></div><span className={'status-dot '+(status.running?'online':'muted')} /></div><button className="nav-link logout" onClick={logout}><LogOut size={19}/> Lock console</button></div>
     </aside>
     {menuOpen && <button className="backdrop" aria-label="Dismiss navigation" onClick={()=>setMenuOpen(false)}/>}
-    <main className="main-area">
-      <header className="topbar"><div className="topbar-left"><button className="mobile-menu icon-button" aria-label="Open navigation" onClick={()=>setMenuOpen(true)}><Menu size={22}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{nav.find(x=>x.id===view)?.label}</strong></div></div><div className="topbar-actions"><span className="local-badge"><span className="tiny-dot"/> Local only</span><button className="icon-button theme-btn" aria-label="Toggle color scheme" title="Toggle color scheme" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button><div className="avatar" title="Authenticated operator">GC</div></div></header>
+    <main className="main-area" id="main-content" tabIndex={-1} inert={formOpen || menuOpen}>
+      <header className="topbar"><div className="topbar-left"><button ref={mobileMenuRef} className="mobile-menu icon-button" aria-label="Open navigation" onClick={()=>setMenuOpen(true)}><Menu size={22}/></button><div className="breadcrumb">Workspace <span>/</span> <strong>{nav.find(x=>x.id===view)?.label}</strong></div></div><div className="topbar-actions"><span className="local-badge"><span className="tiny-dot"/> Local only</span><button className="icon-button theme-btn" aria-label="Toggle color scheme" title="Toggle color scheme" onClick={()=>setTheme(t=>t==='dark'?'light':'dark')}>{theme==='dark'?<Sun size={19}/>:<Moon size={19}/>}</button><div className="avatar" title="Authenticated operator">GC</div></div></header>
       <div className="content">
         {message && <div className="toast" role="status"><Check size={17}/>{message}<button aria-label="Dismiss message" onClick={()=>setMessage('')}><X size={16}/></button></div>}
         {error && <div className="inline-error page-error" role="alert">{error}<button onClick={()=>setError('')} aria-label="Dismiss error"><X size={16}/></button></div>}
@@ -145,7 +207,7 @@ function App() {
         <footer className="app-footer"><span><Network size={15}/> GoreeCloud Gateway</span><span>Native Caddy engine · Local-first management</span></footer>
       </div>
     </main>
-    {formOpen && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setFormOpen(false)}}><section className="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title"><header><div><div className="eyebrow">MANAGED ROUTING</div><h2 id="dialog-title">{editing?'Edit route':'Add a new site'}</h2></div><button className="icon-button" aria-label="Close dialog" disabled={busy} onClick={()=>setFormOpen(false)}><X size={21}/></button></header><p className="modal-intro">Connect a hostname to an existing HTTP or HTTPS application. Domain TLS is handled by the Caddy engine when eligible.</p><form onSubmit={save}><label htmlFor="hostname">Public hostname</label><input id="hostname" value={host} onChange={e=>setHost(e.target.value)} placeholder="app.example.com" required autoFocus spellCheck={false}/><small>Use a fully qualified hostname, or localhost for local development.</small><label htmlFor="upstream">Upstream address</label><input id="upstream" value={upstream} onChange={e=>setUpstream(e.target.value)} placeholder="http://127.0.0.1:3000" required spellCheck={false}/><small>HTTP(S) URL with no path, credentials, query or fragment.</small>{error&&<div className="inline-error" role="alert">{error}</div>}<div className="modal-actions"><button type="button" className="button outline" disabled={busy} onClick={()=>setFormOpen(false)}>Cancel</button><button type="submit" className="button primary" disabled={busy}>{busy?'Applying…':editing?'Save route':'Create site'} <ArrowRight size={17}/></button></div></form></section></div>}
+    {formOpen && <div className="modal-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setFormOpen(false)}}><section ref={dialogRef} className="modal" role="dialog" aria-modal="true" aria-labelledby="dialog-title" aria-describedby="dialog-description"><header><div><div className="eyebrow">MANAGED ROUTING</div><h2 id="dialog-title">{editing?'Edit route':'Add a new site'}</h2></div><button className="icon-button" aria-label="Close dialog" disabled={busy} onClick={()=>setFormOpen(false)}><X size={21}/></button></header><p id="dialog-description" className="modal-intro">Connect a hostname to an existing HTTP or HTTPS application. Domain TLS is handled by the Caddy engine when eligible.</p><form onSubmit={save}><label htmlFor="hostname">Public hostname</label><input id="hostname" value={host} onChange={e=>setHost(e.target.value)} placeholder="app.example.com" required autoFocus spellCheck={false} aria-describedby="hostname-help"/><small id="hostname-help">Use a fully qualified hostname, or localhost for local development.</small><label htmlFor="upstream">Upstream address</label><input id="upstream" value={upstream} onChange={e=>setUpstream(e.target.value)} placeholder="http://127.0.0.1:3000" required spellCheck={false} aria-describedby="upstream-help"/><small id="upstream-help">HTTP(S) URL with no path, credentials, query or fragment.</small>{error&&<div className="inline-error" role="alert">{error}</div>}<div className="modal-actions"><button type="button" className="button outline" disabled={busy} onClick={()=>setFormOpen(false)}>Cancel</button><button type="submit" className="button primary" disabled={busy}>{busy?'Applying…':editing?'Save route':'Create site'} <ArrowRight size={17}/></button></div></form></section></div>}
   </div>
 }
 

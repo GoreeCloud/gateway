@@ -80,6 +80,19 @@ The optional Python 3 script `scripts/ingress_preflight.py` is **read-only** and
 
 For legacy Caddy patching, independent backup restoration and production recovery, follow the [risk-gated security upgrade plan](docs/LEGACY_CADDY_PATCH_GATES.md). This document is a checklist, **not** an upgrade executor.
 
+## Keyboard and browser accessibility regression
+
+The local-first browser console has a skip-to-content link, modal keyboard focus trapping, Escape dismissal, focus restoration after save/close, and hidden offscreen mobile navigation. To run automated tests against **synthetic, loopback-only API fixtures** (not real Caddy listeners, certificates, DNS or stored production sites):
+
+```sh
+npm ci --prefix web --ignore-scripts
+npm run build --prefix web
+npm exec --prefix web -- playwright install chromium
+npm run test:e2e --prefix web -- --project=chromium
+```
+
+Firefox and WebKit projects are also available when their Playwright browser binaries are installed. These tests establish specific keyboard and DOM behavior only, not a complete WCAG screen-reader/color-contrast certification.
+
 ## Security and limitations
 
 See [staging and production acceptance](docs/STAGING_ACCEPTANCE.md) and [security/MIPS boundaries](docs/SECURITY_AND_MIPS.md) for precise tests and outstanding gates.

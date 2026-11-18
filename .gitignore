@@ -22,3 +22,7 @@ web/.vite/
 # Python synthetic-test cache (never commit local bytecode)
 __pycache__/
 *.pyc
+
+# Playwright browser test outputs
+web/test-results/
+web/playwright-report/
