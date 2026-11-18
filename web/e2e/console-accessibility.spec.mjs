@@ -1,6 +1,7 @@
 // Browser acceptance uses a synthetic loopback HTTP server and fake API data.
 // It never contacts Caddy, protected DNS, production hosts or credentials.
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { createServer } from 'node:http'
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -132,4 +133,39 @@ test('invalid local fixture token does not unlock the UI or store credentials', 
   await expect(page.getByRole('alert')).toContainText('Unauthorized')
   await expect(page.getByRole('heading', { name: /Gateway overview/ })).toHaveCount(0)
   expect(await page.evaluate(() => Object.keys(localStorage))).toEqual([])
+})
+
+test('automated WCAG A/AA audit of synthetic login and console states', async ({ page }) => {
+  async function audit(label) {
+    const results = await new AxeBuilder({ page })
+      .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+      .analyze()
+    const violations = results.violations.map(v => ({
+      id: v.id, impact: v.impact,
+      nodes: v.nodes.slice(0, 3).map(n => ({ target: n.target, summary: n.failureSummary })),
+    }))
+    expect(violations, label + ': automated WCAG A/AA audit violations').toEqual([])
+  }
+  await page.goto(baseURL)
+  await audit('login')
+  await unlock(page)
+  await expect(page.getByRole('heading', { name: /Gateway overview/ })).toBeVisible()
+  await audit('overview')
+  await page.getByRole('button', { name: 'Sites & routes' }).click()
+  await audit('routes')
+  await page.getByRole('button', { name: 'Add site' }).first().click()
+  await audit('route dialog')
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click()
+  await page.getByRole('button', { name: 'Security' }).click()
+  await audit('security')
+  await page.getByRole('button', { name: 'Settings' }).click()
+  await audit('settings')
+  await page.getByRole('button', { name: 'Toggle color scheme' }).click()
+  await audit('settings in light theme')
+  await page.getByRole('button', { name: 'Sites & routes' }).click()
+  await audit('routes in light theme')
+  await page.setViewportSize({ width: 390, height: 800 })
+  await audit('mobile routes in light theme')
+  await page.getByRole('button', { name: 'Open navigation' }).click()
+  await audit('mobile navigation open')
 })

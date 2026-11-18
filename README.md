@@ -91,7 +91,7 @@ npm exec --prefix web -- playwright install chromium
 npm run test:e2e --prefix web -- --project=chromium
 ```
 
-Firefox and WebKit projects are also available when their Playwright browser binaries are installed. These tests establish specific keyboard and DOM behavior only, not a complete WCAG screen-reader/color-contrast certification.
+Firefox and WebKit projects are also available when their Playwright browser binaries are installed. The pinned, development-only axe-core runner additionally scans synthetic login, overview, routes, modal, settings, security, mobile, and dark/light states for WCAG A/AA violations. Automated checks and browser keyboard tests **do not** constitute a complete screen-reader, user, or production accessibility certification.
 
 ## Security and limitations
 

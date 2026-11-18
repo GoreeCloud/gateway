@@ -17,3 +17,5 @@ All original Gateway files are licensed under Apache-2.0 (LICENSE). Dependency l
 **Porkbun Caddy DNS-01 provider** — github.com/caddy-dns/porkbun v0.3.1, MIT, copyright Niall Fitzpatrick. Uses github.com/libdns/porkbun v1.0.1 (MIT). DNS API credentials are not embedded, fetched, or logged by the managed web console. https://github.com/caddy-dns/porkbun
 
 **Playwright Test** — Microsoft, Apache License 2.0, https://playwright.dev/ — pinned development-only browser testing dependency. Playwright browser binaries are not bundled in the GoreeCloud Gateway release archive.
+
+**axe-core / @axe-core/playwright** — Deque Systems, Mozilla Public License 2.0 (MPL-2.0), https://www.deque.com/axe/axe-core/ — pinned development-only accessibility test dependencies. Neither the axe engine nor test runner is bundled in the native Gateway release binary.
