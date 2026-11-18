@@ -13,3 +13,5 @@ GoreeCloud Gateway is an original control plane and console built on upstream Ca
 **esbuild, TypeScript and associated development dependencies** — see package-level license metadata and the checked-in package lockfile.
 
 All original Gateway files are licensed under Apache-2.0 (LICENSE). Dependency licenses remain independently effective. This project does not claim ownership or exclusive authorship of Caddy.
+
+**Porkbun Caddy DNS-01 provider** — github.com/caddy-dns/porkbun v0.3.1, MIT, copyright Niall Fitzpatrick. Uses github.com/libdns/porkbun v1.0.1 (MIT). DNS API credentials are not embedded, fetched, or logged by the managed web console. https://github.com/caddy-dns/porkbun
