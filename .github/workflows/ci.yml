@@ -22,6 +22,8 @@ jobs:
         run: npm ci --prefix web --ignore-scripts && npm run build --prefix web
       - name: Audit pinned web dependencies
         run: npm audit --prefix web --audit-level=high
+      - name: Redacted preflight synthetic tests (no Docker contact)
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
