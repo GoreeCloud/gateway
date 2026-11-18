@@ -44,3 +44,19 @@ For evaluating privately verified legacy Caddy versions against upstream advisor
 - [ ] Confirm health of the existing ingress at runtime, not just Docker container state. Do not replace, stop or restart existing ingress to demonstrate an alpha release.
 
 The upstream `github.com/caddy-dns/porkbun@v0.3.1` provider is MIT licensed, configured by `dns.providers.porkbun` and registers Caddyfile `api_key` and `api_secret_key` fields. The offline test uses inert environment placeholders only; the web editor neither collects nor persists credentials.
+
+
+## Native Linux ARM64 virtual-runner acceptance
+
+The `arm64-runtime` CI job targets GitHub's `ubuntu-24.04-arm` hosted
+**native ARM64 Linux VM** and, once green, demonstrates Caddy Go tests and
+the actual Gateway executable running without cross-architecture emulation.
+It verifies ELF architecture, Caddy/Porkbun modules, authenticated
+loopback status, Host rejection, the read-only default, and private state.
+This is distinct from the existing AMD64-hosted ARM64 cross-build.
+
+A passing native ARM64 hosted-VM test is **not** physical device or kernel
+compatibility certification, DNS-01 production issuance/renewal, full
+routing and authentication parity, backups or approved cutover. Preserve
+`validate` and add `arm64-runtime` as a strict protected branch check
+only after confirming the native runner and job succeed.
