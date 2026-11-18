@@ -95,7 +95,7 @@ Firefox and WebKit projects are also available when their Playwright browser bin
 
 ## Dependency security gate
 
-The required `validate` CI now runs the official `govulncheck@v1.10.0` tool in source mode against the Go vulnerability database. It rejects **reachable** affected Go symbols, while keeping imported-but-unreachable advisories visible for follow-up. Official Go tooling sends module/version metadata to its public vulnerability database, not source files; local tool telemetry is disabled for the CI step. This is a development check, not a runtime security certification or proof of safe production upgrade.
+The required `validate` CI uses patched Go 1.27.4 (while `go.mod` retains the compatible minimum Go 1.26 API version) and runs the official `govulncheck@v1.10.0` tool in source mode against the Go vulnerability database. It rejects **reachable** affected Go symbols, while keeping imported-but-unreachable advisories visible for follow-up. Official Go tooling sends module/version metadata to its public vulnerability database, not source files; local tool telemetry is disabled for the CI step. This is a development check, not a runtime security certification or proof of safe production upgrade.
 
 The dependency security baseline corrects [GO-2026-6865](https://pkg.go.dev/vuln/GO-2026-6865) by pinning `github.com/klauspost/compress` v1.20.2, and updates `golang.org/x/net` to v0.62.0 and `golang.org/x/crypto` to v0.59.0 for their corresponding advisories. Earlier alpha releases used the affected `compress` version and carry explicit release-page warnings.
 
