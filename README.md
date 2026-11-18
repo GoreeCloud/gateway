@@ -18,7 +18,7 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 
 ## Build requirements
 
-Go 1.26+ (current go.mod minimum) and Node.js 22+ with npm (esbuild bundler). For a reproducible build, use the committed npm lockfile and Go sums.
+Go 1.26+ (current go.mod minimum) and Node.js 22+ with npm (esbuild bundler). For dependency-locked builds, use the committed npm lockfile and Go sums. Matching dependencies are not, by themselves, proof of byte-for-byte reproducibility.
 
 ```sh
 cd web
@@ -30,7 +30,23 @@ go test ./...
 go build -trimpath -o gateway .
 ```
 
-**Tagged release builds:** the API defaults to `0.1.0-dev` for source builds. Release packagers must set the public version through the Go linker, for example `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-alpha.2" -o gateway .`, and independently verify the resulting runtime status.
+**Tagged release builds:** the API defaults to `0.1.0-dev` for source builds. Release packagers must set the public version through the Go linker, for example `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-alpha.4" -o gateway .`, and independently verify the resulting runtime status.
+
+## Verify published development artifacts
+
+The [GitHub releases page](https://github.com/GoreeCloud/gateway/releases) contains prerelease binaries and separate SHA-256 checksums. For example, [v0.1.0-alpha.4](https://github.com/GoreeCloud/gateway/releases/tag/v0.1.0-alpha.4) was verified against protected source commit `09d4f54efcd0f97d4bdb82dbe31f331d6370e21a`. Subsequent protected `main` commits may include tests or fixes **not** in the release. Verify exact source, checksum and version, and never infer production readiness from release publication.
+
+After downloading both alpha.4 assets into the same private directory:
+
+```sh
+sha256sum -c SHA256SUMS.txt
+tar -tzf goreecloud-gateway-v0.1.0-alpha.4-linux-amd64.tar.gz | head -25
+tar -xzf goreecloud-gateway-v0.1.0-alpha.4-linux-amd64.tar.gz
+cat BUILDINFO.txt
+go version -m ./gateway
+```
+
+Treat the binary and its archive as untrusted until independently verified; inspection and checksum consistency do not replace maintainer signature, SBOM or upstream provenance acceptance. Older alpha.1–alpha.3 releases have security warnings for affected `klauspost/compress` v1.20.1 source. The alpha.4 binary uses v1.20.2; no published alpha is production-accepted.
 
 ## Local development: management console
 
@@ -111,7 +127,7 @@ Before any production cutover, validate route-by-route parity, TLS, redirects, a
 
 ## Design-system status
 
-The console uses the current GoreeCloud UI **alpha** semantic colors, Iris accent, spacing and shape values from [GoreeCloud/gc-ui](https://github.com/GoreeCloud/gc-ui). These tokens are provisional and do not establish Stable design acceptance. GoreeCloud Shield privacy, Wardveil security, Mesh integration and Identity remain distinct ecosystem responsibilities; deeper integrations are not yet implemented here.
+The console uses the current GoreeCloud UI **alpha** semantic colors, Iris accent, spacing and shape values from [GoreeCloud/gc-ui](https://github.com/GoreeCloud/gc-ui). These tokens are provisional and do not establish Stable design acceptance. GoreeShield privacy, Wardveil cybersecurity, GoreeCloud Mesh integration and GoreeCloud Identity remain distinct ecosystem responsibilities; deeper integrations are not yet implemented here.
 
 ## Source, license and attribution
 
