@@ -28,6 +28,8 @@ go test ./...
 go build -trimpath -o gateway .
 ```
 
+**Tagged release builds:** the API defaults to `0.1.0-dev` for source builds. Release packagers must set the public version through the Go linker, for example `CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-alpha.2" -o gateway .`, and independently verify the resulting runtime status.
+
 ## Local development: management console
 
 Choose a secure random token, preserve it in your password manager, and export it into your session without adding it to shell history:

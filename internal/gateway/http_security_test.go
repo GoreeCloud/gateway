@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,10 +21,12 @@ func TestManagementHostAndAuthorizationHardening(t *testing.T) {
 	handler := Handler(manager, fstest.MapFS{
 		"index.html": &fstest.MapFile{Data: []byte("<html></html>")},
 	}, token, false)
+	attempt := 0
 	tryRequest := func(host string, authorization []string, forwarded string) int {
+		attempt++
 		req := httptest.NewRequest(http.MethodGet, "/api/status", nil)
 		req.Host = host
-		req.RemoteAddr = "127.0.0.1:56789"
+		req.RemoteAddr = fmt.Sprintf("127.0.0.1:%d", 55000+attempt)
 		for _, value := range authorization {
 			req.Header.Add("Authorization", value)
 		}
