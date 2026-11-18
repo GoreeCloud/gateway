@@ -21,3 +21,7 @@ Management route writes now enforce a strict JSON media type and an actual 8 KiB
 ## Residual risk
 
 No application-level persistent audit log, certificate inventory, active upstream checks, account recovery, tenant permissions, signed release update channel, DNS-01 integration test, or production-approved backup/restore. A loopback-only HTTP management console is intended for local access or a separately secured SSH tunnel. **Never expose the console directly to the public Internet or expose the Caddy admin API.** A passing source test is not a live TLS or production security certification.
+
+## Go dependency vulnerability maintenance
+
+The patched source pins `github.com/klauspost/compress` v1.20.2 to remediate [GO-2026-6865](https://pkg.go.dev/vuln/GO-2026-6865), `golang.org/x/net` v0.62.0 for GO-2026-6860 and GO-2026-6866, and `golang.org/x/crypto` v0.59.0 for GO-2026-5932. The protected CI uses patched Go 1.27.4 and `validate` includes the official `govulncheck@v1.10.0` source-reachability scan; module metadata is submitted to the Go vulnerability database and Go telemetry is disabled. Passing it does not prove the absence of all vulnerabilities, protect a deployed legacy Caddy version, or provide live recovery.
