@@ -16,7 +16,7 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 
 ## Build requirements
 
-Go 1.25+ and Node.js 22+ with npm (esbuild bundler). For a reproducible build, use the committed npm lockfile and Go sums.
+Go 1.26+ (current go.mod minimum) and Node.js 22+ with npm (esbuild bundler). For a reproducible build, use the committed npm lockfile and Go sums.
 
 ```sh
 cd web
@@ -69,6 +69,12 @@ All paths other than `GET /api/health` require `Authorization: Bearer <your-toke
 | `DELETE /api/sites/{host}` | Remove a route (when writes enabled) |
 
 Each site is a JSON object such as `{"host":"app.example.com","upstream":"http://127.0.0.1:3000"}`. Hostnames must be DNS-compatible. Upstream URLs must use HTTP or HTTPS and may not include credentials, a non-root path, query or fragment.
+
+## Redacted legacy ingress preflight
+
+The optional Python 3 script `scripts/ingress_preflight.py` is **read-only** and does nothing but show help unless explicitly given `--live`. On an authorized Docker host, `python3 scripts/ingress_preflight.py --live --container caddy` checks selected Caddy/Docker metadata and emits a redacted JSON gate summary. It never prints configuration bodies, token values, host addresses, mounted source paths, certificate data or raw Docker errors. Its local synthetic fixtures run in CI and do not contact a Docker daemon.
+
+**Important:** The result always reports backups, live TLS health, actual route parity, rollback testing, and production-cutover readiness as unverified. It is **not** a backup tool, healthcheck, upgrade executor or substitute for independent recovery testing. See [staging acceptance](docs/STAGING_ACCEPTANCE.md).
 
 ## Security and limitations
 
