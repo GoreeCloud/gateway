@@ -1,0 +1,32 @@
+name: Gateway CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install and build web console
+        run: npm ci --prefix web && npm run build --prefix web
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Go tests and vet
+        run: go test ./... && go vet ./...
+      - name: Native build
+        run: go build -trimpath -o gateway .
+      - name: Confirm Caddy modules are available
+        run: ./gateway list-modules | grep -F http.handlers.reverse_proxy

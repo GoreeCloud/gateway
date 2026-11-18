@@ -1,0 +1,17 @@
+# Local runtime data, secrets, compiled artifacts and dependencies
+.env
+.env.*
+!.env.example
+gateway
+gateway-*
+gateway-sites.json
+gateway-sites.json.*
+*.pem
+*.key
+*.crt
+.web-cache/
+web/node_modules/
+web/.vite/
+.DS_Store
+.idea/
+.vscode/
