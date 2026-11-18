@@ -65,3 +65,32 @@ jobs:
         run: |
           ./gateway list-modules | grep -F http.handlers.reverse_proxy
           ./gateway list-modules | grep -F dns.providers.porkbun
+
+  arm64-runtime:
+    name: arm64-runtime
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # official Node 24
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # official Node 24
+        with:
+          go-version: '1.27.4'
+          cache: true
+      - name: Verify native ARM64 runner and run isolated Caddy Go tests
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = aarch64
+          CGO_ENABLED=0 go test -count=1 ./...
+      - name: Build and execute native ARM64 Linux Gateway
+        env:
+          GATEWAY_SMOKE_EXPECTED_VERSION: 0.1.0-ci-arm64
+        run: |
+          set -euo pipefail
+          CGO_ENABLED=0 go build -trimpath -ldflags="-s -w -X github.com/GoreeCloud/gateway/internal/gateway.Version=0.1.0-ci-arm64" -o gateway .
+          file gateway | grep -E 'ELF 64-bit.*aarch64|ELF 64-bit.*ARM aarch64'
+          go version -m gateway | grep -F 'GOARCH=arm64'
+          ./gateway list-modules | grep -F http.handlers.reverse_proxy
+          ./gateway list-modules | grep -F dns.providers.porkbun
+          bash scripts/ci_native_loopback_smoke.sh
