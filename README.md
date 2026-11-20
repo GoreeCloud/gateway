@@ -7,7 +7,7 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 ## Capabilities
 
 - Native Go executable with upstream Caddy commands (`run`, `adapt`, `validate`, etc.) and a new `serve` mode.
-- Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams.
+- Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams. An authenticated route-validation API previews a candidate without applying it or persisting it, even when write mode is disabled.
 - Caddyfile-to-JSON adaptation with Caddy itself; live configuration load with refusal on error.
 - Atomic JSON state persistence (0600 permissions), rollback when persistence fails, no direct writes to unrelated Caddyfiles. The managed engine uses separate, private Caddy autosave and certificate storage (0700).
 - React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
@@ -108,6 +108,7 @@ All paths other than `GET /api/health` require `Authorization: Bearer <your-toke
 | `GET /api/health` | Minimal process liveness, no sensitive data |
 | `GET /api/status` | Console mode, Caddy state and route count |
 | `GET /api/sites` | List managed site mappings |
+| `POST /api/validate-site` | Authenticated, non-mutating route validation and Caddy adaptation (works in read-only mode) |
 | `POST /api/sites` | Add a route (when writes enabled) |
 | `PUT /api/sites/{host}` | Replace a route (when writes enabled) |
 | `DELETE /api/sites/{host}` | Remove a route (when writes enabled) |
