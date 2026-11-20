@@ -64,6 +64,14 @@ The alpha.6 release includes a Linux ARM64 archive as well as AMD64. Cross-compi
 
 A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. The smoke also verifies the native `/api/validate-site` preview, rejection of unauthenticated or ambiguous requests, and no managed-route persistence. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
 
+## Source-pinned local Linux release builds
+
+Maintainers can use the [reviewed dual-platform packaging script](scripts/package_linux_release.sh)
+and [release build guide](docs/RELEASE_BUILD.md) from a clean checkout to
+build static Linux AMD64/ARM64 development archives, verify their source,
+module metadata, attribution and checksums. This does **not** publish a release,
+add signatures, deploy anything or replace the separate strict GitHub CI gates.
+
 ## Optional hardened Linux systemd service
 
 An **opt-in example** [systemd unit](examples/systemd/goreecloud-gateway.service)
