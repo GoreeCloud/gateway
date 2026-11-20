@@ -34,6 +34,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "inspect-sites" {
+		if err := inspectSites(os.Args[2:], os.Stdout); err != nil {
+			log.Printf("gateway: %v", err)
+			os.Exit(1)
+		}
+		return
+	}
 	// "run", "adapt", "validate", and the other upstream Caddy commands remain available.
 	caddycmd.Main()
 }
