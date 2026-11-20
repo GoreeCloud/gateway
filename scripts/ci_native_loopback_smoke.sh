@@ -61,6 +61,29 @@ read_only="$(curl --noproxy '*' -sS --max-time 3 -o /dev/null -w '%{http_code}' 
   --data '{"host":"example.test","upstream":"http://127.0.0.1:1234"}' \
   "http://127.0.0.1:$port/api/sites")"
 
+# Exercise the authenticated, non-mutating preview against the actual native
+# executable. No hostnames are resolved and no proxy listeners are created.
+preview="$(curl --noproxy '*' -fsS --max-time 3 \
+  -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+  --data '{"host":"preview.example.test","upstream":"http://127.0.0.1:1234"}' \
+  "http://127.0.0.1:$port/api/validate-site")"
+python3 -c 'import json,sys; p=json.loads(sys.stdin.read()); assert p["valid"] is True and p["dryRun"] is True and p["applied"] is False and p["site"]["host"] == "preview.example.test" and p["site"]["upstream"] == "http://127.0.0.1:1234"; print("Native non-mutating route preview: OK")' <<< "$preview"
+
+unauth_preview="$(curl --noproxy '*' -sS --max-time 3 -o /dev/null -w '%{http_code}' \
+  -H 'Content-Type: application/json' \
+  --data '{"host":"preview.example.test","upstream":"http://127.0.0.1:1234"}' \
+  "http://127.0.0.1:$port/api/validate-site")"
+duplicate_preview="$(curl --noproxy '*' -sS --max-time 3 -o /dev/null -w '%{http_code}' \
+  -H "Authorization: Bearer $token" -H 'Content-Type: application/json' \
+  --data '{"Host":"preview.example.test","host":"other.example.test","upstream":"http://127.0.0.1:1234"}' \
+  "http://127.0.0.1:$port/api/validate-site")"
+sites="$(curl --noproxy '*' -fsS --max-time 3 -H "Authorization: Bearer $token" \
+  "http://127.0.0.1:$port/api/sites")"
+python3 -c 'import json,sys; assert json.loads(sys.stdin.read())["sites"] == []' <<< "$sites"
+[[ ! -e "$work/sites.json" ]] || { echo 'Preview unexpectedly persisted a managed route' >&2; exit 1; }
+[[ "$unauth_preview" == 401 ]] || { echo "Unauthenticated preview accepted: $unauth_preview" >&2; exit 1; }
+[[ "$duplicate_preview" == 400 ]] || { echo "Ambiguous preview accepted: $duplicate_preview" >&2; exit 1; }
+
 [[ "$unauthed" == 401 ]] || { echo "Unexpected unauthenticated status: $unauthed" >&2; exit 1; }
 [[ "$bad_host" == 403 ]] || { echo "Unexpected spoofed Host status: $bad_host" >&2; exit 1; }
 [[ "$read_only" == 403 ]] || { echo "Unexpected write status: $read_only" >&2; exit 1; }
