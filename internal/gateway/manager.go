@@ -55,6 +55,9 @@ func Open(path string, loader Loader) (*Manager, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := rejectAmbiguousStoredSites(data); err != nil {
+		return nil, err
+	}
 	var sites []Site
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.DisallowUnknownFields()
