@@ -7,13 +7,13 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 ## Capabilities
 
 - Native Go executable with upstream Caddy commands (`run`, `adapt`, `validate`, etc.) and a new `serve` mode.
-- Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams.
+- Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams. An authenticated route-validation API previews a candidate without applying it or persisting it, even when write mode is disabled.
 - Caddyfile-to-JSON adaptation with Caddy itself; live configuration load with refusal on error.
 - Atomic JSON state persistence (0600 permissions), rollback when persistence fails, no direct writes to unrelated Caddyfiles. The managed engine uses separate, private Caddy autosave and certificate storage (0700).
 - React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
 - Browser control plane defaults to read-only and **only binds a loopback IP**; all private API endpoints require a bearer token.
 - No tracking or cloud account requirement. No persistent browser token storage. Management requests reject DNS-rebound Host headers, rate-limit repeated direct-peer authentication failures, and use stricter browser security headers.
-- Route mutations require exactly one application/json Content-Type (with optional UTF-8 charset); JSON request bodies over 8 KiB return HTTP 413, including otherwise-valid JSON followed by excessive whitespace.
+- Route mutations require exactly one application/json Content-Type (with optional UTF-8 charset); ambiguous duplicate JSON properties are rejected, including case-insensitive field-name collisions. JSON request bodies over 8 KiB return HTTP 413, including otherwise-valid JSON followed by excessive whitespace.
 - Offline tests exercise representative legacy Caddyfile route semantics but do not import or certify the existing production Caddyfile.
 
 ## Build requirements
@@ -62,7 +62,7 @@ go version -m gateway-linux-arm64
 
 The alpha.6 release includes a Linux ARM64 archive as well as AMD64. Cross-compilation and architecture/module checks do **not** establish real ARM64 runtime behavior, production network support or readiness.
 
-A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
+A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. The smoke also verifies the native `/api/validate-site` preview, rejection of unauthenticated or ambiguous requests, and no managed-route persistence. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
 
 ## Source-pinned local Linux release builds
 
@@ -116,6 +116,7 @@ All paths other than `GET /api/health` require `Authorization: Bearer <your-toke
 | `GET /api/health` | Minimal process liveness, no sensitive data |
 | `GET /api/status` | Console mode, Caddy state and route count |
 | `GET /api/sites` | List managed site mappings |
+| `POST /api/validate-site` | Authenticated, non-mutating route validation and Caddy adaptation (works in read-only mode) |
 | `POST /api/sites` | Add a route (when writes enabled) |
 | `PUT /api/sites/{host}` | Replace a route (when writes enabled) |
 | `DELETE /api/sites/{host}` | Remove a route (when writes enabled) |
