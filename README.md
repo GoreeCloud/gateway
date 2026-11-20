@@ -62,7 +62,7 @@ go version -m gateway-linux-arm64
 
 The alpha.6 release includes a Linux ARM64 archive as well as AMD64. Cross-compilation and architecture/module checks do **not** establish real ARM64 runtime behavior, production network support or readiness.
 
-A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
+A separate GitHub Actions `arm64-runtime` job runs the Go/Caddy tests and an authenticated, read-only management smoke natively on a hosted ARM64 Linux VM. The smoke also verifies the native `/api/validate-site` preview, rejection of unauthenticated or ambiguous requests, and no managed-route persistence. It is independent of the older cross-build and does not count as a test on a physical GoreeCloud ARM64 device or production network.
 
 ## Optional hardened Linux systemd service
 
