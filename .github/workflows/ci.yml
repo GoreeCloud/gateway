@@ -22,6 +22,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Install and build web console
         run: npm ci --prefix web --ignore-scripts && npm run build --prefix web
+      - name: Verify pinned GoreeCloud UI source and theme roles
+        run: npm run test:source --prefix web
       - name: Install isolated Chromium for keyboard and UI regression tests
         run: npm exec --prefix web -- playwright install --with-deps chromium
       - name: Browser keyboard and mobile accessibility checks (synthetic API)

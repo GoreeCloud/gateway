@@ -1,20 +1,32 @@
-/* GoreeCloud UI alpha semantic roles, Iris accent, 4px spacing and Cloud material layers.
-   Source of token values: GoreeCloud/gc-ui, tokens/gc.tokens.json (MIT).
-   This console is a consumer implementation, not a Stable gc-ui release. */
+/* Gateway-specific layout and Cloud material layers; official alpha token roles are
+   SHA256-pinned in ./vendor/gc-ui and sourced before this stylesheet.
+   Iris defaults to dark (the existing product choice), independent of OS theme. */
 :root {
-  font-family: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-family:var(--gc-font-ui);
   color-scheme:dark;
-  --canvas:#0D121D;--surface:#171D2A;--tonal:#252D3D;--text:#F2F4FB;--muted:#CED5E5;--outline:#505B70;
-  --brand:#BFB8FF;--onbrand:#272057;--brand-container:#413974;--positive:#95E0BB;--warning:#FFCE83;--negative:#FFB4AB;
-  --border:rgba(164,178,207,.14);--hover:rgba(255,255,255,.055);--shadow:0 20px 56px rgba(0,0,0,.2);
-  --radius:18px;
+  --canvas:var(--gc-canvas);
+  --surface:var(--gc-surface);
+  --tonal:var(--gc-surface-tonal);
+  --text:var(--gc-text);
+  --muted:var(--gc-text-soft);
+  --outline:var(--gc-outline-soft);
+  --brand:var(--gc-brand);
+  --onbrand:var(--gc-on-brand);
+  --brand-container:var(--gc-brand-container);
+  --positive:var(--gc-positive);
+  --warning:var(--gc-warning);
+  --negative:var(--gc-negative);
+  --border:rgba(164,178,207,.14);
+  --hover:rgba(255,255,255,.055);
+  --shadow:0 20px 56px rgba(0,0,0,.2);
+  --radius:var(--gc-radius-md);
   background:var(--canvas);
 }
 :root[data-theme=light] {
   color-scheme:light;
-  --canvas:#F6F7FB;--surface:#FFFFFF;--tonal:#EEF0F7;--text:#1B2030;--muted:#505B70;--outline:#CED3DF;
-  --brand:#5146C8;--onbrand:#FFFFFF;--brand-container:#E8E5FF;--positive:#166B4B;--warning:#955000;--negative:#B3261E;
-  --border:rgba(64,75,107,.12);--hover:rgba(20,25,60,.035);--shadow:0 20px 56px rgba(22,28,49,.1);
+  --border:rgba(64,75,107,.12);
+  --hover:rgba(20,25,60,.035);
+  --shadow:0 20px 56px rgba(22,28,49,.1);
 }
 * {box-sizing:border-box}
 body{margin:0;min-width:320px;font-size:14px;line-height:1.55;background:var(--canvas);color:var(--text)}
