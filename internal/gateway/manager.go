@@ -35,23 +35,10 @@ func Open(path string, loader Loader) (*Manager, error) {
 		return nil, err
 	}
 	m := &Manager{path: path, load: loader}
-	info, err := os.Lstat(path)
+	data, err := readPrivateStoredSites(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return m, nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	if !info.Mode().IsRegular() {
-		return nil, errors.New("sites file must be a regular, non-symlink file")
-	}
-	if info.Mode().Perm()&0077 != 0 {
-		return nil, errors.New("sites file must not be accessible by group or others; chmod 600")
-	}
-	if info.Size() > 256<<10 {
-		return nil, errors.New("sites file too large")
-	}
-	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

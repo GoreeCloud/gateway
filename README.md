@@ -9,7 +9,7 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 - Native Go executable with upstream Caddy commands (`run`, `adapt`, `validate`, etc.) and a new `serve` mode.
 - Managed reverse-proxy routes: add, edit, delete and list hostnames and HTTP(S) upstreams. An authenticated route-validation API previews a candidate without applying it or persisting it, even when write mode is disabled.
 - Caddyfile-to-JSON adaptation with Caddy itself; live configuration load with refusal on error.
-- Atomic JSON state persistence (0600 permissions), strict rejection of ambiguous or malformed saved site arrays on reopen, rollback when persistence fails, no direct writes to unrelated Caddyfiles. The managed engine uses separate, private Caddy autosave and certificate storage (0700).
+- Atomic JSON state persistence (0600 permissions), descriptor-anchored and bounded saved-state reopening with inode/permission checks, strict rejection of ambiguous or malformed saved site arrays, rollback when persistence fails, no direct writes to unrelated Caddyfiles. Trusted parent ownership remains necessary to resist in-place concurrent modifications. The managed engine uses separate, private Caddy autosave and certificate storage (0700).
 - React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
 - Browser control plane defaults to read-only and **only binds a loopback IP**; all private API endpoints require a bearer token.
 - No tracking or cloud account requirement. No persistent browser token storage. Management requests reject DNS-rebound Host headers, rate-limit repeated direct-peer authentication failures, and use stricter browser security headers.
