@@ -12,6 +12,8 @@ func TestReadSiteRejectsAmbiguousDuplicateFields(t *testing.T) {
 	inputs := []string{
 		`{"host":"one.example","host":"two.example","upstream":"http://127.0.0.1:3000"}`,
 		`{"host":"one.example","upstream":"http://127.0.0.1:3000","upstream":"http://127.0.0.1:3001"}`,
+		`{"Host":"one.example","host":"two.example","upstream":"http://127.0.0.1:3000"}`,
+		`{"host":"one.example","UpStream":"http://127.0.0.1:3000","upstream":"http://127.0.0.1:3001"}`,
 	}
 	for _, body := range inputs {
 		request := httptest.NewRequest(http.MethodPost, "/api/sites", strings.NewReader(body))

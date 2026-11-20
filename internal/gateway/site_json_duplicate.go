@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"strings"
 )
 
 // rejectDuplicateSiteFields refuses ambiguous top-level route properties.
@@ -24,10 +25,20 @@ func rejectDuplicateSiteFields(raw []byte) error {
 		if !ok {
 			return errors.New("Invalid site JSON")
 		}
-		if seen[key] {
+		// encoding/json matches struct fields case-insensitively. Compare
+		// the two known route keys with the same Unicode folding semantics
+		// so Host/host or UpStream/upstream cannot silently override.
+		canonical := key
+		switch {
+		case strings.EqualFold(key, "host"):
+			canonical = "host"
+		case strings.EqualFold(key, "upstream"):
+			canonical = "upstream"
+		}
+		if seen[canonical] {
 			return errors.New("Duplicate site JSON field")
 		}
-		seen[key] = true
+		seen[canonical] = true
 		var value json.RawMessage
 		if err := decoder.Decode(&value); err != nil {
 			return errors.New("Invalid site JSON")
