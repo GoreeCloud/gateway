@@ -129,6 +129,25 @@ func (a *api) routeAPI(w http.ResponseWriter, r *http.Request) {
 		sites, running := a.manager.Snapshot()
 		send(w, 200, map[string]any{"name": "GoreeCloud Gateway", "engine": "Caddy v2", "version": Version, "running": running, "siteCount": len(sites), "writable": a.write, "management": "loopback"})
 		return
+	case "/api/validate-site":
+		if r.Method != http.MethodPost {
+			fail(w, http.StatusMethodNotAllowed, "Method not allowed")
+			return
+		}
+		// This endpoint is available even when edits are disabled. It performs
+		// validation and Caddyfile adaptation without calling the live loader,
+		// touching the managed site file, or contacting any upstream.
+		site, err := readSite(w, r)
+		if err != nil {
+			failSiteInput(w, err)
+			return
+		}
+		if _, err := Render([]Site{site}); err != nil {
+			fail(w, http.StatusBadRequest, "Site cannot be adapted by Caddy")
+			return
+		}
+		send(w, http.StatusOK, map[string]any{"valid": true, "dryRun": true, "applied": false, "site": site})
+		return
 	case "/api/sites":
 		if r.Method == http.MethodGet {
 			sites, _ := a.manager.Snapshot()
