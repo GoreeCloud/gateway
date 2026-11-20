@@ -13,7 +13,7 @@ GoreeCloud Gateway packages **Caddy v2.11.9** as an upstream Go dependency and a
 - React browser app with local login, dashboard, route table, search, edit dialogs, dark/light palettes and responsive navigation.
 - Browser control plane defaults to read-only and **only binds a loopback IP**; all private API endpoints require a bearer token.
 - No tracking or cloud account requirement. No persistent browser token storage. Management requests reject DNS-rebound Host headers, rate-limit repeated direct-peer authentication failures, and use stricter browser security headers.
-- Route mutations require exactly one application/json Content-Type (with optional UTF-8 charset); ambiguous duplicate JSON properties are rejected. JSON request bodies over 8 KiB return HTTP 413, including otherwise-valid JSON followed by excessive whitespace.
+- Route mutations require exactly one application/json Content-Type (with optional UTF-8 charset); ambiguous duplicate JSON properties are rejected, including case-insensitive field-name collisions. JSON request bodies over 8 KiB return HTTP 413, including otherwise-valid JSON followed by excessive whitespace.
 - Offline tests exercise representative legacy Caddyfile route semantics but do not import or certify the existing production Caddyfile.
 
 ## Build requirements
