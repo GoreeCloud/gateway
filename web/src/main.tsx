@@ -7,6 +7,7 @@ import {
   Network, Plus, RefreshCw, Search, Server, Settings2,
   ShieldCheck, Sun, Trash2, X
 } from 'lucide-react'
+import './vendor/gc-ui/tokens.css'
 import './styles.css'
 
 type Site = { host: string; upstream: string }
@@ -99,7 +100,7 @@ function App() {
     return () => document.removeEventListener('keydown', onEscape)
   }, [menuOpen])
 
-  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
+  useEffect(() => { document.documentElement.dataset.theme = theme; document.documentElement.dataset.gcTheme = theme }, [theme])
 
   const request = useCallback(async (path: string, init: RequestInit = {}, auth = token) => {
     const response = await fetch(path, { ...init, headers: { Authorization: 'Bearer ' + auth, ...(init.body ? { 'Content-Type': 'application/json' } : {}) }, cache: 'no-store' })

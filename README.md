@@ -143,7 +143,7 @@ npm exec --prefix web -- playwright install chromium
 npm run test:e2e --prefix web -- --project=chromium
 ```
 
-Firefox and WebKit projects are also available when their Playwright browser binaries are installed. The pinned, development-only axe-core runner additionally scans synthetic login, overview, routes, modal, settings, security, mobile, and dark/light states for WCAG A/AA violations. Automated checks and browser keyboard tests **do not** constitute a complete screen-reader, user, or production accessibility certification.
+Firefox and WebKit projects are also available when their Playwright browser binaries are installed. The pinned, development-only axe-core runner additionally scans synthetic login, overview, routes, modal, settings, security, mobile, and dark/light states for WCAG A/AA violations. `npm run test:source --prefix web` validates the imported first-party GoreeCloud UI alpha CSS and its SHA-256/MIT provenance; Gateway defaults to Iris dark and supports an explicit light toggle. The [November 20 scoped browser and physical Android web acceptance report](docs/GC_UI_WEB_ACCEPTANCE_20261120.md) provides actual Chromium/Firefox/Linux WebKit results, source-controlled synthetic screenshots and a cropped local Android Chrome login screenshot. The screenshot automation is opt-in and does not contact an actual Caddy management server. Automated checks and browser keyboard tests **do not** constitute a complete screen-reader, user, founder visual, or production accessibility certification.
 
 ## Dependency security gate
 

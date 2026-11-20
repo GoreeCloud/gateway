@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "upstream": "https://github.com/GoreeCloud/gc-ui",
+  "sourceCommit": "be8b819748d1ef0f6b2d3e786f4b22864cb3d07d",
+  "selection": "source-only-alpha-GoreeCloud-UI-semantic-token-snapshot",
+  "consumer": "GoreeCloud Gateway React console",
+  "scope": "development-web-only",
+  "sha256": {
+    "tokens.css": "ac1237e9bf773ae014b0fa6a4d53a8fbbdaf499e4fbb9111011fbe6325b7b0ba",
+    "LICENSE": "cf6d03d1d5b1a0bf28ce369c3df4a9386ca5fe1449014a2f540a8d21181a10f6"
+  }
+}

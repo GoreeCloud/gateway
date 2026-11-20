@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && node build.mjs",
+    "test:source": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test"
   },
   "dependencies": {

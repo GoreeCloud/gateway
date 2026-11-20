@@ -169,3 +169,88 @@ test('automated WCAG A/AA audit of synthetic login and console states', async ({
   await page.getByRole('button', { name: 'Open navigation' }).click()
   await audit('mobile navigation open')
 })
+
+test('canonical Iris roles render dark/light correctly with compact viewport containment', async ({ page }) => {
+  await unlock(page)
+  await expect(page.getByRole('heading', { name: /Gateway overview/ })).toBeVisible()
+  const roles = () => page.evaluate(() => {
+    const root = document.documentElement
+    const css = getComputedStyle(root)
+    return {
+      sourceTheme: root.dataset.gcTheme,
+      localTheme: root.dataset.theme,
+      sourceBrand: css.getPropertyValue('--gc-brand').trim(),
+      localBrand: css.getPropertyValue('--brand').trim(),
+      sourceCanvas: css.getPropertyValue('--gc-canvas').trim(),
+      localCanvas: css.getPropertyValue('--canvas').trim(),
+      scheme: css.colorScheme,
+      clientWidth: root.clientWidth, documentWidth: root.scrollWidth,
+    }
+  })
+  const dark = await roles()
+  expect(dark.sourceTheme).toBe('dark')
+  expect(dark.localTheme).toBe('dark')
+  expect(dark.sourceBrand).toBe('#BFB8FF')
+  expect(dark.localBrand).toBe(dark.sourceBrand)
+  expect(dark.sourceCanvas).toBe('#0D121D')
+  expect(dark.localCanvas).toBe(dark.sourceCanvas)
+  expect(dark.scheme).toContain('dark')
+
+  await page.getByRole('button', { name: 'Toggle color scheme' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-gc-theme', 'light')
+  const light = await roles()
+  expect(light.sourceBrand).toBe('#5146C8')
+  expect(light.localBrand).toBe(light.sourceBrand)
+  expect(light.sourceCanvas).toBe('#F6F7FB')
+  expect(light.localCanvas).toBe(light.sourceCanvas)
+  expect(light.scheme).toContain('light')
+
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 760 })
+    const compact = await roles()
+    expect(compact.documentWidth, width + 'px viewport must not overflow').toBeLessThanOrEqual(width + 1)
+    await page.getByRole('button', { name: 'Open navigation' }).click()
+    const withMenu = await roles()
+    expect(withMenu.documentWidth, width + 'px open menu must not overflow').toBeLessThanOrEqual(width + 1)
+    await page.keyboard.press('Escape')
+    await expect(page.locator('aside.sidebar')).toHaveCSS('visibility', 'hidden')
+  }
+})
+
+test('opt-in screenshot acceptance of synthetic Gateway desktop/mobile and explicit themes', async ({ page }, info) => {
+  const folder = process.env.GC_QA_SCREENSHOTS_DIR
+  test.skip(!folder, 'Visual evidence capture is opt-in, not an external service')
+  // Run only when an already-existing absolute destination was selected;
+  // never publish screenshots of actual sites, certificates or user accounts.
+  if (!folder.startsWith('/')) throw Error('GC_QA_SCREENSHOTS_DIR must be absolute')
+  const { statSync } = await import('node:fs')
+  const { join } = await import('node:path')
+  if (!statSync(folder).isDirectory()) throw Error('Screenshot directory does not exist')
+
+  await page.setViewportSize({ width: 900, height: 760 })
+  await unlock(page)
+  await expect(page.getByRole('heading', { name: /Gateway overview/ })).toBeVisible()
+  await page.screenshot({ path: join(folder, info.project.name + '-gateway-desktop-dark.png'), fullPage: true })
+
+  await page.getByRole('button', { name: 'Toggle color scheme' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-gc-theme', 'light')
+  await page.getByRole('button', { name: 'Sites & routes' }).click()
+  await page.screenshot({ path: join(folder, info.project.name + '-gateway-desktop-light-sites.png'), fullPage: true })
+
+  await page.getByRole('button', { name: 'Toggle color scheme' }).click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: 'Open navigation' }).click()
+  await page.waitForFunction(() => {
+    const sidebar = document.querySelector('aside.sidebar')
+    if (!sidebar) return false
+    const bounds = sidebar.getBoundingClientRect()
+    return Math.abs(bounds.left) <= 0.5 && bounds.right <= innerWidth + 0.5
+  })
+  await page.screenshot({ path: join(folder, info.project.name + '-gateway-mobile-dark-menu.png'), fullPage: true })
+  await page.keyboard.press('Escape')
+  await expect(page.locator('aside.sidebar')).toHaveCSS('visibility', 'hidden')
+
+  await page.getByRole('button', { name: 'Toggle color scheme' }).click()
+  await page.setViewportSize({ width: 320, height: 760 })
+  await page.screenshot({ path: join(folder, info.project.name + '-gateway-compact-light-sites.png'), fullPage: true })
+})
