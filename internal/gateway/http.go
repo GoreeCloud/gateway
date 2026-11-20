@@ -1,6 +1,7 @@
 package gateway
 
 import (
+	"bytes"
 	"crypto/subtle"
 	"encoding/json"
 	"errors"
@@ -235,7 +236,14 @@ func readSite(w http.ResponseWriter, r *http.Request) (Site, error) {
 	}
 	// Unlike io.LimitReader, MaxBytesReader reports oversized input even if
 	// extra bytes follow otherwise valid JSON or consist only of whitespace.
-	reader := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
+	raw, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 8<<10))
+	if err != nil {
+		return site, siteJSONError(err)
+	}
+	if err := rejectDuplicateSiteFields(raw); err != nil {
+		return site, err
+	}
+	reader := json.NewDecoder(bytes.NewReader(raw))
 	reader.DisallowUnknownFields()
 	if err := reader.Decode(&site); err != nil {
 		return site, siteJSONError(err)
